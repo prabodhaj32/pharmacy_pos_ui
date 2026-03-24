@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- MAIN LAYOUT -->
+    <t t-name="pharmacy_dashboard_layout">
+        <div id="pharmacy_app">
+
+            <!-- SIDEBAR -->
+            <aside class="sidebar" role="navigation" aria-label="Main navigation">
+
+                <header class="logo-section">
+                    <div class="logo">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E" alt="Timolog Pharma Logo" class="logo-icon"/>
+                        <span>Timolog Pharma</span>
+                    </div>
+                    <div class="tagline">Point of Sale</div>
+                </header>
+
+                <nav class="menu" role="menubar">
+                    <ul role="none">
+                        <li class="menu-item active" role="none">
+                            <a href="#" class="menu-link" data-page="dashboard" role="menuitem" aria-current="page">
+                                <span class="menu-icon" aria-hidden="true">📊</span>
+                                <span class="menu-text">Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="sales" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">🛒</span>
+                                <span class="menu-text">Sales (POS)</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="inventory" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">📦</span>
+                                <span class="menu-text">Inventory</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="customers" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">👥</span>
+                                <span class="menu-text">Customers</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="purchasing" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">🚚</span>
+                                <span class="menu-text">Purchasing</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="reports" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">📈</span>
+                                <span class="menu-text">Reports</span>
+                            </a>
+                        </li>
+                        <li class="menu-item" role="none">
+                            <a href="#" class="menu-link" data-page="settings" role="menuitem">
+                                <span class="menu-icon" aria-hidden="true">⚙️</span>
+                                <span class="menu-text">Settings</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <footer class="sidebar-footer">
+                    <div class="theme-toggle">
+                        <label class="switch" for="darkModeToggle">
+                            <input type="checkbox" id="darkModeToggle" aria-label="Toggle dark mode"/>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Dark Mode</span>
+                    </div>
+                    
+                    <button class="logout-btn" title="Logout from system" aria-label="Logout">
+                        <span aria-hidden="true">🚪</span>
+                        <span>Logout</span>
+                    </button>
+                </footer>
+
+            </aside>
+
+            <!-- MAIN CONTENT -->
+            <main class="main-content">
+
+                <!-- TOP BAR -->
+                <header class="topbar" role="banner">
+                    <h1>Dashboard</h1>
+
+                    <div class="top-info">
+                        <span aria-label="Current date">📅 <t t-esc="new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })"/></span>
+                        <span class="status-indicator" aria-label="System status">
+                            <span class="status-dot online" aria-hidden="true"></span>
+                            Online
+                        </span>
+                        <button class="btn" aria-label="Create new bill">
+                            <span aria-hidden="true">🧾</span>
+                            New Bill
+                        </button>
+                        <button class="notification-btn" aria-label="View notifications" aria-describedby="notification-count">
+                            <span aria-hidden="true">🔔</span>
+                            <span id="notification-count" class="notification-count">5</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- DASHBOARD CONTENT -->
+                <section id="dashboard_container" role="main" aria-label="Dashboard content">
+                    <!-- Dashboard content will be rendered here by JavaScript -->
+                </section>
+
+            </main>
+
+        </div>
+    </t>
+
+    <!-- DASHBOARD METRICS TEMPLATE -->
+    <t t-name="dashboard_metrics">
+        <section class="metrics-grid" role="region" aria-label="Key performance indicators">
+            <article class="metric-card success">
+                <div class="metric-header">
+                    <div>
+                        <h3 class="metric-title">Today's Sales</h3>
+                        <p class="metric-value">LKR 48,750</p>
+                        <p class="metric-subtitle">34 invoices</p>
+                    </div>
+                    <div class="metric-icon" aria-hidden="true">💰</div>
+                </div>
+                <div class="metric-change positive">
+                    <span aria-hidden="true">📈</span>
+                    <span>+12.4% vs yesterday</span>
+                </div>
+            </article>
+
+            <article class="metric-card info">
+                <div class="metric-header">
+                    <div>
+                        <h3 class="metric-title">Customers Served</h3>
+                        <p class="metric-value">28</p>
+                        <p class="metric-subtitle">Avg. LKR 1,433.82/bill</p>
+                    </div>
+                    <div class="metric-icon" aria-hidden="true">👥</div>
+                </div>
+                <div class="metric-change positive">
+                    <span aria-hidden="true">📊</span>
+                    <span>+5 customers vs yesterday</span>
+                </div>
+            </article>
+
+            <article class="metric-card success">
+                <div class="metric-header">
+                    <div>
+                        <h3 class="metric-title">Gross Profit</h3>
+                        <p class="metric-value">LKR 18,420</p>
+                        <p class="metric-subtitle">37.8% margin</p>
+                    </div>
+                    <div class="metric-icon" aria-hidden="true">📈</div>
+                </div>
+                <div class="metric-change positive">
+                    <span aria-hidden="true">💹</span>
+                    <span>+8.2% vs yesterday</span>
+                </div>
+            </article>
+
+            <article class="metric-card danger">
+                <div class="metric-header">
+                    <div>
+                        <h3 class="metric-title">Returns Today</h3>
+                        <p class="metric-value">LKR 1,200</p>
+                        <p class="metric-subtitle">2 return transactions</p>
+                    </div>
+                    <div class="metric-icon" aria-hidden="true">🔄</div>
+                </div>
+                <div class="metric-change negative">
+                    <span aria-hidden="true">📉</span>
+                    <span>-LKR 300 vs yesterday</span>
+                </div>
+            </article>
+        </section>
+    </t>
+
+    <!-- CHARTS TEMPLATE -->
+    <t t-name="dashboard_charts">
+        <section class="charts-grid" role="region" aria-label="Charts and analytics">
+            <article class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">Weekly Sales &amp; Profit</h3>
+                        <p class="chart-subtitle">Last 7 days performance</p>
+                    </div>
+                    <select class="chart-filter" aria-label="Filter chart data" onchange="dashboard.updateWeeklyChart(this.value)">
+                        <option value="sales">Sales</option>
+                        <option value="profit">Profit</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weeklyChart" aria-label="Weekly sales and profit chart"></canvas>
+                </div>
+            </article>
+
+            <article class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">Sales by Category</h3>
+                        <p class="chart-subtitle">Today's sales by category</p>
+                    </div>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="categoryChart" aria-label="Sales by category donut chart"></canvas>
+                </div>
+            </article>
+        </section>
+    </t>
+
+    <!-- ADDITIONAL STATS TEMPLATE -->
+    <t t-name="dashboard_stats">
+        <section class="dashboard-grid" role="region" aria-label="Additional statistics">
+            <article class="card">
+                <h3>Low Stock Alerts</h3>
+                <p>12 medicines need restocking</p>
+            </article>
+            <article class="card">
+                <h3>Expiring Soon</h3>
+                <p>8 medicines expire in 30 days</p>
+            </article>
+            <article class="card">
+                <h3>Pending Orders</h3>
+                <p>5 supplier orders pending</p>
+            </article>
+        </section>
+    </t>
+
+    <!-- LEGACY DASHBOARD CONTENT (for backward compatibility) -->
+    <t t-name="PharmacyDashboard">
+        <section class="cards" role="region" aria-label="Dashboard cards">
+            <article class="card">
+                <h3>Today Sales</h3>
+                <p>LKR 48,750</p>
+            </article>
+
+            <article class="card">
+                <h3>Medicines</h3>
+                <p>320</p>
+            </article>
+
+            <article class="card">
+                <h3>Customers</h3>
+                <p>150</p>
+            </article>
+
+            <article class="card danger">
+                <h3>Returns</h3>
+                <p>LKR 1,200</p>
+            </article>
+        </section>
+    </t>
+
+</templates>
