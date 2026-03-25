@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- POS ACTION -->
+    <record id="action_pharmacy_pos" model="ir.actions.client">
+        <field name="name">Pharmacy POS</field>
+        <field name="tag">pharmacy_pos_action</field>
+    </record>
+
+    <!-- POS ROOT TEMPLATE -->
+    <template id="pharmacy_pos_layout">
+        <div id="pos_container" class="pos-container">
+
+            <!-- HEADER -->
+            <div class="pos-header">
+                <h2>Pharmacy POS System</h2>
+                <button class="new-sale-btn">+ New Sale</button>
+            </div>
+
+            <!-- MAIN LAYOUT -->
+            <div class="pos-layout">
+
+                <!-- PRODUCT LIST -->
+                <div class="pos-products">
+                    <h3>Products</h3>
+
+                    <div class="product-list">
+                        <div class="product-card" data-name="Paracetamol" data-price="25">
+                            Paracetamol - LKR 25
+                        </div>
+
+                        <div class="product-card" data-name="Amoxicillin" data-price="45">
+                            Amoxicillin - LKR 45
+                        </div>
+
+                        <div class="product-card" data-name="Vitamin C" data-price="15">
+                            Vitamin C - LKR 15
+                        </div>
+
+                        <div class="product-card" data-name="Insulin" data-price="120">
+                            Insulin - LKR 120
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CART -->
+                <div class="pos-cart">
+                    <h3>Cart</h3>
+
+                    <ul id="cart_items"></ul>
+
+                    <div class="cart-footer">
+                        <h3>Total: <span id="cart_total">LKR 0</span></h3>
+                        <button class="pay-btn">Pay Now</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </template>
+
+</odoo>

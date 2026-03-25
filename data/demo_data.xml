@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ========================= -->
+    <!-- 🏷️ PRODUCT CATEGORIES -->
+    <!-- ========================= -->
+    <record id="cat_medicines" model="product.category">
+        <field name="name">Medicines</field>
+    </record>
+
+    <record id="cat_supplements" model="product.category">
+        <field name="name">Supplements</field>
+    </record>
+
+    <record id="cat_injections" model="product.category">
+        <field name="name">Injections</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 💊 PRODUCTS (POS ITEMS) -->
+    <!-- ========================= -->
+    <record id="prod_paracetamol" model="product.product">
+        <field name="name">Paracetamol 500mg</field>
+        <field name="categ_id" ref="cat_medicines"/>
+        <field name="lst_price">25.00</field>
+    </record>
+
+    <record id="prod_amoxicillin" model="product.product">
+        <field name="name">Amoxicillin 250mg</field>
+        <field name="categ_id" ref="cat_medicines"/>
+        <field name="lst_price">45.00</field>
+    </record>
+
+    <record id="prod_vitamin_c" model="product.product">
+        <field name="name">Vitamin C Tablets</field>
+        <field name="categ_id" ref="cat_supplements"/>
+        <field name="lst_price">15.00</field>
+    </record>
+
+    <record id="prod_insulin" model="product.product">
+        <field name="name">Insulin Injection</field>
+        <field name="categ_id" ref="cat_injections"/>
+        <field name="lst_price">120.00</field>
+    </record>
+
+    <record id="prod_cough_syrup" model="product.product">
+        <field name="name">Cough Syrup</field>
+        <field name="categ_id" ref="cat_medicines"/>
+        <field name="lst_price">35.00</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 👤 CUSTOMERS -->
+    <!-- ========================= -->
+    <record id="cust_kasun" model="res.partner">
+        <field name="name">Kasun Perera</field>
+        <field name="phone">0771234567</field>
+        <field name="customer_rank">1</field>
+    </record>
+
+    <record id="cust_nimal" model="res.partner">
+        <field name="name">Nimal Silva</field>
+        <field name="phone">0719876543</field>
+        <field name="customer_rank">1</field>
+    </record>
+
+    <record id="cust_sachini" model="res.partner">
+        <field name="name">Sachini Fernando</field>
+        <field name="phone">0761122334</field>
+        <field name="customer_rank">1</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 📦 INVENTORY (CUSTOM MODEL) -->
+    <!-- ========================= -->
+    <record id="inv_paracetamol" model="pharmacy.inventory">
+        <field name="name">Paracetamol 500mg</field>
+        <field name="stock">150</field>
+        <field name="price">25.00</field>
+        <field name="expiry_date">2026-12-31</field>
+    </record>
+
+    <record id="inv_amoxicillin" model="pharmacy.inventory">
+        <field name="name">Amoxicillin 250mg</field>
+        <field name="stock">80</field>
+        <field name="price">45.00</field>
+        <field name="expiry_date">2026-10-15</field>
+    </record>
+
+    <record id="inv_vitamin_c" model="pharmacy.inventory">
+        <field name="name">Vitamin C Tablets</field>
+        <field name="stock">200</field>
+        <field name="price">15.00</field>
+        <field name="expiry_date">2027-05-20</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 🧾 POS ORDER 1 -->
+    <!-- ========================= -->
+    <record id="pos_order_1" model="pos.order">
+        <field name="name">POS/0001</field>
+        <field name="partner_id" ref="cust_kasun"/>
+        <field name="amount_total">65.00</field>
+        <field name="state">paid</field>
+    </record>
+
+    <record id="pos_line_1_1" model="pos.order.line">
+        <field name="order_id" ref="pos_order_1"/>
+        <field name="product_id" ref="prod_paracetamol"/>
+        <field name="qty">2</field>
+        <field name="price_unit">25.00</field>
+        <field name="price_subtotal">50.00</field>
+    </record>
+
+    <record id="pos_line_1_2" model="pos.order.line">
+        <field name="order_id" ref="pos_order_1"/>
+        <field name="product_id" ref="prod_vitamin_c"/>
+        <field name="qty">1</field>
+        <field name="price_unit">15.00</field>
+        <field name="price_subtotal">15.00</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 🧾 POS ORDER 2 -->
+    <!-- ========================= -->
+    <record id="pos_order_2" model="pos.order">
+        <field name="name">POS/0002</field>
+        <field name="partner_id" ref="cust_nimal"/>
+        <field name="amount_total">165.00</field>
+        <field name="state">paid</field>
+    </record>
+
+    <record id="pos_line_2_1" model="pos.order.line">
+        <field name="order_id" ref="pos_order_2"/>
+        <field name="product_id" ref="prod_amoxicillin"/>
+        <field name="qty">2</field>
+        <field name="price_unit">45.00</field>
+        <field name="price_subtotal">90.00</field>
+    </record>
+
+    <record id="pos_line_2_2" model="pos.order.line">
+        <field name="order_id" ref="pos_order_2"/>
+        <field name="product_id" ref="prod_insulin"/>
+        <field name="qty">1</field>
+        <field name="price_unit">120.00</field>
+        <field name="price_subtotal">120.00</field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- 📊 DASHBOARD DATA -->
+    <!-- ========================= -->
+    <record id="dashboard_demo" model="pharmacy.dashboard">
+        <field name="name">Main Dashboard</field>
+        <field name="today_sales">48750</field>
+        <field name="customers">28</field>
+        <field name="profit">18420</field>
+        <field name="returns">1200</field>
+    </record>
+
+</odoo>

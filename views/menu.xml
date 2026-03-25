@@ -12,4 +12,9 @@
               parent="menu_pharmacy_root"
               action="action_pharmacy_dashboard"/>
 
+    <menuitem id="menu_pharmacy_pos"
+              name="POS"
+              parent="menu_pharmacy_root"
+              action="action_pos"/>
+
 </odoo>

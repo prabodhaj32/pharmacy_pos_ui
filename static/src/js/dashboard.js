@@ -24,6 +24,11 @@ class PharmacyDashboard extends Component {
 
     renderDashboard() {
         const container = document.getElementById("dashboard_container");
+        const currentDate = new Date().toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric' 
+        });
 
         container.innerHTML = `
             <div class="dashboard">
@@ -97,10 +102,6 @@ class PharmacyDashboard extends Component {
                             <div>
                                 <h3 class="chart-title">Weekly Sales & Profit</h3>
                                 <p class="chart-subtitle">Last 7 days performance</p>
-                                <div class="chart-meta">
-                                    <span class="meta-pill sales">Sales LKR 47.6K</span>
-                                    <span class="meta-pill profit">Profit LKR 12.9K</span>
-                                </div>
                             </div>
                             <select class="chart-filter" aria-label="Filter chart data" onchange="dashboard.updateWeeklyChart(this.value)">
                                 <option value="both">Both</option>
@@ -118,9 +119,6 @@ class PharmacyDashboard extends Component {
                             <div>
                                 <h3 class="chart-title">Sales by Category</h3>
                                 <p class="chart-subtitle">Today's sales by category</p>
-                                <div class="chart-meta">
-                                    <span class="meta-pill neutral">5 active categories</span>
-                                </div>
                             </div>
                         </div>
                         <div class="chart-container">
@@ -159,23 +157,31 @@ class PharmacyDashboard extends Component {
     }
 
     initializeCharts() {
-        this.initializeWeeklyChart('both');
+        this.initializeWeeklyChart();
         this.initializeCategoryChart();
     }
 
-    initializeWeeklyChart(filter = 'both') {
+    initializeWeeklyChart() {
         const canvas = document.getElementById('weeklyChart');
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
         
-        // Mon-Sun weekly area chart sample data
-        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const salesData = [41200, 43800, 42100, 46700, 45200, 48900, 47600];
-        const profitData = [9800, 11200, 10100, 12600, 11900, 13800, 12900];
+        // Generate sample data for the last 7 days
+        const labels = [];
+        const salesData = [];
+        const profitData = [];
+        
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+            salesData.push(Math.floor(Math.random() * 20000) + 30000);
+            profitData.push(Math.floor(Math.random() * 10000) + 10000);
+        }
 
         // Simple line chart drawing (without Chart.js library)
-        this.drawSimpleLineChart(ctx, canvas, labels, salesData, profitData, filter);
+        this.drawSimpleLineChart(ctx, canvas, labels, salesData, profitData);
     }
 
     initializeCategoryChart() {
@@ -197,29 +203,21 @@ class PharmacyDashboard extends Component {
         this.drawSimpleDonutChart(ctx, canvas, data);
     }
 
-    prepareCanvas(ctx, canvas) {
-        const width = Math.max(canvas.offsetWidth || 300, 300);
-        const height = Math.max(canvas.offsetHeight || 200, 200);
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.round(width * dpr);
-        canvas.height = Math.round(height * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        return { width, height };
-    }
-
-    drawSimpleLineChart(ctx, canvas, labels, salesData, profitData, filter = 'both') {
-        const { width, height } = this.prepareCanvas(ctx, canvas);
+    drawSimpleLineChart(ctx, canvas, labels, salesData, profitData) {
+        const width = canvas.width = canvas.offsetWidth * 2;
+        const height = canvas.height = canvas.offsetHeight * 2;
+        ctx.scale(2, 2);
 
         const padding = 40;
-        const chartWidth = width - padding * 2;
-        const chartHeight = height - padding * 2;
+        const chartWidth = canvas.offsetWidth - padding * 2;
+        const chartHeight = canvas.offsetHeight - padding * 2;
 
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
 
         // Draw grid lines
-        ctx.strokeStyle = '#dbeafe';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 0.5;
         
         for (let i = 0; i <= 5; i++) {
             const y = padding + (chartHeight / 5) * i;
@@ -230,127 +228,112 @@ class PharmacyDashboard extends Component {
         }
 
         // Find max value for scaling
-        const activeValues = filter === 'sales'
-            ? salesData
-            : filter === 'profit'
-                ? profitData
-                : [...salesData, ...profitData];
-        const allValues = activeValues.length ? activeValues : [...salesData, ...profitData];
+        const allValues = [...salesData, ...profitData];
         const maxValue = Math.max(...allValues);
         const minValue = 0;
 
-        if (filter === 'sales' || filter === 'both') {
-            const salesGradient = ctx.createLinearGradient(0, padding, 0, padding + chartHeight);
-            salesGradient.addColorStop(0, 'rgba(74, 222, 128, 0.35)');
-            salesGradient.addColorStop(1, 'rgba(74, 222, 128, 0.05)');
-            this.drawAreaSeries(ctx, salesData, padding, chartWidth, chartHeight, minValue, maxValue, salesGradient);
-        }
+        // Draw sales area (filled area)
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
+        ctx.beginPath();
+        salesData.forEach((value, i) => {
+            const x = padding + (chartWidth / (salesData.length - 1)) * i;
+            const y = padding + chartHeight - ((value - minValue) / (maxValue - minValue)) * chartHeight;
+            
+            if (i === 0) {
+                ctx.moveTo(x, padding + chartHeight);
+                ctx.lineTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.lineTo(padding + chartWidth, padding + chartHeight);
+        ctx.closePath();
+        ctx.fill();
 
-        if (filter === 'profit' || filter === 'both') {
-            const profitGradient = ctx.createLinearGradient(0, padding, 0, padding + chartHeight);
-            profitGradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
-            profitGradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)');
-            this.drawAreaSeries(ctx, profitData, padding, chartWidth, chartHeight, minValue, maxValue, profitGradient);
-        }
+        // Draw profit area (filled area)
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.beginPath();
+        profitData.forEach((value, i) => {
+            const x = padding + (chartWidth / (profitData.length - 1)) * i;
+            const y = padding + chartHeight - ((value - minValue) / (maxValue - minValue)) * chartHeight;
+            
+            if (i === 0) {
+                ctx.moveTo(x, padding + chartHeight);
+                ctx.lineTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.lineTo(padding + chartWidth, padding + chartHeight);
+        ctx.closePath();
+        ctx.fill();
 
-        if (filter === 'sales' || filter === 'both') {
-            // Draw sales line
-            this.drawLine(ctx, labels, salesData, padding, chartWidth, chartHeight, '#4ade80', 2, maxValue, minValue);
-        }
+        // Draw sales line
+        this.drawLine(ctx, labels, salesData, padding, chartWidth, chartHeight, '#22c55e', 2, maxValue, minValue);
         
-        if (filter === 'profit' || filter === 'both') {
-            // Draw profit line
-            this.drawLine(ctx, labels, profitData, padding, chartWidth, chartHeight, '#3b82f6', 2, maxValue, minValue);
-        }
+        // Draw profit line
+        this.drawLine(ctx, labels, profitData, padding, chartWidth, chartHeight, '#3b82f6', 2, maxValue, minValue);
 
         // Draw labels
         ctx.fillStyle = '#64748b';
-        ctx.font = '11px Inter';
+        ctx.font = '10px Inter';
         labels.forEach((label, i) => {
             const x = padding + (chartWidth / (labels.length - 1)) * i;
-            ctx.fillText(label, x - 12, height - 10);
+            ctx.fillText(label, x - 15, canvas.offsetHeight - 10);
         });
 
         // Draw legend
-        let legendX = padding;
-        if (filter === 'sales' || filter === 'both') {
-            ctx.fillStyle = '#4ade80';
-            ctx.fillRect(legendX, 10, 10, 10);
-            ctx.fillStyle = '#64748b';
-            ctx.fillText('Sales', legendX + 15, 18);
-            legendX += 66;
-        }
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(padding, 10, 10, 10);
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('Sales', padding + 15, 18);
 
-        if (filter === 'profit' || filter === 'both') {
-            ctx.fillStyle = '#3b82f6';
-            ctx.fillRect(legendX, 10, 10, 10);
-            ctx.fillStyle = '#64748b';
-            ctx.fillText('Profit', legendX + 15, 18);
-        }
-    }
-
-    drawAreaSeries(ctx, data, padding, chartWidth, chartHeight, minValue, maxValue, fillStyle) {
-        const range = Math.max(maxValue - minValue, 1);
-        const points = data.map((value, index) => ({
-            x: padding + (chartWidth / (data.length - 1)) * index,
-            y: padding + chartHeight - ((value - minValue) / range) * chartHeight
-        }));
-
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, padding + chartHeight);
-        ctx.lineTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const point = points[i];
-            const cx = (prev.x + point.x) / 2;
-            ctx.quadraticCurveTo(prev.x, prev.y, cx, (prev.y + point.y) / 2);
-        }
-        const last = points[points.length - 1];
-        ctx.lineTo(last.x, last.y);
-        ctx.lineTo(last.x, padding + chartHeight);
-        ctx.closePath();
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(padding + 60, 10, 10, 10);
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('Profit', padding + 75, 18);
     }
 
     drawLine(ctx, labels, data, padding, chartWidth, chartHeight, color, lineWidth, maxValue, minValue) {
-        const range = Math.max(maxValue - minValue, 1);
+        const range = maxValue - minValue;
 
         ctx.strokeStyle = color;
         ctx.lineWidth = lineWidth;
         ctx.beginPath();
-        const points = data.map((value, index) => ({
-            x: padding + (chartWidth / (data.length - 1)) * index,
-            y: padding + chartHeight - ((value - minValue) / range) * chartHeight
-        }));
 
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const point = points[i];
-            const cx = (prev.x + point.x) / 2;
-            ctx.quadraticCurveTo(prev.x, prev.y, cx, (prev.y + point.y) / 2);
-        }
-        const last = points[points.length - 1];
-        ctx.lineTo(last.x, last.y);
+        data.forEach((value, i) => {
+            const x = padding + (chartWidth / (data.length - 1)) * i;
+            const y = padding + chartHeight - ((value - minValue) / range) * chartHeight;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
 
         ctx.stroke();
 
         // Draw points
         ctx.fillStyle = color;
-        points.forEach((point) => {
+        data.forEach((value, i) => {
+            const x = padding + (chartWidth / (data.length - 1)) * i;
+            const y = padding + chartHeight - ((value - minValue) / range) * chartHeight;
+            
             ctx.beginPath();
-            ctx.arc(point.x, point.y, 3.5, 0, Math.PI * 2);
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
             ctx.fill();
         });
     }
 
     drawSimpleDonutChart(ctx, canvas, data) {
-        const { width, height } = this.prepareCanvas(ctx, canvas);
+        const width = canvas.width = canvas.offsetWidth * 2;
+        const height = canvas.height = canvas.offsetHeight * 2;
+        ctx.scale(2, 2);
 
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(centerX, centerY) - 52;
+        const centerX = canvas.offsetWidth / 2;
+        const centerY = canvas.offsetHeight / 2;
+        const radius = Math.min(centerX, centerY) - 30;
         const innerRadius = radius * 0.6;
 
         ctx.clearRect(0, 0, width, height);
@@ -368,19 +351,15 @@ class PharmacyDashboard extends Component {
             ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true);
             ctx.closePath();
             ctx.fill();
-            ctx.strokeStyle = '#f8fafc';
-            ctx.lineWidth = 2;
-            ctx.stroke();
 
-            // Draw label (percentage)
+            // Draw label
             const labelAngle = currentAngle + sliceAngle / 2;
-            const labelX = centerX + Math.cos(labelAngle) * (radius + 35);
-            const labelY = centerY + Math.sin(labelAngle) * (radius + 35);
+            const labelX = centerX + Math.cos(labelAngle) * (radius + 20);
+            const labelY = centerY + Math.sin(labelAngle) * (radius + 20);
             
             ctx.fillStyle = '#64748b';
-            ctx.font = '12px Inter';
+            ctx.font = '10px Inter';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
             ctx.fillText(`${segment.value}%`, labelX, labelY);
 
             currentAngle += sliceAngle;
@@ -388,16 +367,14 @@ class PharmacyDashboard extends Component {
 
         // Draw center text
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 18px Inter';
+        ctx.font = 'bold 14px Inter';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
         ctx.fillText('Categories', centerX, centerY);
-
     }
 
     updateWeeklyChart(filter) {
         // Re-render chart with different data based on filter
-        this.initializeWeeklyChart(filter);
+        this.initializeWeeklyChart();
     }
 
     startAutoRefresh() {
@@ -460,15 +437,7 @@ class PharmacyDashboard extends Component {
                 this.renderDashboard();
                 break;
             case 'sales':
-                container.innerHTML = `
-                    <div class="dashboard">
-                        <h2>Sales (POS)</h2>
-                        <div class="sales-content">
-                            <p>Sales management interface will be implemented here.</p>
-                            <button class="btn" onclick="this.startNewSale()">🧾 Start New Sale</button>
-                        </div>
-                    </div>
-                `;
+                this.renderPharmacyPOS();
                 break;
             case 'inventory':
                 container.innerHTML = `
@@ -583,6 +552,764 @@ class PharmacyDashboard extends Component {
         
         // Redirect to login page or perform logout action
         window.location.href = '/web/session/logout';
+    }
+
+    renderPharmacyPOS() {
+        const container = document.getElementById("dashboard_container");
+        
+        container.innerHTML = `
+            <div class="pharmacy-pos">
+                <!-- POS Action Bar (Top) -->
+                <section class="pos-action-bar">
+                    <button class="action-btn camera-btn" onclick="pharmacyPOS.openCamera()" title="Open Camera">
+                        📷 Camera
+                    </button>
+                    <button class="action-btn customer-btn" onclick="pharmacyPOS.selectWalkInCustomer()" title="Walk-in Customer">
+                        🧍 Walk-in Customer
+                    </button>
+                    <button class="action-btn hold-btn" onclick="pharmacyPOS.holdBill()" title="Hold Bill">
+                        ⏸ Hold Bill
+                    </button>
+                    <button class="action-btn returns-btn" onclick="pharmacyPOS.handleReturns()" title="Returns">
+                        🔁 Returns
+                    </button>
+                </section>
+
+                <!-- Top Section: Search -->
+                <div class="pos-top-section">
+                    <!-- Search Section (Full Width) -->
+                    <section class="search-section-full">
+                        <div class="search-container">
+                            <input 
+                                type="text" 
+                                class="search-input" 
+                                placeholder="🔍 Scan or search to add items"
+                                id="medicineSearch"
+                                onkeyup="pharmacyPOS.searchMedicines(this.value)"
+                            />
+                            <div class="search-suggestions" id="searchSuggestions"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Main Content Grid: Sales Table + Cart Split -->
+                <div class="pos-main-grid-split-75-35">
+                    <!-- Sales Table Section (Left - 75%) -->
+                    <div class="pos-sales-table-75">
+                        <div class="sales-table-container">
+                            <h3>🛒 Sales Table</h3>
+                            <div class="cart-table-container">
+                                <table class="cart-table" id="cartTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Item Name</th>
+                                            <th>Batch/Expiry</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Disc%</th>
+                                            <th>Total</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cartTableBody">
+                                        <tr class="cart-empty-row">
+                                            <td colspan="7" class="cart-empty">
+                                                <p>Table is empty</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cart Component (Right - 35%) -->
+                    <div class="pos-cart-35">
+                        <div class="cart-container">
+                            <h2>🛒 Sales Cart</h2>
+                            <div class="cart-summary">
+                                <div class="cart-totals">
+                                    <div class="subtotal-row">
+                                        <span>Subtotal:</span>
+                                        <span id="cartSubtotal">$0.00</span>
+                                    </div>
+                                    <div class="discount-row">
+                                        <span>Total Discount:</span>
+                                        <span id="cartDiscount">$0.00</span>
+                                    </div>
+                                    <div class="total-row">
+                                        <strong>Grand Total:</strong>
+                                        <strong id="cartTotal">$0.00</strong>
+                                    </div>
+                                </div>
+                                <div class="cart-actions">
+                                    <button class="btn btn-primary" onclick="pharmacyPOS.checkout()">
+                                        🧾 Pay
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="pharmacyPOS.clearCart()">
+                                        🧹 Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        `;
+
+        // Initialize POS functionality
+        setTimeout(() => {
+            this.initializePOS();
+        }, 100);
+    }
+
+    initializePOS() {
+        // Make pharmacyPOS globally available
+        window.pharmacyPOS = this;
+        
+        // Load products
+        this.loadProducts();
+        
+        // Initialize cart
+        this.cart = [];
+        this.updateCartDisplay();
+        
+        // Initialize customer
+        this.currentCustomer = {
+            name: "Walk-in Customer",
+            isWalkIn: true
+        };
+        
+        // Initialize held bills
+        this.heldBills = [];
+        
+        // Render products grid
+        this.renderProducts(this.products);
+    }
+    
+    openCamera() {
+        alert('📷 Camera feature - Open barcode scanner\n\nIntegrate with camera/barcode scanning device.');
+    }
+    
+    selectWalkInCustomer() {
+        const customerName = prompt('Enter customer name (leave blank for Walk-in):', 'Walk-in Customer');
+        if (customerName !== null) {
+            this.currentCustomer = {
+                name: customerName || 'Walk-in Customer',
+                isWalkIn: customerName === '' || customerName === 'Walk-in Customer'
+            };
+            alert(`🧍 Customer selected: ${this.currentCustomer.name}`);
+        }
+    }
+    
+    holdBill() {
+        if (this.cart.length === 0) {
+            alert('⏸ Cart is empty. Add items before holding a bill.');
+            return;
+        }
+        
+        const billName = prompt('Enter bill reference name:', `Bill_${Date.now()}`);
+        if (billName) {
+            this.heldBills.push({
+                id: Date.now(),
+                name: billName,
+                items: [...this.cart],
+                total: this.getCartTotal(),
+                timestamp: new Date().toLocaleString()
+            });
+            
+            alert(`⏸ Bill held successfully!\n\nBill: ${billName}\nItems: ${this.cart.length}\nTotal: $${this.getCartTotal().toFixed(2)}`);
+            this.clearCart();
+        }
+    }
+    
+    handleReturns() {
+        if (this.heldBills.length === 0) {
+            alert('🔁 No held bills available for returns.');
+            return;
+        }
+        
+        let billsList = 'Available Bills for Returns:\n\n';
+        this.heldBills.forEach((bill, index) => {
+            billsList += `${index + 1}. ${bill.name} - $${bill.total.toFixed(2)} (${bill.timestamp})\n`;
+        });
+        
+        const billIndex = prompt(billsList + '\nEnter bill number (or cancel):');
+        
+        if (billIndex && !isNaN(billIndex)) {
+            const index = parseInt(billIndex) - 1;
+            if (index >= 0 && index < this.heldBills.length) {
+                const bill = this.heldBills[index];
+                alert(`🔁 Processing return for: ${bill.name}\n\nOriginal Items: ${bill.items.length}\nReturn Amount: $${bill.total.toFixed(2)}`);
+                this.heldBills.splice(index, 1);
+            }
+        }
+    }
+    
+    getCartTotal() {
+        return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    }
+
+    loadProducts() {
+        this.products = [
+            {
+                id: 1,
+                name: "Paracetamol 500mg",
+                category: "tablets",
+                price: 2.00,
+                stock: 120,
+                icon: "💊",
+                prescription: false,
+                batch: "BCH001",
+                expiry: "2025-12-31"
+            },
+            {
+                id: 2,
+                name: "Amoxicillin 250mg",
+                category: "antibiotics",
+                price: 5.00,
+                stock: 80,
+                icon: "💊",
+                prescription: true,
+                batch: "BCH002",
+                expiry: "2024-08-15"
+            },
+            {
+                id: 3,
+                name: "Cough Syrup (Benylin)",
+                category: "syrups",
+                price: 4.00,
+                stock: 60,
+                icon: "💊",
+                prescription: false,
+                batch: "BCH003",
+                expiry: "2025-03-20"
+            },
+            {
+                id: 4,
+                name: "Insulin Injection",
+                category: "injections",
+                price: 25.00,
+                stock: 15,
+                icon: "💉",
+                prescription: true,
+                batch: "BCH004",
+                expiry: "2024-06-10"
+            },
+            {
+                id: 5,
+                name: "Burn Cream",
+                category: "ointments",
+                price: 3.00,
+                stock: 40,
+                icon: "🧴",
+                prescription: false,
+                batch: "BCH005",
+                expiry: "2025-09-30"
+            },
+            {
+                id: 6,
+                name: "Vitamin C Tablets",
+                category: "supplements",
+                price: 6.00,
+                stock: 200,
+                icon: "🧪",
+                prescription: false,
+                batch: "BCH006",
+                expiry: "2026-01-15"
+            },
+            {
+                id: 7,
+                name: "Bandage Roll",
+                category: "firstaid",
+                price: 1.50,
+                stock: 150,
+                icon: "🚑",
+                prescription: false,
+                batch: "BCH007",
+                expiry: "2025-11-25"
+            }
+        ];
+    }
+
+    renderProducts(productsToRender) {
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) return;
+
+        productsGrid.innerHTML = productsToRender.map(product => `
+            <div class="product-card" data-category="${product.category}">
+                <div class="product-icon">${product.icon}</div>
+                <div class="product-info">
+                    <h3 class="product-name">${product.name}</h3>
+                    <p class="product-category">Category: ${this.getCategoryName(product.category)}</p>
+                    <p class="product-price">💰 Price: $${product.price.toFixed(2)}</p>
+                    <p class="product-stock ${product.stock < 20 ? 'low-stock' : ''}">
+                        📦 Stock: ${product.stock} in stock
+                        ${product.stock < 20 ? '⚠️ Low Stock' : ''}
+                    </p>
+                    ${product.prescription ? '<p class="prescription-required">⚠️ Prescription Required</p>' : ''}
+                </div>
+                <div class="product-actions">
+                    <button class="btn btn-add-cart" onclick="pharmacyPOS.addToCart(${product.id})">
+                        ➕ Add to Cart
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getCategoryName(category) {
+        const categoryNames = {
+            tablets: "Tablets",
+            syrups: "Syrups",
+            injections: "Injections",
+            ointments: "Ointments",
+            supplements: "Supplements",
+            devices: "Medical Devices",
+            firstaid: "First Aid",
+            personal: "Personal Care",
+            antibiotics: "Antibiotics",
+            chronic: "Chronic Care"
+        };
+        return categoryNames[category] || category;
+    }
+
+    searchMedicines(query) {
+        const suggestionsContainer = document.getElementById('searchSuggestions');
+        
+        if (!query.trim()) {
+            suggestionsContainer.innerHTML = '';
+            return;
+        }
+        
+        const filtered = this.products.filter(product => 
+            product.name.toLowerCase().includes(query.toLowerCase()) ||
+            product.category.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        if (filtered.length === 0) {
+            suggestionsContainer.innerHTML = '<div class="suggestion-item no-results">No products found</div>';
+            return;
+        }
+        
+        suggestionsContainer.innerHTML = filtered.map(product => `
+            <div class="suggestion-item" onclick="pharmacyPOS.addToCartFromSearch(${product.id}, '${product.name.replace(/'/g, "\\'")}')">
+                <div class="suggestion-icon">${product.icon}</div>
+                <div class="suggestion-info">
+                    <div class="suggestion-name">${product.name}</div>
+                    <div class="suggestion-details">
+                        💰 $${product.price.toFixed(2)} | 📦 ${product.stock} in stock
+                    </div>
+                </div>
+                <div class="suggestion-action">➕</div>
+            </div>
+        `).join('');
+    }
+    
+    filterByCategory(category) {
+        let filtered = this.products;
+        if (category !== 'all') {
+            filtered = this.products.filter(product => product.category === category);
+        }
+        this.renderProducts(filtered);
+    }
+    
+    addToCartFromSearch(productId, productName) {
+        const product = this.products.find(p => p.id === productId);
+        if (!product) return;
+        
+        this.addToCart(productId);
+        
+        // Clear search and show confirmation
+        const searchInput = document.getElementById('medicineSearch');
+        searchInput.value = '';
+        document.getElementById('searchSuggestions').innerHTML = '';
+        
+        // Show brief notification
+        const notification = document.createElement('div');
+        notification.className = 'add-notification';
+        notification.textContent = `✅ ${productName} added to cart`;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 2000);
+    }
+
+    addToCart(productId) {
+        const product = this.products.find(p => p.id === productId);
+        if (!product) return;
+
+        const existingItem = this.cart.find(item => item.id === productId);
+        if (existingItem) {
+            existingItem.quantity++;
+        } else {
+            this.cart.push({
+                ...product,
+                quantity: 1,
+                discount: 0 // Default discount percentage
+            });
+        }
+
+        this.updateCartDisplay();
+    }
+
+    removeFromCart(productId) {
+        this.cart = this.cart.filter(item => item.id !== productId);
+        this.updateCartDisplay();
+    }
+
+    updateQuantity(productId, change) {
+        const item = this.cart.find(item => item.id === productId);
+        if (item) {
+            item.quantity += change;
+            if (item.quantity <= 0) {
+                this.removeFromCart(productId);
+            } else {
+                this.updateCartDisplay();
+            }
+        }
+    }
+
+    updateCartDisplay() {
+        const cartTableBody = document.getElementById('cartTableBody');
+        const cartSubtotal = document.getElementById('cartSubtotal');
+        const cartDiscount = document.getElementById('cartDiscount');
+        const cartTotal = document.getElementById('cartTotal');
+        
+        if (!cartTableBody || !cartSubtotal || !cartDiscount || !cartTotal) return;
+
+        if (this.cart.length === 0) {
+            cartTableBody.innerHTML = `
+                <tr class="cart-empty-row">
+                    <td colspan="7" class="cart-empty">
+                        <p>Cart is empty</p>
+                    </td>
+                </tr>
+            `;
+            cartSubtotal.textContent = '$0.00';
+            cartDiscount.textContent = '$0.00';
+            cartTotal.textContent = '$0.00';
+            return;
+        }
+
+        // Generate table rows
+        cartTableBody.innerHTML = this.cart.map(item => {
+            const itemTotal = item.price * item.quantity;
+            const discountAmount = itemTotal * (item.discount / 100);
+            const finalTotal = itemTotal - discountAmount;
+            
+            return `
+                <tr class="cart-row" data-item-id="${item.id}">
+                    <td class="item-name">
+                        <div class="product-info">
+                            <span class="name">${item.name}</span>
+                            <span class="icon">${item.icon}</span>
+                        </div>
+                    </td>
+                    <td class="batch-expiry">
+                        <div class="batch-info">
+                            <span class="batch">${item.batch}</span>
+                            <span class="expiry">${this.formatDate(item.expiry)}</span>
+                        </div>
+                    </td>
+                    <td class="quantity">
+                        <div class="quantity-controls">
+                            <button class="btn-quantity" onclick="pharmacyPOS.updateQuantity(${item.id}, -1)">-</button>
+                            <span class="quantity-value">${item.quantity}</span>
+                            <button class="btn-quantity" onclick="pharmacyPOS.updateQuantity(${item.id}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td class="unit-price">$${item.price.toFixed(2)}</td>
+                    <td class="discount">
+                        <div class="discount-controls">
+                            <input type="number" 
+                                   class="discount-input" 
+                                   value="${item.discount}" 
+                                   min="0" 
+                                   max="100" 
+                                   step="0.1"
+                                   onchange="pharmacyPOS.updateDiscount(${item.id}, this.value)"
+                                   onclick="this.select()">
+                            <span>%</span>
+                        </div>
+                    </td>
+                    <td class="item-total">$${finalTotal.toFixed(2)}</td>
+                    <td class="actions">
+                        <button class="btn-remove" onclick="pharmacyPOS.removeFromCart(${item.id})" title="Remove item">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Calculate totals
+        const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const totalDiscount = this.cart.reduce((sum, item) => {
+            const itemTotal = item.price * item.quantity;
+            return sum + (itemTotal * (item.discount / 100));
+        }, 0);
+        const grandTotal = subtotal - totalDiscount;
+
+        // Update totals display
+        cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
+        cartDiscount.textContent = `$${totalDiscount.toFixed(2)}`;
+        cartTotal.textContent = `$${grandTotal.toFixed(2)}`;
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            year: 'numeric' 
+        });
+    }
+
+    updateDiscount(productId, discountValue) {
+        const item = this.cart.find(item => item.id === productId);
+        if (item) {
+            item.discount = Math.max(0, Math.min(100, parseFloat(discountValue) || 0));
+            this.updateCartDisplay();
+        }
+    }
+
+    clearCart() {
+        if (confirm('Are you sure you want to clear the cart?')) {
+            this.cart = [];
+            this.updateCartDisplay();
+        }
+    }
+
+    checkout() {
+        if (this.cart.length === 0) {
+            alert('Your cart is empty!');
+            return;
+        }
+        
+        const total = this.calculateGrandTotal();
+        const existingDropdown = document.getElementById('paymentDropdown');
+        
+        if (existingDropdown) {
+            existingDropdown.remove();
+            return;
+        }
+        
+        // Create dropdown within the cart
+        const dropdown = document.createElement('div');
+        dropdown.id = 'paymentDropdown';
+        dropdown.className = 'payment-dropdown';
+        dropdown.innerHTML = `
+            <div class="payment-dropdown-content">
+                <div class="payment-dropdown-header">
+                    <h4>💳 Payment Details</h4>
+                </div>
+                <div class="payment-dropdown-body">
+                    <div class="payment-total">
+                        <div class="total-row">
+                            <span>TOTAL</span>
+                            <span class="total-amount">LKR ${total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="payment-methods">
+                        <div class="payment-method active" data-method="cash">
+                            <label>
+                                <input type="radio" name="payment" value="cash" checked>
+                                <span>💵 Cash</span>
+                            </label>
+                        </div>
+                        <div class="payment-method" data-method="card">
+                            <label>
+                                <input type="radio" name="payment" value="card">
+                                <span>💳 Card</span>
+                            </label>
+                        </div>
+                        <div class="payment-method" data-method="credit">
+                            <label>
+                                <input type="radio" name="payment" value="credit">
+                                <span>🏦 Credit</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="payment-amount">
+                        <label>Amount Paid (LKR)</label>
+                        <input type="number" id="amountPaid" value="${total.toFixed(2)}" step="0.01" min="0">
+                        <div class="quick-amounts">
+                            <button onclick="pharmacyPOS.setAmount(10)">LKR 10</button>
+                            <button onclick="pharmacyPOS.setAmount(100)">LKR 100</button>
+                            <button onclick="pharmacyPOS.setAmount(500)">LKR 500</button>
+                            <button onclick="pharmacyPOS.setAmount(1000)">LKR 1000</button>
+                        </div>
+                    </div>
+                    <div class="payment-balance">
+                        <div class="balance-row">
+                            <span>Balance</span>
+                            <span class="balance-amount" id="balanceAmount">LKR ${total.toFixed(2)} (due)</span>
+                        </div>
+                    </div>
+                    <div class="payment-actions">
+                        <button class="btn btn-success btn-large" onclick="pharmacyPOS.completeSale()">
+                            🧾 Complete Sale & Print Receipt
+                        </button>
+                        <button class="btn btn-secondary" onclick="pharmacyPOS.backToCart()">
+                            ← Back to cart
+                        </button>
+                        <button class="btn btn-danger" onclick="pharmacyPOS.clearCart(); pharmacyPOS.closePaymentDropdown();">
+                            🧹 Clear Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert dropdown after cart summary
+        const cartSummary = document.querySelector('.pos-cart-35 .cart-summary');
+        if (cartSummary) {
+            cartSummary.appendChild(dropdown);
+        }
+        
+        // Setup payment calculation
+        this.setupPaymentCalculation();
+    }
+
+    closePaymentDropdown() {
+        const dropdown = document.getElementById('paymentDropdown');
+        if (dropdown) {
+            dropdown.remove();
+        }
+    }
+
+    setupPaymentCalculation() {
+        const amountPaid = document.getElementById('amountPaid');
+        const balanceAmount = document.getElementById('balanceAmount');
+        const total = this.calculateGrandTotal();
+        
+        const updateBalance = () => {
+            const paid = parseFloat(amountPaid.value) || 0;
+            const balance = total - paid;
+            balanceAmount.textContent = balance > 0 ? 
+                `LKR ${balance.toFixed(2)} (due)` : 
+                `LKR ${Math.abs(balance).toFixed(2)} (change)`;
+        };
+        
+        amountPaid.addEventListener('input', updateBalance);
+        updateBalance();
+    }
+
+    setAmount(amount) {
+        document.getElementById('amountPaid').value = amount;
+        this.setupPaymentCalculation();
+    }
+
+    completeSale() {
+        const total = this.calculateGrandTotal();
+        const amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        
+        if (amountPaid < total && paymentMethod !== 'credit') {
+            alert('Insufficient payment amount!');
+            return;
+        }
+        
+        // Process sale
+        const sale = {
+            id: Date.now(),
+            items: [...this.cart],
+            total: total,
+            amountPaid: amountPaid,
+            paymentMethod: paymentMethod,
+            customer: this.currentCustomer,
+            timestamp: new Date().toLocaleString()
+        };
+        
+        // Store sale (in real implementation, save to database)
+        if (!this.salesHistory) this.salesHistory = [];
+        this.salesHistory.push(sale);
+        
+        this.showNotification(`🧾 Sale completed - LKR ${total.toFixed(2)}`, 'success');
+        this.clearCart(false);
+        this.closePaymentDropdown();
+        
+        // Print receipt (simulation)
+        this.printReceipt(sale);
+    }
+
+    printReceipt(sale) {
+        let receipt = `🏥 PHARMACY RECEIPT\n`;
+        receipt += `====================\n`;
+        receipt += `Date: ${sale.timestamp}\n`;
+        receipt += `Customer: ${sale.customer.name}\n`;
+        receipt += `Payment: ${sale.paymentMethod}\n\n`;
+        receipt += `ITEMS:\n`;
+        sale.items.forEach(item => {
+            receipt += `${item.name} x${item.quantity} - LKR ${(item.price * item.quantity).toFixed(2)}\n`;
+        });
+        receipt += `\nTOTAL: LKR ${sale.total.toFixed(2)}\n`;
+        receipt += `PAID: LKR ${sale.amountPaid.toFixed(2)}\n`;
+        receipt += `CHANGE: LKR ${(sale.amountPaid - sale.total).toFixed(2)}\n`;
+        receipt += `====================\n`;
+        receipt += `Thank you for your purchase!\n`;
+        
+        console.log(receipt);
+        alert('🧾 Receipt printed (check console for details)');
+    }
+
+    backToCart() {
+        this.closePaymentDropdown();
+    }
+
+    // Helper methods for calculations
+    calculateSubtotal() {
+        return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    calculateTotalDiscount() {
+        return this.cart.reduce((sum, item) => {
+            const itemTotal = item.price * item.quantity;
+            return sum + (itemTotal * (item.discount / 100));
+        }, 0);
+    }
+
+    calculateGrandTotal() {
+        return this.calculateSubtotal() - this.calculateTotalDiscount();
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        // Set background color based on type
+        const colors = {
+            success: '#22c55e',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    payNow() {
+        if (this.cart.length === 0) {
+            alert('Your cart is empty!');
+            return;
+        }
+        alert('Payment functionality would be implemented here');
     }
 
     startNewSale() {

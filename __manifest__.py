@@ -7,12 +7,14 @@
 
     'data': [
         'views/menu.xml',
+        'views/pos_views.xml',
     ],
 
     'assets': {
         'web.assets_backend': [
             'pharmacy_pos_ui/static/src/css/style.css',
             'pharmacy_pos_ui/static/src/js/dashboard.js',
+            'pharmacy_pos_ui/static/src/js/pos.js',
             'pharmacy_pos_ui/static/src/xml/templates.xml',
              'pharmacy_pos_ui/static/src/lib/chart.min.js',
         ],

@@ -93,10 +93,6 @@
                             <span class="status-dot online" aria-hidden="true"></span>
                             Online
                         </span>
-                        <button class="btn" aria-label="Create new bill">
-                            <span aria-hidden="true">🧾</span>
-                            New Bill
-                        </button>
                         <button class="notification-btn" aria-label="View notifications" aria-describedby="notification-count">
                             <span aria-hidden="true">🔔</span>
                             <span id="notification-count" class="notification-count">5</span>
