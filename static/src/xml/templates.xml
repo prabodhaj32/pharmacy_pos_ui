@@ -227,6 +227,13 @@
         </section>
     </t>
 
+    <!-- INVENTORY TEMPLATE -->
+    <t t-name="pharmacy_inventory_layout">
+        <div id="pharmacy_inventory_app">
+            <!-- Inventory content will be rendered here by JavaScript -->
+        </div>
+    </t>
+
     <!-- LEGACY DASHBOARD CONTENT (for backward compatibility) -->
     <t t-name="PharmacyDashboard">
         <section class="cards" role="region" aria-label="Dashboard cards">

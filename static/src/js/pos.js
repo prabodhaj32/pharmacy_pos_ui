@@ -1,87 +1,95 @@
-/** @odoo-module **/
+odoo.define('pharmacy_pos_ui.pos', function (require) {
+'use strict';
 
-import { registry } from "@web/core/registry";
-import { Component, onMounted } from "@odoo/owl";
+var core = require('web.core');
+var Widget = require('web.Widget');
 
-class PharmacyPOS extends Component {
+var PharmacyPOS = Widget.extend({
+    template: 'pharmacy_pos_template',
+    
+    init: function (parent, options) {
+        this._super(parent, options);
+        this.cart = [];
+        this.total = 0;
+    },
+    
+    start: function () {
+        this._super();
+        this.initializeProducts();
+        this.initializePayment();
+        this.initializeNewSale();
+        return this;
+    },
 
-    setup() {
-        onMounted(() => {
-            this.cart = [];
-            this.total = 0;
+    initializeProducts: function () {
+        var self = this;
+        var products = document.querySelectorAll(".product-card");
+        var cartItems = document.getElementById("cart_items");
+        var cartTotal = document.getElementById("cart_total");
 
-            this.initializeProducts();
-            this.initializePayment();
-            this.initializeNewSale();
-        });
-    }
-
-    // 🛒 PRODUCT CLICK HANDLER
-    initializeProducts() {
-        const products = document.querySelectorAll(".product-card");
-        const cartItems = document.getElementById("cart_items");
-        const cartTotal = document.getElementById("cart_total");
-
-        products.forEach(product => {
-            product.addEventListener("click", () => {
-
-                const name = product.dataset.name;
-                const price = parseFloat(product.dataset.price);
+        products.forEach(function(product) {
+            product.addEventListener("click", function() {
+                var name = product.dataset.name;
+                var price = parseFloat(product.dataset.price);
 
                 // add to cart
-                this.cart.push({ name, price });
-                this.total += price;
+                self.cart.push({ name: name, price: price });
+                self.total += price;
 
                 // UI update
-                const li = document.createElement("li");
-                li.textContent = `${name} - LKR ${price}`;
+                var li = document.createElement("li");
+                li.textContent = name + " - LKR " + price;
                 cartItems.appendChild(li);
 
-                cartTotal.textContent = `LKR ${this.total.toLocaleString()}`;
+                cartTotal.textContent = "LKR " + self.total.toLocaleString();
             });
         });
-    }
+    },
 
-    // 💳 PAYMENT
-    initializePayment() {
-        const payBtn = document.querySelector(".pay-btn");
+    initializePayment: function () {
+        var self = this;
+        var payBtn = document.querySelector(".pay-btn");
 
         if (payBtn) {
-            payBtn.addEventListener("click", () => {
-                if (this.cart.length === 0) {
+            payBtn.addEventListener("click", function() {
+                if (self.cart.length === 0) {
                     alert("Cart is empty!");
                     return;
                 }
 
-                alert(`Payment Successful! Total: LKR ${this.total}`);
+                alert("Payment Successful! Total: LKR " + self.total);
 
                 // reset
-                this.cart = [];
-                this.total = 0;
+                self.cart = [];
+                self.total = 0;
 
                 document.getElementById("cart_items").innerHTML = "";
                 document.getElementById("cart_total").textContent = "LKR 0";
             });
         }
-    }
+    },
 
-    // 🆕 NEW SALE
-    initializeNewSale() {
-        const newSaleBtn = document.querySelector(".new-sale-btn");
+    initializeNewSale: function () {
+        var self = this;
+        var newSaleBtn = document.querySelector(".new-sale-btn");
 
         if (newSaleBtn) {
-            newSaleBtn.addEventListener("click", () => {
-                this.cart = [];
-                this.total = 0;
+            newSaleBtn.addEventListener("click", function() {
+                self.cart = [];
+                self.total = 0;
 
                 document.getElementById("cart_items").innerHTML = "";
                 document.getElementById("cart_total").textContent = "LKR 0";
             });
         }
     }
-}
+});
 
-// Register POS action in Odoo
-PharmacyPOS.template = "pharmacy_pos_layout";
+// Register the action
+core.action_registry.add('action_pos', PharmacyPOS);
 
-registry.category("actions").add("pharmacy_pos_action", PharmacyPOS);
+return {
+    PharmacyPOS: PharmacyPOS
+};
+
+});

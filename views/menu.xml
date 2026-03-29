@@ -1,20 +1,39 @@
 <odoo>
 
+
+
    <record id="action_pharmacy_dashboard" model="ir.actions.client">
+
     <field name="name">Pharmacy Dashboard</field>
+
     <field name="tag">pharmacy_dashboard_action</field>
+
 </record>
+
+
 
     <menuitem id="menu_pharmacy_root" name="Pharmacy POS"/>
 
+
+
     <menuitem id="menu_pharmacy_dashboard"
+
               name="Dashboard"
+
               parent="menu_pharmacy_root"
+
               action="action_pharmacy_dashboard"/>
 
+
+
     <menuitem id="menu_pharmacy_pos"
+
               name="POS"
+
               parent="menu_pharmacy_root"
+
               action="action_pos"/>
+
+
 
 </odoo>
