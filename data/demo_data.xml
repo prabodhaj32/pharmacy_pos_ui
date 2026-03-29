@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<!-- <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
     <!-- ========================= -->
@@ -48,6 +48,12 @@
         <field name="name">Cough Syrup</field>
         <field name="categ_id" ref="cat_medicines"/>
         <field name="lst_price">35.00</field>
+    </record>
+
+    <record id="prod_cough_syrup" model="product.product">
+        <field name="name">Cough Syrup 100</field>
+        <field name="categ_id" ref="cat_medicines"/>
+        <field name="lst_price">34.00</field>
     </record>
 
 
@@ -163,4 +169,4 @@
         <field name="returns">1200</field>
     </record>
 
-</odoo>
+</odoo> -->

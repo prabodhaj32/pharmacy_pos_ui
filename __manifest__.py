@@ -12,6 +12,7 @@
 
     'assets': {
         'web.assets_backend': [
+            'pharmacy_pos_ui/static/src/js/data/medicine_data.js',
             'pharmacy_pos_ui/static/src/css/style.css',
             'pharmacy_pos_ui/static/src/js/dashboard.js',
             'pharmacy_pos_ui/static/src/js/pos.js',

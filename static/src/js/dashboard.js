@@ -2,11 +2,18 @@
 
 import { registry } from "@web/core/registry";
 import { Component, onMounted, onWillUnmount } from "@odoo/owl";
+import { medicines } from "./data/medicine_data.js";
+
 
 class PharmacyDashboard extends Component {
     setup() {
         this.charts = {};
         this.refreshInterval = null;
+        this.customers = [];
+        this.selectedCustomer = null;
+        
+        // Initialize customer data
+        this.initializeCustomerData();
         
         onMounted(() => {
             this.renderDashboard();
@@ -443,34 +450,13 @@ class PharmacyDashboard extends Component {
                 this.renderInventory();
                 break;
             case 'customers':
-                container.innerHTML = `
-                    <div class="dashboard">
-                        <h2>Customer Management</h2>
-                        <div class="customers-content">
-                            <p>Customer management interface will be implemented here.</p>
-                        </div>
-                    </div>
-                `;
+                this.renderCustomers();
                 break;
             case 'purchasing':
-                container.innerHTML = `
-                    <div class="dashboard">
-                        <h2>Purchasing</h2>
-                        <div class="purchasing-content">
-                            <p>Purchasing management interface will be implemented here.</p>
-                        </div>
-                    </div>
-                `;
+                this.renderPurchasing();
                 break;
             case 'reports':
-                container.innerHTML = `
-                    <div class="dashboard">
-                        <h2>Reports</h2>
-                        <div class="reports-content">
-                            <p>Reports and analytics interface will be implemented here.</p>
-                        </div>
-                    </div>
-                `;
+                this.renderReports();
                 break;
             case 'settings':
                 container.innerHTML = `
@@ -487,177 +473,428 @@ class PharmacyDashboard extends Component {
         }
     }
 
+    renderReports() {
+        const container = document.getElementById("dashboard_container");
+        
+        // Use current date for date pickers in correct format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Format LKR correctly for exact requirements
+        const formatValue = (val) => `LKR ${val.toLocaleString()}`;
+
+        container.innerHTML = `
+            <div class="dashboard reports-dashboard">
+                <div class="reports-header-row">
+                    <div class="reports-title-section">
+                        <h2>Reports & Analytics</h2>
+                        <span class="subtitle">Insights and data export</span>
+                    </div>
+
+                    <div class="reports-controls-bar">
+                        <div class="date-range">
+                            <input type="date" value="${today}" class="date-input compact" />
+                            <span class="date-separator">to</span>
+                            <input type="date" value="${today}" class="date-input compact" />
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary compact" id="btnExportCSV">
+                                <span class="btn-icon">📄</span> Export CSV
+                            </button>
+                            <button class="btn btn-secondary compact" id="btnPrintReport">
+                                <span class="btn-icon">🖨️</span> Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reports-tabs">
+                    <button class="tab-btn active">Daily Sales</button>
+                    <button class="tab-btn">Profit Report</button>
+                    <button class="tab-btn">Fast Movers</button>
+                    <button class="tab-btn">Expiry Report</button>
+                    <button class="tab-btn">Stock Valuation</button>
+                    <button class="tab-btn">Cashier Summary</button>
+                </div>
+
+                <div class="metrics-grid reports-metrics-grid">
+                    <div class="metric-card success">
+                        <div class="metric-header">
+                            <div>
+                                <h3 class="metric-title">Gross Sales</h3>
+                                <p class="metric-value">LKR 48,750</p>
+                            </div>
+                            <div class="metric-icon">💰</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card info">
+                        <div class="metric-header">
+                            <div>
+                                <h3 class="metric-title">Net Sales</h3>
+                                <p class="metric-value">LKR 47,550</p>
+                            </div>
+                            <div class="metric-icon">💵</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card warning">
+                        <div class="metric-header">
+                            <div>
+                                <h3 class="metric-title">Total Discount</h3>
+                                <p class="metric-value">LKR 1,200</p>
+                            </div>
+                            <div class="metric-icon">🏷️</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card danger">
+                        <div class="metric-header">
+                            <div>
+                                <h3 class="metric-title">Total Returns</h3>
+                                <p class="metric-value">LKR 1,200</p>
+                            </div>
+                            <div class="metric-icon">🔄</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card" style="border-left: 4px solid #8b5cf6">
+                        <div class="metric-header">
+                            <div>
+                                <h3 class="metric-title">Tax Collected</h3>
+                                <p class="metric-value">LKR 180</p>
+                            </div>
+                            <div class="metric-icon">📋</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid reports-charts">
+                    <div class="chart-card full-width reports-weekly-trend-card">
+                        <div class="reports-weekly-trend-head">
+                            <h3 class="chart-title reports-weekly-trend-title">Weekly Sales Trend</h3>
+                            <div class="reports-weekly-trend-legend" aria-hidden="true">
+                                <span class="reports-weekly-trend-legend-item"><i class="dot sales"></i>Sales</span>
+                                <span class="reports-weekly-trend-legend-item"><i class="dot profit"></i>Profit</span>
+                            </div>
+                        </div>
+                        <div class="chart-container reports-weekly-trend-canvas-wrap">
+                            <canvas id="reportsTrendChart" aria-label="Weekly Sales Trend"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupReportsHandlers();
+
+        // Initialize reports chart after rendering
+        setTimeout(() => {
+            this.initializeReportsChart();
+        }, 100);
+    }
+
+    setupReportsHandlers() {
+        const tabs = document.querySelectorAll('.reports-tabs .tab-btn');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                tabs.forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                // Could refresh data based on tab here
+            });
+        });
+
+        // Add event listeners for Export and Print buttons
+        const btnExportCSV = document.getElementById('btnExportCSV');
+        if (btnExportCSV) {
+            btnExportCSV.addEventListener('click', () => {
+                this.exportReportsCSV();
+            });
+        }
+
+        const btnPrintReport = document.getElementById('btnPrintReport');
+        if (btnPrintReport) {
+            btnPrintReport.addEventListener('click', () => {
+                window.print();
+            });
+        }
+    }
+
+    exportReportsCSV() {
+        const csvContent = "data:text/csv;charset=utf-8," + 
+            "Report,Gross Sales,Net Sales,Total Discount,Total Returns,Tax Collected\\n" +
+            "Summary,48750,47550,1200,1200,180\\n" +
+            "\\n" +
+            "Day,Sales,Profit\\n" +
+            "Mon,35000,9500\\n" +
+            "Tue,48000,12000\\n" +
+            "Wed,42000,10500\\n" +
+            "Thu,61000,16000\\n" +
+            "Fri,78000,22000\\n" +
+            "Sat,72000,19500\\n" +
+            "Sun,48750,12400\\n";
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "pharmacy_reports.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    initializeReportsChart() {
+        const canvas = document.getElementById('reportsTrendChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        
+        // Exact requested data spanning Monday to Sunday
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        
+        // Data ranging between 0 and 80k roughly as requested
+        const salesData = [35000, 48000, 42000, 61000, 78000, 72000, 48750];
+        const profitData = [9500, 12000, 10500, 16000, 22000, 19500, 12400];
+
+        // Draw animated modern bar chart
+        this.drawAnimatedBarChart(ctx, canvas, labels, salesData, profitData);
+    }
+
+    drawAnimatedBarChart(ctx, canvas, labels, salesData, profitData) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const logicalW = canvas.offsetWidth;
+        const logicalH = canvas.offsetHeight;
+        canvas.width = Math.round(logicalW * dpr);
+        canvas.height = Math.round(logicalH * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const padL = 40;
+        const padR = 15;
+        const padT = 12;
+        const padB = 30;
+
+        const chartWidth = logicalW - padL - padR;
+        const chartHeight = logicalH - padT - padB;
+
+        const maxValue = 80000;
+        const minValue = 0;
+
+        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+        const easeOutElastic = (t) => {
+            const c4 = (2 * Math.PI) / 3;
+            return t === 0
+                ? 0
+                : t === 1
+                ? 1
+                : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+        };
+        const stagger = 0.08;
+        const barRadius = 6;
+        const totalFrames = 64;
+        let frame = 0;
+
+        const colorSalesTop = '#5eead4';
+        const colorSalesMid = '#14b8a6';
+        const colorSalesBot = '#0d9488';
+        const colorProfitTop = '#86efac';
+        const colorProfitMid = '#16a34a';
+        const colorProfitBot = '#15803d';
+
+        const fillBarRoundedTop = (x, y, w, h, r, gradient) => {
+            if (h <= 0.5) return;
+            const rad = Math.min(r, w / 2, h);
+            ctx.save();
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y + h);
+            ctx.lineTo(x, y + rad);
+            ctx.quadraticCurveTo(x, y, x + rad, y);
+            ctx.lineTo(x + w - rad, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+            ctx.lineTo(x + w, y + h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        };
+
+        const createGradient = (ctx, x, y, h, colorTop, colorMid, colorBot) => {
+            const gradient = ctx.createLinearGradient(0, y, 0, y + h);
+            gradient.addColorStop(0, colorTop);
+            gradient.addColorStop(0.5, colorMid);
+            gradient.addColorStop(1, colorBot);
+            return gradient;
+        };
+
+        const groupProgress = (globalT, index) => {
+            const raw = (globalT - index * stagger) / (1 - stagger * (labels.length - 1));
+            return Math.max(0, Math.min(1, raw));
+        };
+
+        const renderFrame = () => {
+            frame += 1;
+            const linearT = Math.min(1, frame / totalFrames);
+            const easedGlobal = easeOutCubic(linearT);
+
+            const appEl = document.getElementById('pharmacy_app');
+            const isDark = appEl && appEl.classList.contains('dark-mode');
+            const plotBg = isDark ? 'rgba(30, 41, 59, 0.35)' : 'rgba(248, 250, 252, 0.8)';
+            const gridMajor = isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(148, 163, 184, 0.25)';
+            const gridMinor = isDark ? 'rgba(71, 85, 105, 0.25)' : 'rgba(203, 213, 225, 0.35)';
+            const axisColor = isDark ? 'rgba(148, 163, 184, 0.7)' : 'rgba(100, 116, 139, 0.6)';
+            const labelMuted = isDark ? '#94a3b8' : '#64748b';
+            const labelPrimary = isDark ? '#e2e8f0' : '#334155';
+
+            ctx.clearRect(0, 0, logicalW, logicalH);
+
+            // Draw plot background with gradient
+            const bgGradient = ctx.createLinearGradient(padL, padT, padL, padT + chartHeight);
+            bgGradient.addColorStop(0, isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(248, 250, 252, 0.9)');
+            bgGradient.addColorStop(1, isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(241, 245, 249, 0.7)');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(padL, padT, chartWidth, chartHeight);
+
+            ctx.fillStyle = labelMuted;
+            ctx.font = '10px Inter, system-ui, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i <= 4; i++) {
+                const stepY = padT + (chartHeight / 4) * i;
+                const value = 80 - i * 20;
+
+                if (i < 4) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 5]);
+                    ctx.strokeStyle = gridMajor;
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(padL, stepY);
+                    ctx.lineTo(padL + chartWidth, stepY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                ctx.beginPath();
+                ctx.strokeStyle = axisColor;
+                ctx.lineWidth = 1;
+                ctx.moveTo(padL - 3, stepY);
+                ctx.lineTo(padL, stepY);
+                ctx.stroke();
+
+                const labelText = i === 4 ? '0' : `${value}k`;
+                ctx.fillText(labelText, padL - 6, stepY);
+            }
+
+            const segmentWidth = chartWidth / labels.length;
+            const barWidth = Math.min(segmentWidth * 0.32, 22);
+            const groupWidth = barWidth * 2 + 3;
+            const gapBetweenPairs = 3;
+
+            ctx.save();
+            ctx.setLineDash([3, 5]);
+            ctx.strokeStyle = gridMinor;
+            ctx.lineWidth = 1;
+            labels.forEach((_, i) => {
+                const centerX = padL + segmentWidth * i + segmentWidth / 2;
+                ctx.beginPath();
+                ctx.moveTo(centerX, padT);
+                ctx.lineTo(centerX, padT + chartHeight);
+                ctx.stroke();
+            });
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.strokeStyle = axisColor;
+            ctx.lineWidth = 1;
+            ctx.moveTo(padL, padT);
+            ctx.lineTo(padL, padT + chartHeight);
+            ctx.lineTo(padL + chartWidth, padT + chartHeight);
+            ctx.stroke();
+
+            labels.forEach((label, i) => {
+                const gp = easeOutElastic(groupProgress(easedGlobal, i));
+                const groupX = padL + segmentWidth * i + (segmentWidth - groupWidth) / 2;
+
+                const sFull = ((salesData[i] - minValue) / (maxValue - minValue)) * chartHeight;
+                const sHeight = sFull * gp;
+                const sY = padT + chartHeight - sHeight;
+                if (sHeight > 0) {
+                    const salesGradient = createGradient(ctx, groupX, sY, sHeight, colorSalesTop, colorSalesMid, colorSalesBot);
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(13, 148, 136, 0.3)';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetY = 3;
+                    fillBarRoundedTop(groupX, sY, barWidth, sHeight, barRadius, salesGradient);
+                    ctx.restore();
+                }
+
+                const pFull = ((profitData[i] - minValue) / (maxValue - minValue)) * chartHeight;
+                const pHeight = pFull * gp;
+                const pY = padT + chartHeight - pHeight;
+                const px = groupX + barWidth + gapBetweenPairs;
+                if (pHeight > 0) {
+                    const profitGradient = createGradient(ctx, px, pY, pHeight, colorProfitTop, colorProfitMid, colorProfitBot);
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(22, 163, 74, 0.25)';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowOffsetY = 2;
+                    fillBarRoundedTop(px, pY, barWidth, pHeight, barRadius, profitGradient);
+                    ctx.restore();
+                }
+
+                // Enhanced axis ticks
+                const centerX = padL + segmentWidth * i + segmentWidth / 2;
+                ctx.beginPath();
+                ctx.strokeStyle = axisColor;
+                ctx.lineWidth = 2;
+                ctx.moveTo(centerX, padT + chartHeight);
+                ctx.lineTo(centerX, padT + chartHeight + 4);
+                ctx.stroke();
+
+                // Enhanced labels
+                ctx.fillStyle = labelPrimary;
+                ctx.font = '11px Inter, system-ui, sans-serif';
+                ctx.fontWeight = '500';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(label, centerX, padT + chartHeight + 8);
+            });
+
+            if (frame < totalFrames) {
+                requestAnimationFrame(renderFrame);
+            }
+        };
+
+        requestAnimationFrame(renderFrame);
+    }
+
+    roundRect(ctx, x, y, width, height, radius) {
+        if (width < 2 * radius) radius = width / 2;
+        if (height < 2 * radius) radius = height / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + width, y, x + width, y + height, radius);
+        ctx.arcTo(x + width, y + height, x, y + height, radius);
+        ctx.arcTo(x, y + height, x, y, radius);
+        ctx.arcTo(x, y, x + width, y, radius);
+        ctx.closePath();
+    }
+
     ensureInventoryData() {
         if (this.inventoryItems && this.inventoryItems.length) return;
         this.inventoryItems = [];
         this.loadInventoryItems();
     }
-
+// ========================================================================
     loadInventoryItems() {
-        // Sample inventory data for UI rendering.
-        // In real usage, this should come from Odoo models / RPC calls.
-        this.inventoryItems = [
-            {
-                id: 1,
-                icon: "💊",
-                name: "Amoxicillin 500",
-                generic: "Amoxicillin (Capsule)",
-                barcode: "8901234567002",
-                category: "Antibiotics",
-                batch: "BT-AMO-2025-001",
-                expiryDate: "2027-04-30",
-                expiryLabel: "30 Apr 2027",
-                stock: 200,
-                cost: 15.0,
-                price: 30.0,
-                rxOnly: true,
-                controlled: false,
-            },
-            {
-                id: 2,
-                icon: "💊",
-                name: "Augmentin 625",
-                generic: "Amoxicillin/Clavulanate Tablet",
-                barcode: "8901234557003",
-                category: "Antibiotics",
-                batch: "BT-AUG-2025-001",
-                expiryDate: "2026-12-31",
-                expiryLabel: "31 Dec 2026",
-                stock: 120,
-                cost: 85.0,
-                price: 145.0,
-                rxOnly: true,
-                controlled: false,
-            },
-            {
-                id: 3,
-                icon: "💊",
-                name: "Cetirizine 10",
-                generic: "Cetirizine HCl",
-                barcode: "8901234557004",
-                category: "Allergy",
-                batch: "BT-CET-2025-001",
-                expiryDate: "2027-08-31",
-                expiryLabel: "31 Aug 2027",
-                stock: 348,
-                cost: 5.0,
-                price: 10.0,
-                rxOnly: false,
-                controlled: false,
-            },
-            {
-                id: 4,
-                icon: "💊",
-                name: "Diazepam 5",
-                generic: "Diazepam Tablet",
-                barcode: "8901234557005",
-                category: "Sedatives",
-                batch: "BT-DIA-2025-001",
-                expiryDate: "2026-08-31",
-                expiryLabel: "31 Aug 2026",
-                stock: 30,
-                cost: 18.0,
-                price: 40.0,
-                rxOnly: true,
-                controlled: true,
-            },
-            {
-                id: 5,
-                icon: "💊",
-                name: "Losartan 50",
-                generic: "Losartan Potassium Tablet",
-                barcode: "8901234557006",
-                category: "Cardiovascular",
-                batch: "BT-LOS-2025-001",
-                expiryDate: "2027-09-30",
-                expiryLabel: "30 Sep 2027",
-                stock: 300,
-                cost: 12.0,
-                price: 25.0,
-                rxOnly: false,
-                controlled: false,
-            },
-            {
-                id: 6,
-                icon: "💊",
-                name: "Metformin 500",
-                generic: "Metformin Tablet",
-                barcode: "8901234557007",
-                category: "Antidiabetics",
-                batch: "BT-MET-2025-001",
-                expiryDate: "2026-06-15",
-                expiryLabel: "15 Jun 2026",
-                stock: 18,
-                cost: 6.0,
-                price: 12.0,
-                rxOnly: false,
-                controlled: false,
-            },
-            {
-                id: 7,
-                icon: "💊",
-                name: "Omeprazole 20",
-                generic: "Omeprazole Capsule",
-                barcode: "8901234557008",
-                category: "Gastrointestinal",
-                batch: "BT-OME-2025-001",
-                expiryDate: "2026-07-20",
-                expiryLabel: "20 Jul 2026",
-                stock: 52,
-                cost: 8.5,
-                price: 18.0,
-                rxOnly: false,
-                controlled: false,
-            },
-            {
-                id: 8,
-                icon: "💊",
-                name: "Amoxicillin 250",
-                generic: "Amoxicillin Capsule",
-                barcode: "8901234557009",
-                category: "Antibiotics",
-                batch: "BT-AMO-2025-002",
-                expiryDate: "2027-01-10",
-                expiryLabel: "10 Jan 2027",
-                stock: 75,
-                cost: 3.5,
-                price: 8.0,
-                rxOnly: true,
-                controlled: false,
-            },
-            {
-                id: 9,
-                icon: "💉",
-                name: "Insulin Injection",
-                generic: "Insulin (Injection)",
-                barcode: "8901234557010",
-                category: "Hormones",
-                batch: "BT-INS-2025-001",
-                expiryDate: "2026-05-30",
-                expiryLabel: "30 May 2026",
-                stock: 10,
-                cost: 45.0,
-                price: 90.0,
-                rxOnly: true,
-                controlled: true,
-            },
-            {
-                id: 10,
-                icon: "🧪",
-                name: "Vitamin C 500",
-                generic: "Ascorbic Acid",
-                barcode: "8901234557011",
-                category: "Vitamins",
-                batch: "BT-VITC-2025-001",
-                expiryDate: "2026-08-05",
-                expiryLabel: "05 Aug 2026",
-                stock: 420,
-                cost: 2.5,
-                price: 6.0,
-                rxOnly: false,
-                controlled: false,
-            },
-        ];
+        const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+        this.inventoryItems = savedItems ? JSON.parse(savedItems) : [...medicines];
+    }
+
+    saveInventoryItems() {
+        localStorage.setItem('pharmacy_pos_inventory_items', JSON.stringify(this.inventoryItems));
     }
 
     parseISODate(dateString) {
@@ -718,34 +955,34 @@ class PharmacyDashboard extends Component {
                 </div>
                 
                 <div class="inventory-actions">
-                    <button class="btn btn-primary compact">Adjust Stock</button>
-                    <button class="btn btn-secondary compact">➕ Add Item</button>
+                    <button class="btn btn-primary compact" id="inventoryAdjustStockBtn">Adjust Stock</button>
+                    <button class="btn btn-secondary compact" id="inventoryAddItemBtn">➕ Add Item</button>
                 </div>
                 
                 <div class="inventory-stats">
-                    <div class="stat-card compact">
-                        <div class="stat-icon">📦</div>
+                    <div class="stat-card compact total">
+                        <div class="stat-icon" aria-hidden="true">◈</div>
                         <div class="stat-content">
                             <h3>Total Items</h3>
                             <p class="stat-value" id="inventoryTotalItemsValue">0</p>
                         </div>
                     </div>
                     <div class="stat-card compact warning">
-                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-icon" aria-hidden="true">!</div>
                         <div class="stat-content">
                             <h3>Low Stock</h3>
                             <p class="stat-value" id="inventoryLowStockValue">0</p>
                         </div>
                     </div>
                     <div class="stat-card compact danger">
-                        <div class="stat-icon">⏰</div>
+                        <div class="stat-icon" aria-hidden="true">⌛</div>
                         <div class="stat-content">
                             <h3>Expiring (&lt;90d)</h3>
                             <p class="stat-value" id="inventoryExpiringValue">0</p>
                         </div>
                     </div>
                     <div class="stat-card compact success">
-                        <div class="stat-icon">💰</div>
+                        <div class="stat-icon" aria-hidden="true">LKR</div>
                         <div class="stat-content">
                             <h3>Stock Value</h3>
                             <p class="stat-value" id="inventoryStockValueValue">LKR 0</p>
@@ -775,6 +1012,7 @@ class PharmacyDashboard extends Component {
                             <option value="controlled">Controlled</option>
                         </select>
 
+                        <button class="filter-btn compact" data-inventory-filter="all">All</button>
                         <button class="filter-btn compact" data-inventory-filter="low_stock">⚠ Low</button>
                         <button class="filter-btn compact" data-inventory-filter="expiring">⏱ Expiring</button>
                         <button class="filter-btn compact" data-inventory-filter="controlled">🔒 Controlled</button>
@@ -810,7 +1048,7 @@ class PharmacyDashboard extends Component {
             </div>
         `;
 
-        this.inventoryActiveFilter = "low_stock";
+        this.inventoryActiveFilter = "all";
         this.inventoryLowStockThreshold = 20;
 
         this.setupInventoryHandlers();
@@ -825,6 +1063,8 @@ class PharmacyDashboard extends Component {
         const categorySelect = document.getElementById("inventoryCategorySelect");
         const typeSelect = document.getElementById("inventoryTypeSelect");
         const filterButtons = container.querySelectorAll("[data-inventory-filter]");
+        const addItemBtn = document.getElementById("inventoryAddItemBtn");
+        const adjustStockBtn = document.getElementById("inventoryAdjustStockBtn");
 
         const setActiveButton = (filter) => {
             filterButtons.forEach(btn => {
@@ -863,6 +1103,11 @@ class PharmacyDashboard extends Component {
                 setActiveButton(filter);
                 this.updateInventoryStatsAndTable();
             });
+        });
+
+        addItemBtn?.addEventListener("click", () => this.openInventoryAddItemModal());
+        adjustStockBtn?.addEventListener("click", () => {
+            this.showNotification("Stock adjustment form will be added next.", "info");
         });
     }
 
@@ -998,6 +1243,161 @@ class PharmacyDashboard extends Component {
 
             tableBody.appendChild(row);
         });
+    }
+
+    openInventoryAddItemModal() {
+        if (document.getElementById("inventoryAddItemModal")) return;
+
+        const modal = document.createElement("div");
+        modal.id = "inventoryAddItemModal";
+        modal.className = "inventory-modal-overlay";
+        modal.innerHTML = `
+            <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="inventoryAddItemTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="inventoryAddItemTitle">Add Inventory Item</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close add item form">×</button>
+                </div>
+                <form id="inventoryAddItemForm" class="inventory-form-grid">
+                    <label class="inventory-form-field">
+                        <span>Name *</span>
+                        <input type="text" name="name" required placeholder="e.g. Azithromycin 500">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Generic</span>
+                        <input type="text" name="generic" placeholder="Generic description">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Barcode</span>
+                        <input type="text" name="barcode" placeholder="Barcode number">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Category *</span>
+                        <input type="text" name="category" required placeholder="e.g. Antibiotics">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Batch *</span>
+                        <input type="text" name="batch" required placeholder="e.g. BT-NEW-2026-001">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Expiry Date *</span>
+                        <input type="date" name="expiryDate" required>
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Stock *</span>
+                        <input type="number" name="stock" min="0" step="1" required placeholder="0">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Cost *</span>
+                        <input type="number" name="cost" min="0" step="0.01" required placeholder="0.00">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Price *</span>
+                        <input type="number" name="price" min="0" step="0.01" required placeholder="0.00">
+                    </label>
+                    <label class="inventory-form-field inventory-form-check">
+                        <input type="checkbox" name="rxOnly">
+                        <span>Rx Only</span>
+                    </label>
+                    <label class="inventory-form-field inventory-form-check">
+                        <input type="checkbox" name="controlled">
+                        <span>Controlled</span>
+                    </label>
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="inventoryCancelAddItemBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">Create Item</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeInventoryAddItemModal();
+        modal.querySelector(".inventory-modal-close")?.addEventListener("click", close);
+        modal.querySelector("#inventoryCancelAddItemBtn")?.addEventListener("click", close);
+        modal.addEventListener("click", (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector("#inventoryAddItemForm");
+        form?.addEventListener("submit", (ev) => {
+            ev.preventDefault();
+            this.createInventoryItemFromForm(form);
+        });
+    }
+
+    closeInventoryAddItemModal() {
+        const modal = document.getElementById("inventoryAddItemModal");
+        if (modal) modal.remove();
+    }
+
+    createInventoryItemFromForm(form) {
+        const formData = new FormData(form);
+        const name = String(formData.get("name") || "").trim();
+        const category = String(formData.get("category") || "").trim();
+        const batch = String(formData.get("batch") || "").trim();
+        const expiryDate = String(formData.get("expiryDate") || "").trim();
+        const price = Number(formData.get("price") || 0);
+        const stock = Number(formData.get("stock") || 0);
+
+        if (!name || !category || !batch || !expiryDate || Number.isNaN(price) || Number.isNaN(stock)) {
+            this.showNotification("Please fill required fields correctly.", "warning");
+            return;
+        }
+
+        const parsedExpiry = this.parseISODate(expiryDate);
+        if (!parsedExpiry) {
+            this.showNotification("Invalid expiry date.", "warning");
+            return;
+        }
+
+        const expiryLabel = parsedExpiry.toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+
+        const nextId = (this.inventoryItems || []).reduce((max, i) => Math.max(max, Number(i.id) || 0), 0) + 1;
+        const newItem = {
+            id: nextId,
+            icon: "💊",
+            name,
+            generic: String(formData.get("generic") || "").trim(),
+            barcode: String(formData.get("barcode") || "").trim() || `AUTO-${Date.now()}`,
+            category,
+            batch,
+            expiryDate,
+            expiryLabel,
+            stock: Number(formData.get("stock") || 0),
+            cost: Number(formData.get("cost") || 0),
+            price,
+            rxOnly: formData.get("rxOnly") === "on",
+            controlled: formData.get("controlled") === "on",
+        };
+
+        if (!this.inventoryItems) this.inventoryItems = [];
+        this.inventoryItems.unshift(newItem);
+        this.saveInventoryItems();
+
+        this.refreshInventoryCategoryOptions();
+        this.updateInventoryStatsAndTable();
+        this.closeInventoryAddItemModal();
+        this.showNotification(`✅ ${name} created in inventory`, "success");
+    }
+
+    refreshInventoryCategoryOptions() {
+        const categorySelect = document.getElementById("inventoryCategorySelect");
+        if (!categorySelect) return;
+
+        const currentValue = categorySelect.value || "All";
+        const categories = [...new Set((this.inventoryItems || []).map(i => i.category).filter(Boolean))].sort();
+        categorySelect.innerHTML = `
+            <option value="All">All Categories</option>
+            ${categories.map(c => `<option value="${c}">${c}</option>`).join("")}
+        `;
+
+        const hasCurrent = currentValue === "All" || categories.includes(currentValue);
+        categorySelect.value = hasCurrent ? currentValue : "All";
     }
 
     initializeThemeToggle() {
@@ -1366,55 +1766,21 @@ class PharmacyDashboard extends Component {
             }, 1500);
         }
     }
-    
+    // barcode search (supports local inventory + base medicines data)
     findProductByBarcode(barcode) {
-        // Mock barcode to product mapping
-        const barcodeMap = {
-            '1234567890123': {
-                id: 1,
-                name: 'Paracetamol 500mg',
-                batch: 'BCH001',
-                expiry: 'Dec 2025',
-                price: 2.00,
-                icon: '💊'
-            },
-            '2345678901234': {
-                id: 2,
-                name: 'Ibuprofen 400mg',
-                batch: 'BCH002',
-                expiry: 'Jan 2026',
-                price: 3.50,
-                icon: '💊'
-            },
-            '3456789012345': {
-                id: 3,
-                name: 'Amoxicillin 250mg',
-                batch: 'BCH003',
-                expiry: 'Mar 2025',
-                price: 8.75,
-                icon: '💊'
-            },
-            '4567890123456': {
-                id: 4,
-                name: 'Cough Syrup 100ml',
-                batch: 'BCH004',
-                expiry: 'Feb 2026',
-                price: 12.00,
-                icon: '🧴'
-            },
-            '5678901234567': {
-                id: 5,
-                name: 'Vitamin C 500mg',
-                batch: 'BCH005',
-                expiry: 'Apr 2026',
-                price: 5.25,
-                icon: '🧪'
-            }
-        };
-        
-        return barcodeMap[barcode];
+        const searchKey = String(barcode || "").trim();
+        if (!searchKey) return null;
+
+        const dataset = (this.inventoryItems && this.inventoryItems.length) ? this.inventoryItems : medicines;
+
+        // Prefer exact barcode match first
+        const byBarcode = dataset.find(m => String(m.barcode) === searchKey);
+        if (byBarcode) return byBarcode;
+
+        // Fallback to ID match (numeric or string)
+        return dataset.find(m => String(m.id) === searchKey);
     }
-    
+
     addProductToCart(product) {
         // Check if product already exists in cart
         const existingItem = this.cart.find(item => item.id === product.id);
@@ -1595,14 +1961,153 @@ class PharmacyDashboard extends Component {
     }
     
     selectWalkInCustomer() {
+        this.showCustomerDropdown();
+    }
+
+    showCustomerDropdown() {
+        const customerBtn = document.querySelector('.customer-btn');
+        if (!customerBtn) return;
+
+        // Remove existing dropdown
+        this.closeCustomerDropdown();
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'customer-dropdown';
+        dropdown.innerHTML = `
+            <div class="customer-dropdown-header">
+                <input type="text" placeholder="Search customers..." id="customerSearchDropdown" class="customer-dropdown-search">
+            </div>
+            <div class="customer-dropdown-list" id="customerDropdownList">
+                ${this.renderCustomerDropdownList()}
+            </div>
+            <div class="customer-dropdown-footer">
+                <div class="customer-dropdown-item walk-in-item" onclick="pharmacyPOS.selectWalkInCustomerByName()">
+                    <div class="customer-item-avatar">🧍</div>
+                    <div class="customer-item-info">
+                        <div class="customer-item-name">Walk-in Customer</div>
+                        <div class="customer-item-phone">Anonymous customer</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Position dropdown below the button
+        const rect = customerBtn.getBoundingClientRect();
+        dropdown.style.top = `${rect.bottom + window.scrollY + 5}px`;
+        dropdown.style.left = `${rect.left + window.scrollX}px`;
+        dropdown.style.width = `${rect.width}px`;
+
+        document.body.appendChild(dropdown);
+
+        // Setup search functionality
+        setTimeout(() => {
+            this.setupCustomerDropdownSearch();
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', this.handleDropdownClickOutside);
+        }, 100);
+    }
+
+    renderCustomerDropdownList() {
+        return this.customers.map(customer => `
+            <div class="customer-dropdown-item" onclick="pharmacyPOS.selectCustomerFromDropdown(${customer.id})">
+                <div class="customer-item-avatar">
+                    ${customer.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                </div>
+                <div class="customer-item-info">
+                    <div class="customer-item-name">${customer.name}</div>
+                    <div class="customer-item-phone">${customer.phone}</div>
+                    <div class="customer-item-tier">
+                        <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
+                        <span class="customer-item-points">${customer.loyaltyPoints} pts</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    setupCustomerDropdownSearch() {
+        const searchInput = document.getElementById('customerSearchDropdown');
+        const customerList = document.getElementById('customerDropdownList');
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredCustomers = this.customers.filter(customer => 
+                customer.name.toLowerCase().includes(searchTerm) ||
+                customer.phone.includes(searchTerm) ||
+                customer.email.toLowerCase().includes(searchTerm)
+            );
+            
+            customerList.innerHTML = filteredCustomers.map(customer => `
+                <div class="customer-dropdown-item" onclick="pharmacyPOS.selectCustomerFromDropdown(${customer.id})">
+                    <div class="customer-item-avatar">
+                        ${customer.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                    </div>
+                    <div class="customer-item-info">
+                        <div class="customer-item-name">${customer.name}</div>
+                        <div class="customer-item-phone">${customer.phone}</div>
+                        <div class="customer-item-tier">
+                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
+                            <span class="customer-item-points">${customer.loyaltyPoints} pts</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        });
+    }
+
+    handleDropdownClickOutside = (e) => {
+        const dropdown = document.querySelector('.customer-dropdown');
+        const customerBtn = document.querySelector('.customer-btn');
+        
+        if (dropdown && !dropdown.contains(e.target) && !customerBtn.contains(e.target)) {
+            this.closeCustomerDropdown();
+        }
+    }
+
+    selectCustomerFromDropdown(customerId) {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (customer) {
+            this.currentCustomer = {
+                ...customer,
+                isWalkIn: false
+            };
+            this.updateCustomerDisplay();
+            this.closeCustomerDropdown();
+            alert(`🧍 Customer selected: ${customer.name}\n📱 ${customer.phone}\n⭐ ${customer.tier} - ${customer.loyaltyPoints} points`);
+        }
+    }
+
+    selectWalkInCustomerByName() {
         const customerName = prompt('Enter customer name (leave blank for Walk-in):', 'Walk-in Customer');
         if (customerName !== null) {
             this.currentCustomer = {
                 name: customerName || 'Walk-in Customer',
                 isWalkIn: customerName === '' || customerName === 'Walk-in Customer'
             };
+            this.updateCustomerDisplay();
+            this.closeCustomerDropdown();
             alert(`🧍 Customer selected: ${this.currentCustomer.name}`);
         }
+    }
+
+    updateCustomerDisplay() {
+        const customerDisplay = document.querySelector('.current-customer');
+        if (customerDisplay) {
+            customerDisplay.innerHTML = `
+                <strong>🧍 Customer:</strong> ${this.currentCustomer.name}
+                ${!this.currentCustomer.isWalkIn ? `<br><small>📱 ${this.currentCustomer.phone}</small>` : ''}
+            `;
+        }
+    }
+
+    closeCustomerDropdown() {
+        const dropdown = document.querySelector('.customer-dropdown');
+        if (dropdown) {
+            dropdown.remove();
+        }
+        document.removeEventListener('click', this.handleDropdownClickOutside);
     }
     
     holdBill() {
@@ -1654,85 +2159,8 @@ class PharmacyDashboard extends Component {
     }
 
     loadProducts() {
-        this.products = [
-            {
-                id: 1,
-                name: "Paracetamol 500mg",
-                category: "tablets",
-                price: 2.00,
-                stock: 120,
-                icon: "💊",
-                prescription: false,
-                batch: "BCH001",
-                expiry: "2025-12-31"
-            },
-            {
-                id: 2,
-                name: "Amoxicillin 250mg",
-                category: "antibiotics",
-                price: 5.00,
-                stock: 80,
-                icon: "💊",
-                prescription: true,
-                batch: "BCH002",
-                expiry: "2024-08-15"
-            },
-            {
-                id: 3,
-                name: "Cough Syrup (Benylin)",
-                category: "syrups",
-                price: 4.00,
-                stock: 60,
-                icon: "💊",
-                prescription: false,
-                batch: "BCH003",
-                expiry: "2025-03-20"
-            },
-            {
-                id: 4,
-                name: "Insulin Injection",
-                category: "injections",
-                price: 25.00,
-                stock: 15,
-                icon: "💉",
-                prescription: true,
-                batch: "BCH004",
-                expiry: "2024-06-10"
-            },
-            {
-                id: 5,
-                name: "Burn Cream",
-                category: "ointments",
-                price: 3.00,
-                stock: 40,
-                icon: "🧴",
-                prescription: false,
-                batch: "BCH005",
-                expiry: "2025-09-30"
-            },
-            {
-                id: 6,
-                name: "Vitamin C Tablets",
-                category: "supplements",
-                price: 6.00,
-                stock: 200,
-                icon: "🧪",
-                prescription: false,
-                batch: "BCH006",
-                expiry: "2026-01-15"
-            },
-            {
-                id: 7,
-                name: "Bandage Roll",
-                category: "firstaid",
-                price: 1.50,
-                stock: 150,
-                icon: "🚑",
-                prescription: false,
-                batch: "BCH007",
-                expiry: "2025-11-25"
-            }
-        ];
+         // Load from centralized dataset
+         this.products = medicines;
     }
 
     renderProducts(productsToRender) {
@@ -2509,6 +2937,1882 @@ class PharmacyDashboard extends Component {
     startNewSale() {
         // Navigate to POS interface
         window.location.href = '/pos/web';
+    }
+
+    initializeCustomerData() {
+        // Load customers from localStorage, or use default sample data
+        const savedCustomers = localStorage.getItem('pharmacy_customers');
+        if (savedCustomers) {
+            try {
+                this.customers = JSON.parse(savedCustomers);
+            } catch (error) {
+                console.error('Error loading customers from localStorage:', error);
+                this.customers = this.getDefaultCustomers();
+            }
+        } else {
+            this.customers = this.getDefaultCustomers();
+        }
+    }
+
+    getDefaultCustomers() {
+        return [
+            {
+                id: 1,
+                name: "Dilani Fernando",
+                phone: "+94774567890",
+                email: "dilani.fernando@email.com",
+                tier: "Bronze",
+                loyaltyPoints: 50,
+                creditUsed: 0,
+                creditLimit: 0,
+                memberSince: "Feb 2026",
+                address: "123 Main St, Colombo",
+                totalPurchases: 12500
+            },
+            {
+                id: 2,
+                name: "Kumari Jayawardena",
+                phone: "+94771234567",
+                email: "kumari.j@email.com",
+                tier: "Silver",
+                loyaltyPoints: 450,
+                creditUsed: 5000,
+                creditLimit: 15000,
+                memberSince: "Jan 2025",
+                address: "456 Park Ave, Kandy",
+                totalPurchases: 45000
+            },
+            {
+                id: 3,
+                name: "Mahinda Rajapaksa",
+                phone: "+94772345678",
+                email: "mahinda.r@email.com",
+                tier: "Bronze",
+                loyaltyPoints: 120,
+                creditUsed: 0,
+                creditLimit: 5000,
+                memberSince: "Mar 2026",
+                address: "789 Queen St, Galle",
+                totalPurchases: 18000
+            },
+            {
+                id: 4,
+                name: "Nishantha Silva",
+                phone: "+94775678901",
+                email: "nishantha.s@email.com",
+                tier: "Platinum",
+                loyaltyPoints: 2500,
+                creditUsed: 12000,
+                creditLimit: 50000,
+                memberSince: "Dec 2024",
+                address: "321 King St, Jaffna",
+                totalPurchases: 125000
+            },
+            {
+                id: 5,
+                name: "Saman Perera",
+                phone: "+94773456789",
+                email: "saman.p@email.com",
+                tier: "Gold",
+                loyaltyPoints: 1200,
+                creditUsed: 8000,
+                creditLimit: 30000,
+                memberSince: "Nov 2024",
+                address: "654 Beach Rd, Matara",
+                totalPurchases: 85000
+            }
+        ];
+    }
+
+    saveCustomersToStorage() {
+        try {
+            localStorage.setItem('pharmacy_customers', JSON.stringify(this.customers));
+        } catch (error) {
+            console.error('Error saving customers to localStorage:', error);
+            this.showNotification('Failed to save customer data to local storage.', 'error');
+        }
+    }
+
+    renderCustomers() {
+        const container = document.getElementById("dashboard_container");
+        
+        container.innerHTML = `
+            <div class="dashboard">
+
+                <div class="customers-search-section">
+                    <div class="search-bar">
+                        <input
+                            type="text"
+                            id="customerSearchInput"
+                            placeholder="🔍 Name or phone..."
+                            class="search-input"
+                        >
+                    </div>
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" data-tier="all">All</button>
+                        <button class="filter-tab" data-tier="platinum">Platinum</button>
+                        <button class="filter-tab" data-tier="gold">Gold</button>
+                        <button class="filter-tab" data-tier="silver">Silver</button>
+                        <button class="filter-tab" data-tier="bronze">Bronze</button>
+                    </div>
+                     <div class="customers-header-actions">
+                        <button class="btn btn-primary" id="addCustomerBtn">
+                            <span class="btn-icon">➕</span>
+                            Add Customer
+                        </button>
+                    </div>
+                </div>
+
+                <div class="customers-content">
+                    <div class="customers-list" id="customersList">
+                        ${this.renderCustomerList(this.customers)}
+                    </div>
+                    
+                    <div class="customer-details" id="customerDetails">
+                        ${this.selectedCustomer ? this.renderCustomerDetails(this.selectedCustomer) : `
+                            <div class="no-customer-selected">
+                                <div class="no-customer-icon">👥</div>
+                                <h3>Select a Customer</h3>
+                                <p>Choose a customer from the list to view their details</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupCustomerHandlers();
+    }
+
+    renderCustomerList(customers) {
+        if (!customers || customers.length === 0) {
+            return `
+                <div class="no-customers">
+                    <div class="no-customers-icon">🔍</div>
+                    <h3>No customers found</h3>
+                    <p>Try adjusting your search or filters</p>
+                </div>
+            `;
+        }
+
+        return customers.map(customer => `
+            <div class="customer-card ${this.selectedCustomer?.id === customer.id ? 'selected' : ''}" 
+                 data-customer-id="${customer.id}">
+                <div class="customer-card-header">
+                    <div class="customer-avatar">
+                        <span class="avatar-text">${customer.name.split(' ').map(n => n[0]).join('')}</span>
+                    </div>
+                    <div class="customer-info">
+                        <h4 class="customer-name">${customer.name}</h4>
+                        <div class="customer-tier">
+                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
+                            <span class="customer-phone">${customer.phone}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="customer-stats">
+                    <div class="customer-stat">
+                        <span class="stat-label">Loyalty Points</span>
+                        <span class="stat-value">${customer.loyaltyPoints.toLocaleString()} pts</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderCustomerDetails(customer) {
+        const creditPercentage = customer.creditLimit > 0 ? (customer.creditUsed / customer.creditLimit) * 100 : 0;
+        
+        return `
+            <div class="customer-details-content">
+                <div class="customer-details-header">
+                    <div class="customer-avatar large">
+                        <span class="avatar-text">${customer.name.split(' ').map(n => n[0]).join('')}</span>
+                    </div>
+                    <div class="customer-details-info">
+                        <h3 class="customer-name">${customer.name}</h3>
+                        <div class="customer-tier">
+                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">⭐ ${customer.tier}</span>
+                        </div>
+                        <div class="customer-contact">
+                            <div class="contact-item">
+                                <span class="contact-label">📱</span>
+                                <span class="contact-value">${customer.phone}</span>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-label">✉️</span>
+                                <span class="contact-value">${customer.email}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="customer-metrics">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-icon">💎</span>
+                            <span class="metric-title">Loyalty Points</span>
+                        </div>
+                        <div class="metric-value">${customer.loyaltyPoints.toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-icon">💳</span>
+                            <span class="metric-title">Credit Used</span>
+                        </div>
+                        <div class="metric-value">LKR ${customer.creditUsed.toLocaleString()}</div>
+                        <div class="metric-subtitle">of LKR ${customer.creditLimit.toLocaleString()} limit</div>
+                        <div class="credit-progress">
+                            <div class="credit-progress-bar" style="width: ${creditPercentage}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-icon">📅</span>
+                            <span class="metric-title">Member Since</span>
+                        </div>
+                        <div class="metric-value">${customer.memberSince}</div>
+                    </div>
+                </div>
+
+                <div class="customer-actions">
+                    <button class="btn btn-primary" onclick="dashboard.startNewSaleForCustomer(${customer.id})">
+                        <span class="btn-icon">🛒</span>
+                        New Sale for Customer
+                    </button>
+                    <button class="btn btn-secondary" onclick="dashboard.editCustomer(${customer.id})">
+                        <span class="btn-icon">✏️</span>
+                        Edit Profile
+                    </button>
+                    <button class="btn btn-danger" onclick="dashboard.confirmDeleteCustomer(${customer.id}, '${customer.name.replace(/'/g, "\\'")}')">
+                        <span class="btn-icon">🗑️</span>
+                        Delete Customer
+                    </button>
+                </div>
+
+                <div class="customer-history">
+                    <h4>Recent Purchases</h4>
+                    <div class="purchase-history">
+                        <div class="purchase-item">
+                            <div class="purchase-date">Mar 25, 2026</div>
+                            <div class="purchase-items">Antibiotics, Vitamins</div>
+                            <div class="purchase-amount">LKR 2,450</div>
+                        </div>
+                        <div class="purchase-item">
+                            <div class="purchase-date">Mar 18, 2026</div>
+                            <div class="purchase-items">Pain Relief</div>
+                            <div class="purchase-amount">LKR 1,200</div>
+                        </div>
+                        <div class="purchase-item">
+                            <div class="purchase-date">Mar 10, 2026</div>
+                            <div class="purchase-items">Diabetes Medication</div>
+                            <div class="purchase-amount">LKR 3,800</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    setupCustomerHandlers() {
+        const searchInput = document.getElementById("customerSearchInput");
+        const filterTabs = document.querySelectorAll(".filter-tab");
+        const addCustomerBtn = document.getElementById("addCustomerBtn");
+
+        // Search functionality
+        searchInput?.addEventListener("input", () => {
+            this.filterCustomers();
+        });
+
+        // Filter tabs
+        filterTabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                filterTabs.forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+                this.filterCustomers();
+            });
+        });
+
+        // Customer card selection
+        const customerCards = document.querySelectorAll(".customer-card");
+        customerCards.forEach(card => {
+            card.addEventListener("click", () => {
+                const customerId = parseInt(card.dataset.customerId);
+                this.selectCustomer(customerId);
+            });
+        });
+
+        // Add customer button
+        addCustomerBtn?.addEventListener("click", () => {
+            this.showAddCustomerModal();
+        });
+    }
+
+    filterCustomers() {
+        const searchInput = document.getElementById("customerSearchInput");
+        const activeTab = document.querySelector(".filter-tab.active");
+        const searchTerm = (searchInput?.value || "").toLowerCase();
+        const tierFilter = activeTab?.dataset.tier || "all";
+
+        let filteredCustomers = this.customers.filter(customer => {
+            const matchesSearch = customer.name.toLowerCase().includes(searchTerm) ||
+                                customer.phone.includes(searchTerm);
+            
+            const matchesTier = tierFilter === "all" || customer.tier.toLowerCase() === tierFilter;
+            
+            return matchesSearch && matchesTier;
+        });
+
+        this.updateCustomerList(filteredCustomers);
+    }
+
+    updateCustomerList(customers) {
+        const customersList = document.getElementById("customersList");
+        if (customersList) {
+            customersList.innerHTML = this.renderCustomerList(customers);
+            
+            // Re-attach click handlers to new customer cards
+            const customerCards = customersList.querySelectorAll(".customer-card");
+            customerCards.forEach(card => {
+                card.addEventListener("click", () => {
+                    const customerId = parseInt(card.dataset.customerId);
+                    this.selectCustomer(customerId);
+                });
+            });
+        }
+    }
+
+    selectCustomer(customerId) {
+        this.selectedCustomer = this.customers.find(c => c.id === customerId);
+        
+        // Update selected state in customer list
+        const customerCards = document.querySelectorAll(".customer-card");
+        customerCards.forEach(card => {
+            card.classList.toggle("selected", parseInt(card.dataset.customerId) === customerId);
+        });
+
+        // Update customer details
+        const customerDetails = document.getElementById("customerDetails");
+        if (customerDetails && this.selectedCustomer) {
+            customerDetails.innerHTML = this.renderCustomerDetails(this.selectedCustomer);
+        }
+    }
+
+    startNewSaleForCustomer(customerId) {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (customer) {
+            // Navigate to POS with selected customer
+            this.currentCustomer = customer;
+            this.showNotification(`Starting new sale for ${customer.name}`, "success");
+            // In a real implementation, this would navigate to the POS interface
+            setTimeout(() => {
+                this.handlePageNavigation('sales');
+            }, 1000);
+        }
+    }
+
+    editCustomer(customerId) {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (!customer) {
+            this.showNotification('Customer not found.', 'error');
+            return;
+        }
+
+        this.showEditCustomerModal(customer);
+    }
+
+    showEditCustomerModal(customer) {
+        if (document.getElementById("editCustomerModal")) return;
+
+        const modal = document.createElement("div");
+        modal.id = "editCustomerModal";
+        modal.className = "inventory-modal-overlay";
+        modal.innerHTML = `
+            <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="editCustomerTitle">Edit Customer</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close edit customer form">×</button>
+                </div>
+                <form id="editCustomerForm" class="inventory-form-grid">
+                    <input type="hidden" name="customerId" value="${customer.id}">
+                    <label class="inventory-form-field">
+                        <span>Name *</span>
+                        <input type="text" name="name" required value="${customer.name}" placeholder="e.g. John Doe">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Phone *</span>
+                        <input type="tel" name="phone" required value="${customer.phone}" placeholder="e.g. +94771234567">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Email</span>
+                        <input type="email" name="email" value="${customer.email || ''}" placeholder="e.g. john.doe@email.com">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Address</span>
+                        <input type="text" name="address" value="${customer.address || ''}" placeholder="e.g. 123 Main St, Colombo">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Tier</span>
+                        <select name="tier">
+                            <option value="Bronze" ${customer.tier === 'Bronze' ? 'selected' : ''}>Bronze</option>
+                            <option value="Silver" ${customer.tier === 'Silver' ? 'selected' : ''}>Silver</option>
+                            <option value="Gold" ${customer.tier === 'Gold' ? 'selected' : ''}>Gold</option>
+                            <option value="Platinum" ${customer.tier === 'Platinum' ? 'selected' : ''}>Platinum</option>
+                        </select>
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Credit Limit (LKR)</span>
+                        <input type="number" name="creditLimit" min="0" step="100" value="${customer.creditLimit || 0}" placeholder="0">
+                    </label>
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="cancelEditCustomerBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">Update Customer</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeEditCustomerModal();
+        modal.querySelector(".inventory-modal-close")?.addEventListener("click", close);
+        modal.querySelector("#cancelEditCustomerBtn")?.addEventListener("click", close);
+        modal.addEventListener("click", (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector("#editCustomerForm");
+        form?.addEventListener("submit", (ev) => {
+            ev.preventDefault();
+            this.updateCustomerFromForm(form);
+        });
+    }
+
+    closeEditCustomerModal() {
+        const modal = document.getElementById("editCustomerModal");
+        if (modal) modal.remove();
+    }
+
+    updateCustomerFromForm(form) {
+        const formData = new FormData(form);
+        const customerId = Number(formData.get("customerId"));
+        const name = String(formData.get("name") || "").trim();
+        const phone = String(formData.get("phone") || "").trim();
+        const email = String(formData.get("email") || "").trim();
+        const address = String(formData.get("address") || "").trim();
+        const tier = String(formData.get("tier") || "Bronze");
+        const creditLimit = Number(formData.get("creditLimit") || 0);
+
+        if (!name || !phone) {
+            this.showNotification("Please fill required fields (Name and Phone).", "warning");
+            return;
+        }
+
+        // Validate phone number format (basic validation)
+        if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
+            this.showNotification("Please enter a valid phone number.", "warning");
+            return;
+        }
+
+        // Find and update the customer
+        const customerIndex = this.customers.findIndex(c => c.id === customerId);
+        if (customerIndex === -1) {
+            this.showNotification("Customer not found.", "error");
+            return;
+        }
+
+        // Update customer data
+        this.customers[customerIndex] = {
+            ...this.customers[customerIndex],
+            name: name,
+            phone: phone,
+            email: email || "",
+            address: address || "",
+            tier: tier,
+            creditLimit: creditLimit
+        };
+
+        // Save to localStorage
+        this.saveCustomersToStorage();
+
+        // Close modal
+        this.closeEditCustomerModal();
+
+        // Show success notification
+        this.showNotification(`Customer "${name}" updated successfully!`, "success");
+
+        // Refresh the customers page to show the updated customer
+        this.renderCustomers();
+    }
+
+    confirmDeleteCustomer(customerId, customerName) {
+        if (confirm(`Are you sure you want to delete customer "${customerName}"? This action cannot be undone.`)) {
+            this.deleteCustomer(customerId);
+        }
+    }
+
+    deleteCustomer(customerId) {
+        const customerIndex = this.customers.findIndex(c => c.id === customerId);
+        if (customerIndex === -1) {
+            this.showNotification("Customer not found.", "error");
+            return;
+        }
+
+        const customerName = this.customers[customerIndex].name;
+
+        // Remove customer from array
+        this.customers.splice(customerIndex, 1);
+
+        // Save to localStorage
+        this.saveCustomersToStorage();
+
+        // Show success notification
+        this.showNotification(`Customer "${customerName}" deleted successfully!`, "success");
+
+        // Refresh the customers page
+        this.renderCustomers();
+
+        // Clear customer details if the deleted customer was selected
+        if (this.selectedCustomer && this.selectedCustomer.id === customerId) {
+            this.selectedCustomer = null;
+            const customerDetails = document.getElementById("customerDetails");
+            if (customerDetails) {
+                customerDetails.innerHTML = `
+                    <div class="no-customer-selected">
+                        <div class="no-customer-icon">👥</div>
+                        <h3>Select a Customer</h3>
+                        <p>Choose a customer from the list to view their details</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    showAddCustomerModal() {
+        if (document.getElementById("addCustomerModal")) return;
+
+        const modal = document.createElement("div");
+        modal.id = "addCustomerModal";
+        modal.className = "inventory-modal-overlay";
+        modal.innerHTML = `
+            <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="addCustomerTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="addCustomerTitle">Add New Customer</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close add customer form">×</button>
+                </div>
+                <form id="addCustomerForm" class="inventory-form-grid">
+                    <label class="inventory-form-field">
+                        <span>Name *</span>
+                        <input type="text" name="name" required placeholder="e.g. John Doe">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Phone *</span>
+                        <input type="tel" name="phone" required placeholder="e.g. +94771234567">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Email</span>
+                        <input type="email" name="email" placeholder="e.g. john.doe@email.com">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Address</span>
+                        <input type="text" name="address" placeholder="e.g. 123 Main St, Colombo">
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Tier</span>
+                        <select name="tier">
+                            <option value="Bronze">Bronze</option>
+                            <option value="Silver">Silver</option>
+                            <option value="Gold">Gold</option>
+                            <option value="Platinum">Platinum</option>
+                        </select>
+                    </label>
+                    <label class="inventory-form-field">
+                        <span>Credit Limit (LKR)</span>
+                        <input type="number" name="creditLimit" min="0" step="100" placeholder="0">
+                    </label>
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="cancelAddCustomerBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">Add Customer</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeAddCustomerModal();
+        modal.querySelector(".inventory-modal-close")?.addEventListener("click", close);
+        modal.querySelector("#cancelAddCustomerBtn")?.addEventListener("click", close);
+        modal.addEventListener("click", (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector("#addCustomerForm");
+        form?.addEventListener("submit", (ev) => {
+            ev.preventDefault();
+            this.createCustomerFromForm(form);
+        });
+    }
+
+    closeAddCustomerModal() {
+        const modal = document.getElementById("addCustomerModal");
+        if (modal) modal.remove();
+    }
+
+    createCustomerFromForm(form) {
+        const formData = new FormData(form);
+        const name = String(formData.get("name") || "").trim();
+        const phone = String(formData.get("phone") || "").trim();
+        const email = String(formData.get("email") || "").trim();
+        const address = String(formData.get("address") || "").trim();
+        const tier = String(formData.get("tier") || "Bronze");
+        const creditLimit = Number(formData.get("creditLimit") || 0);
+
+        if (!name || !phone) {
+            this.showNotification("Please fill required fields (Name and Phone).", "warning");
+            return;
+        }
+
+        // Validate phone number format (basic validation)
+        if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
+            this.showNotification("Please enter a valid phone number.", "warning");
+            return;
+        }
+
+        // Create new customer
+        const newCustomer = {
+            id: Math.max(...this.customers.map(c => c.id)) + 1,
+            name: name,
+            phone: phone,
+            email: email || "",
+            address: address || "",
+            tier: tier,
+            loyaltyPoints: 0,
+            creditUsed: 0,
+            creditLimit: creditLimit,
+            memberSince: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            totalPurchases: 0
+        };
+
+        // Add to customers array
+        this.customers.push(newCustomer);
+
+        // Save to localStorage
+        this.saveCustomersToStorage();
+
+        // Close modal
+        this.closeAddCustomerModal();
+
+        // Show success notification
+        this.showNotification(`Customer "${name}" added successfully!`, "success");
+
+        // Refresh the customers page to show the new customer
+        this.renderCustomers();
+    }
+
+    renderPurchasing() {
+        const container = document.getElementById("dashboard_container");
+        
+        // Ensure global reference is available
+        window.pharmacyPOS = this;
+        
+        // Initialize purchase orders data
+        this.loadPurchaseOrders();
+        this.loadSuppliers();
+        this.currentPurchasingTab = 'orders';
+        this.purchaseOrdersSearchQuery = '';
+
+        container.innerHTML = `
+            <div class="dashboard">
+                <!-- Purchase Order Statistics -->
+                <div class="inventory-stats" style="display: flex; gap: 1rem; margin-bottom: 1rem; padding-top: 4px;">
+                    <div class="stat-card compact total" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #fff; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); flex: 1;">
+                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #e0f2fe; color: #0284c7; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">📦</div>
+                        <div class="stat-content">
+                            <h3 style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">Total Orders</h3>
+                            <p class="stat-value" id="totalOrdersCount" style="margin: 0.1rem 0 0; font-size: 1.25rem; font-weight: 600; color: #1e293b;">0</p>
+                            <span class="text-muted text-xs" style="font-size: 0.65rem; color: #94a3b8;">All time</span>
+                        </div>
+                    </div>
+                    <div class="stat-card compact warning" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #fff; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); flex: 1;">
+                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #fef3c7; color: #d97706; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">⏳</div>
+                        <div class="stat-content">
+                            <h3 style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">Pending</h3>
+                            <p class="stat-value" id="pendingOrdersCount" style="margin: 0.1rem 0 0; font-size: 1.25rem; font-weight: 600; color: #1e293b;">0</p>
+                            <span class="text-muted text-xs" style="font-size: 0.65rem; color: #94a3b8;">Awaiting delivery</span>
+                        </div>
+                    </div>
+                    <div class="stat-card compact info" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #fff; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); flex: 1;">
+                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #dbeafe; color: #2563eb; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">🏢</div>
+                        <div class="stat-content">
+                            <h3 style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">Active Suppliers</h3>
+                            <p class="stat-value" id="activeSuppliersCount" style="margin: 0.1rem 0 0; font-size: 1.25rem; font-weight: 600; color: #1e293b;">0</p>
+                            <span class="text-muted text-xs" id="totalSuppliersText" style="font-size: 0.65rem; color: #94a3b8;">0 total</span>
+                        </div>
+                    </div>
+                    <div class="stat-card compact success" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #fff; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); flex: 1;">
+                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #dcfce7; color: #16a34a; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">✅</div>
+                        <div class="stat-content">
+                            <h3 style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">Received</h3>
+                            <p class="stat-value" id="receivedOrdersCount" style="margin: 0.1rem 0 0; font-size: 1.25rem; font-weight: 600; color: #1e293b;">0</p>
+                            <span class="text-muted text-xs" style="font-size: 0.65rem; color: #94a3b8;">Completed</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Section -->
+                <div class="inventory-controls compact" style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; width: 100%; background: #ffffff; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <!-- Segmented Tabs -->
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div style="display: flex; background: #f1f5f9; padding: 2px; border-radius: 6px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); width: max-content;">
+                            <button id="ordersTabBtn" style="padding: 4px 12px; border: none; background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: 600; font-size: 0.65rem; color: #0f172a; cursor: pointer; transition: all 0.2s ease;">Orders</button>
+                            <button id="grnTabBtn" style="padding: 4px 12px; border: none; background: transparent; font-weight: 500; font-size: 0.65rem; color: #64748b; cursor: pointer; transition: all 0.2s ease;">GRN</button>
+                            <button id="suppliersTabBtn" style="padding: 4px 12px; border: none; background: transparent; font-weight: 500; font-size: 0.65rem; color: #64748b; cursor: pointer; transition: all 0.2s ease;">Suppliers</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search & Action -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="position: relative; width: 160px;">
+                            <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.65rem; color: #94a3b8; pointer-events: none;">🔍</span>
+                            <input
+                                id="purchaseOrdersSearchInput"
+                                type="text"
+                                placeholder="Search orders..."
+                                style="width: 100%; padding: 4px 8px 4px 22px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.65rem; outline: none; color: #334155; box-sizing: border-box; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
+                                onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)'"
+                                onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.02)'"
+                            >
+                        </div>
+                        <button id="newPurchaseOrderBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #22c55e, #16a34a); border: 1px solid #14532d; border-top-color: #166534; border-bottom-color: #052e16; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
+                            <span style="font-size: 0.6rem;">➕</span> New Purchase Order
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Content Area -->
+                <div class="inventory-content compact" style="margin-top: 0.5rem;">
+                    <div id="purchasingContentArea">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Initialize purchasing functionality
+        setTimeout(() => {
+            // Ensure global reference is set again
+            window.pharmacyPOS = this;
+            this.initializePurchasingHandlers();
+            this.updatePurchasingStats();
+            this.renderPurchasingContent();
+        }, 100);
+    }
+
+    // Purchase Orders Data Management
+    loadPurchaseOrders() {
+        const savedOrders = localStorage.getItem('pharmacy_pos_purchase_orders');
+        this.purchaseOrders = savedOrders ? JSON.parse(savedOrders) : [];
+    }
+
+    savePurchaseOrders() {
+        localStorage.setItem('pharmacy_pos_purchase_orders', JSON.stringify(this.purchaseOrders));
+    }
+
+    loadSuppliers() {
+        const savedSuppliers = localStorage.getItem('pharmacy_pos_suppliers');
+        this.suppliers = savedSuppliers ? JSON.parse(savedSuppliers) : [
+            { id: 1, name: 'MediSupply Ltd', email: 'info@medisupply.lk', phone: '0112-345678', address: 'Colombo 01', status: 'active' },
+            { id: 2, name: 'PharmaDistributors', email: 'orders@pharmadist.lk', phone: '0112-987654', address: 'Kandy', status: 'active' },
+            { id: 3, name: 'GlobalHealth Supplies', email: 'contact@globalhealth.lk', phone: '0112-456789', address: 'Galle', status: 'active' }
+        ];
+    }
+
+    saveSuppliers() {
+        localStorage.setItem('pharmacy_pos_suppliers', JSON.stringify(this.suppliers));
+    }
+
+    // Purchasing Handlers Initialization
+    initializePurchasingHandlers() {
+        const ordersTabBtn = document.getElementById('ordersTabBtn');
+        const grnTabBtn = document.getElementById('grnTabBtn');
+        const suppliersTabBtn = document.getElementById('suppliersTabBtn');
+        const newPurchaseOrderBtn = document.getElementById('newPurchaseOrderBtn');
+        const searchInput = document.getElementById('purchaseOrdersSearchInput');
+
+        ordersTabBtn?.addEventListener('click', () => this.switchPurchasingTab('orders'));
+        grnTabBtn?.addEventListener('click', () => this.switchPurchasingTab('grn'));
+        suppliersTabBtn?.addEventListener('click', () => this.switchPurchasingTab('suppliers'));
+        newPurchaseOrderBtn?.addEventListener('click', () => this.openNewPurchaseOrderModal());
+        
+        // Add search input event listener with proper debouncing
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                this.purchaseOrdersSearchQuery = query;
+                this.renderPurchasingContent();
+            });
+            
+            // Also handle keyup for better responsiveness
+            searchInput.addEventListener('keyup', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                this.purchaseOrdersSearchQuery = query;
+                this.renderPurchasingContent();
+            });
+        }
+    }
+
+    // Tab Switching
+    switchPurchasingTab(tab) {
+        this.currentPurchasingTab = tab;
+        
+        // Update tab styles
+        const tabs = ['ordersTabBtn', 'grnTabBtn', 'suppliersTabBtn'];
+        tabs.forEach(tabId => {
+            const btn = document.getElementById(tabId);
+            if (btn) {
+                if (tabId === `${tab}TabBtn`) {
+                    btn.style.background = '#fff';
+                    btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    btn.style.fontWeight = '600';
+                    btn.style.color = '#0f172a';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.boxShadow = 'none';
+                    btn.style.fontWeight = '500';
+                    btn.style.color = '#64748b';
+                }
+            }
+        });
+
+        // Update search placeholder
+        const searchInput = document.getElementById('purchaseOrdersSearchInput');
+        if (searchInput) {
+            const placeholders = {
+                orders: 'Search orders...',
+                grn: 'Search GRN...',
+                suppliers: 'Search suppliers...'
+            };
+            searchInput.placeholder = placeholders[this.currentPurchasingTab] || 'Search...';
+        }
+
+        this.renderPurchasingContent();
+    }
+
+    // Update Statistics
+    updatePurchasingStats() {
+        const totalOrders = this.purchaseOrders.length;
+        const pendingOrders = this.purchaseOrders.filter(order => order.status === 'pending').length;
+        const receivedOrders = this.purchaseOrders.filter(order => order.status === 'received').length;
+        const activeSuppliers = this.suppliers.filter(supplier => supplier.status === 'active').length;
+
+        // Update DOM elements
+        const totalOrdersEl = document.getElementById('totalOrdersCount');
+        const pendingOrdersEl = document.getElementById('pendingOrdersCount');
+        const receivedOrdersEl = document.getElementById('receivedOrdersCount');
+        const activeSuppliersEl = document.getElementById('activeSuppliersCount');
+        const totalSuppliersText = document.getElementById('totalSuppliersText');
+
+        if (totalOrdersEl) totalOrdersEl.textContent = totalOrders;
+        if (pendingOrdersEl) pendingOrdersEl.textContent = pendingOrders;
+        if (receivedOrdersEl) receivedOrdersEl.textContent = receivedOrders;
+        if (activeSuppliersEl) activeSuppliersEl.textContent = activeSuppliers;
+        if (totalSuppliersText) totalSuppliersText.textContent = `${this.suppliers.length} total`;
+    }
+
+    // Render Content Based on Active Tab
+    renderPurchasingContent() {
+        const contentArea = document.getElementById('purchasingContentArea');
+        if (!contentArea) return;
+
+        switch (this.currentPurchasingTab) {
+            case 'orders':
+                this.renderOrdersTab(contentArea);
+                break;
+            case 'grn':
+                this.renderGRNTab(contentArea);
+                break;
+            case 'suppliers':
+                this.renderSuppliersTab(contentArea);
+                break;
+        }
+    }
+
+    // Orders Tab
+    renderOrdersTab(container) {
+        const filteredOrders = this.getFilteredPurchaseOrders();
+        
+        container.innerHTML = `
+            <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
+                <table class="cart-table compact" style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead style="background: #f8fafc; border-bottom: 1px solid var(--border-color, #e5e7eb);">
+                        <tr>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Order No.</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 150px;">Supplier</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Date</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px; text-align: right;">Total (LKR)</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Status</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredOrders.length === 0 ? `
+                            <tr class="cart-empty-row">
+                                <td colspan="6" class="cart-empty" style="text-align: center; padding: 2rem 1rem;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 0.5rem; color: #cbd5e1;">🛒</div>
+                                        <p style="font-size: 0.875rem; color: #64748b; font-weight: 500; margin: 0;">No purchase orders found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ` : filteredOrders.map(order => this.renderPurchaseOrderRow(order)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    renderPurchaseOrderRow(order) {
+        const statusBadge = this.getStatusBadge(order.status);
+        const orderDate = new Date(order.orderDate).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        });
+
+        return `
+            <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 0.75rem; font-size: 0.75rem; font-weight: 600; color: #1e293b;">${order.orderNumber}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.supplierName}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${orderDate}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; text-align: right; font-weight: 600; color: #0f172a;">${this.formatLKR(order.totalAmount)}</td>
+                <td style="padding: 0.75rem;">${statusBadge}</td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button onclick="pharmacyPOS.viewPurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569;" title="View">👁</button>
+                        <button onclick="pharmacyPOS.editPurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569;" title="Edit">✏️</button>
+                        ${order.status === 'pending' ? `
+                            <button onclick="pharmacyPOS.receivePurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #22c55e; background: #dcfce7; border-radius: 4px; cursor: pointer; color: #16a34a;" title="Receive">✓</button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    getStatusBadge(status) {
+        const badges = {
+            pending: '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fef3c7; color: #d97706; border-radius: 12px; font-weight: 500;">⏳ Pending</span>',
+            received: '<span style="padding: 2px 8px; font-size: 0.65rem; background: #dcfce7; color: #16a34a; border-radius: 12px; font-weight: 500;">✅ Received</span>',
+            cancelled: '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Cancelled</span>'
+        };
+        return badges[status] || badges.pending;
+    }
+
+    // GRN Tab
+    renderGRNTab(container) {
+        const grnOrders = this.purchaseOrders.filter(order => order.status === 'received');
+        
+        container.innerHTML = `
+            <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
+                <table class="cart-table compact" style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead style="background: #f8fafc; border-bottom: 1px solid var(--border-color, #e5e7eb);">
+                        <tr>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;">GRN No.</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Order No.</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Supplier</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Received Date</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Items</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; text-align: right;">Value (LKR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${grnOrders.length === 0 ? `
+                            <tr class="cart-empty-row">
+                                <td colspan="6" class="cart-empty" style="text-align: center; padding: 2rem 1rem;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 0.5rem; color: #cbd5e1;">📋</div>
+                                        <p style="font-size: 0.875rem; color: #64748b; font-weight: 500; margin: 0;">No GRN records found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ` : grnOrders.map(order => this.renderGRNRow(order)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    renderGRNRow(order) {
+        const receivedDate = new Date(order.receivedDate || order.orderDate).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        });
+
+        return `
+            <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 0.75rem; font-size: 0.75rem; font-weight: 600; color: #1e293b;">GRN-${order.orderNumber.split('-')[1]}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.orderNumber}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.supplierName}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${receivedDate}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${order.items ? order.items.length : 0} items</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; text-align: right; font-weight: 600; color: #0f172a;">${this.formatLKR(order.totalAmount)}</td>
+            </tr>
+        `;
+    }
+
+    // Suppliers Tab
+    renderSuppliersTab(container) {
+        const filteredSuppliers = this.getFilteredSuppliers();
+        
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <h3 style="margin: 0; font-size: 0.875rem; color: #1e293b; font-weight: 600;">🏢 Supplier Management</h3>
+                <button id="addSupplierBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #3b82f6, #2563eb); border: 1px solid #1e40af; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
+                    <span>➕</span> Add Supplier
+                </button>
+            </div>
+            <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
+                <table class="cart-table compact" style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead style="background: #f8fafc; border-bottom: 1px solid var(--border-color, #e5e7eb);">
+                        <tr>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 180px;">Supplier Details</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 150px;">Contact Information</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 120px;">Location</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Payment Terms</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Status</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredSuppliers.length === 0 ? `
+                            <tr class="cart-empty-row">
+                                <td colspan="6" class="cart-empty" style="text-align: center; padding: 2rem 1rem;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 0.5rem; color: #cbd5e1;">🏢</div>
+                                        <p style="font-size: 0.875rem; color: #64748b; font-weight: 500; margin: 0;">No suppliers found</p>
+                                        <p style="font-size: 0.75rem; color: #94a3b8; margin: 0.25rem 0 0;">Click "Add Supplier" to create your first supplier</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ` : filteredSuppliers.map(supplier => this.renderSupplierRow(supplier)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // Add event listener for the Add Supplier button
+        const addSupplierBtn = container.querySelector('#addSupplierBtn');
+        if (addSupplierBtn) {
+            addSupplierBtn.addEventListener('click', () => this.openAddSupplierModal());
+        }
+
+        // Add event listeners for supplier action buttons
+        filteredSuppliers.forEach(supplier => {
+            const viewBtn = container.querySelector(`#view-${supplier.id}`);
+            const editBtn = container.querySelector(`#edit-${supplier.id}`);
+            const toggleBtn = container.querySelector(`#toggle-${supplier.id}`);
+            const deleteBtn = container.querySelector(`#delete-${supplier.id}`);
+
+            if (viewBtn) viewBtn.addEventListener('click', () => this.viewSupplier(supplier.id));
+            if (editBtn) editBtn.addEventListener('click', () => this.editSupplier(supplier.id));
+            if (toggleBtn) toggleBtn.addEventListener('click', () => this.toggleSupplierStatus(supplier.id));
+            if (deleteBtn) deleteBtn.addEventListener('click', () => this.deleteSupplier(supplier.id));
+        });
+    }
+
+    renderSupplierRow(supplier) {
+        const statusBadge = supplier.status === 'active' 
+            ? '<span style="padding: 2px 8px; font-size: 0.6rem; background: #dcfce7; color: #16a34a; border-radius: 12px; font-weight: 500;">✅ Active</span>'
+            : '<span style="padding: 2px 8px; font-size: 0.6rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Inactive</span>';
+
+        const paymentTermsMap = {
+            'COD': 'Cash on Delivery',
+            '7days': '7 Days',
+            '14days': '14 Days', 
+            '30days': '30 Days',
+            '60days': '60 Days',
+            '90days': '90 Days'
+        };
+
+        return `
+            <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='transparent'">
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-weight: 600; color: #1e293b; font-size: 0.75rem;">${supplier.name}</div>
+                        ${supplier.registration ? `<div style="font-size: 0.65rem; color: #64748b;">Reg: ${supplier.registration}</div>` : ''}
+                        ${supplier.contactPerson ? `<div style="font-size: 0.65rem; color: #64748b;">👤 ${supplier.contactPerson}${supplier.designation ? ` - ${supplier.designation}` : ''}</div>` : ''}
+                    </div>
+                </td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-size: 0.7rem; color: #475569;">📧 ${supplier.email}</div>
+                        <div style="font-size: 0.7rem; color: #64748b;">📱 ${supplier.phone}</div>
+                        ${supplier.mobile ? `<div style="font-size: 0.65rem; color: #64748b;">📞 ${supplier.mobile}</div>` : ''}
+                        ${supplier.fax ? `<div style="font-size: 0.65rem; color: #64748b;">📠 ${supplier.fax}</div>` : ''}
+                    </div>
+                </td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-size: 0.7rem; color: #475569; font-weight: 500;">📍 ${supplier.city}</div>
+                        <div style="font-size: 0.65rem; color: #64748b;">${supplier.address}</div>
+                        ${supplier.postalCode ? `<div style="font-size: 0.65rem; color: #64748b;">${supplier.postalCode}, ${supplier.country || 'Sri Lanka'}</div>` : ''}
+                    </div>
+                </td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div style="font-size: 0.7rem; color: #475569; font-weight: 500;">${paymentTermsMap[supplier.paymentTerms] || supplier.paymentTerms}</div>
+                        ${supplier.creditLimit ? `<div style="font-size: 0.65rem; color: #64748b;">Limit: ${this.formatLKR(supplier.creditLimit)}</div>` : ''}
+                    </div>
+                </td>
+                <td style="padding: 0.75rem;">${statusBadge}</td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                        <button id="view-${supplier.id}" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="View Details">👁</button>
+                        <button id="edit-${supplier.id}" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="Edit Supplier">✏️</button>
+                        <button id="toggle-${supplier.id}" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid ${supplier.status === 'active' ? '#fbbf24' : '#22c55e'}; background: ${supplier.status === 'active' ? '#fef3c7' : '#dcfce7'}; border-radius: 4px; cursor: pointer; color: ${supplier.status === 'active' ? '#d97706' : '#16a34a'}; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'" title="${supplier.status === 'active' ? 'Deactivate' : 'Activate'}">🔄</button>
+                        <button id="delete-${supplier.id}" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #fca5a5; background: #fee2e2; border-radius: 4px; cursor: pointer; color: #dc2626; transition: all 0.2s ease;" onmouseover="this.style.background='#fecaca'; this.style.color='#b91c1c'" onmouseout="this.style.background='#fee2e2'; this.style.color='#dc2626'" title="Delete Supplier">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Filter Methods
+    getFilteredPurchaseOrders() {
+        if (!this.purchaseOrdersSearchQuery || this.purchaseOrdersSearchQuery.trim() === '') {
+            return this.purchaseOrders;
+        }
+        
+        const query = this.purchaseOrdersSearchQuery.toLowerCase().trim();
+        return this.purchaseOrders.filter(order => 
+            (order.orderNumber && order.orderNumber.toLowerCase().includes(query)) ||
+            (order.supplierName && order.supplierName.toLowerCase().includes(query)) ||
+            (order.status && order.status.toLowerCase().includes(query))
+        );
+    }
+
+    getFilteredSuppliers() {
+        if (!this.purchaseOrdersSearchQuery || this.purchaseOrdersSearchQuery.trim() === '') {
+            return this.suppliers;
+        }
+        
+        const query = this.purchaseOrdersSearchQuery.toLowerCase().trim();
+        return this.suppliers.filter(supplier => 
+            (supplier.name && supplier.name.toLowerCase().includes(query)) ||
+            (supplier.email && supplier.email.toLowerCase().includes(query)) ||
+            (supplier.phone && supplier.phone.includes(query)) ||
+            (supplier.address && supplier.address.toLowerCase().includes(query)) ||
+            (supplier.city && supplier.city.toLowerCase().includes(query)) ||
+            (supplier.contactPerson && supplier.contactPerson.toLowerCase().includes(query))
+        );
+    }
+
+    // Purchase Order Modal
+    openNewPurchaseOrderModal() {
+        if (document.getElementById('purchaseOrderModal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'purchaseOrderModal';
+        modal.className = 'inventory-modal-overlay';
+        modal.innerHTML = `
+            <div class="inventory-modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto;" role="dialog" aria-modal="true" aria-labelledby="purchaseOrderTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="purchaseOrderTitle">New Purchase Order</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close purchase order form">×</button>
+                </div>
+                <form id="purchaseOrderForm" class="inventory-form-grid">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Supplier *</span>
+                            <select name="supplierId" required style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem;">
+                                <option value="">Select Supplier</option>
+                                ${this.suppliers.filter(s => s.status === 'active').map(s => 
+                                    `<option value="${s.id}">${s.name}</option>`
+                                ).join('')}
+                            </select>
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Order Date *</span>
+                            <input type="date" name="orderDate" required style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">Order Items</h4>
+                        <div id="purchaseOrderItems" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; background: #f9fafb;">
+                            <div class="purchase-order-item" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 80px; gap: 0.5rem; margin-bottom: 0.5rem; align-items: end;">
+                                <label class="inventory-form-field" style="margin: 0;">
+                                    <span style="font-size: 0.75rem;">Item Name</span>
+                                    <input type="text" name="itemName[]" placeholder="Medicine name" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+                                </label>
+                                <label class="inventory-form-field" style="margin: 0;">
+                                    <span style="font-size: 0.75rem;">Quantity</span>
+                                    <input type="number" name="quantity[]" min="1" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+                                </label>
+                                <label class="inventory-form-field" style="margin: 0;">
+                                    <span style="font-size: 0.75rem;">Unit Cost</span>
+                                    <input type="number" name="unitCost[]" min="0" step="0.01" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+                                </label>
+                                <label class="inventory-form-field" style="margin: 0;">
+                                    <span style="font-size: 0.75rem;">Batch</span>
+                                    <input type="text" name="batch[]" placeholder="Batch no" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+                                </label>
+                                <button type="button" onclick="this.parentElement.remove()" style="padding: 6px; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Remove</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="pharmacyPOS.addPurchaseOrderItem()" style="margin-top: 0.5rem; padding: 6px 12px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 500;">+ Add Item</button>
+                    </div>
+                    
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="cancelPurchaseOrderBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">Create Purchase Order</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closePurchaseOrderModal();
+        modal.querySelector('.inventory-modal-close')?.addEventListener('click', close);
+        modal.querySelector('#cancelPurchaseOrderBtn')?.addEventListener('click', close);
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector('#purchaseOrderForm');
+        form?.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            this.createPurchaseOrderFromForm(form);
+        });
+
+        // Set today's date as default
+        const orderDateInput = modal.querySelector('input[name="orderDate"]');
+        if (orderDateInput) {
+            orderDateInput.value = new Date().toISOString().split('T')[0];
+        }
+    }
+
+    addPurchaseOrderItem() {
+        const itemsContainer = document.getElementById('purchaseOrderItems');
+        if (!itemsContainer) return;
+
+        const newItem = document.createElement('div');
+        newItem.className = 'purchase-order-item';
+        newItem.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 80px; gap: 0.5rem; margin-bottom: 0.5rem; align-items: end;';
+        newItem.innerHTML = `
+            <label class="inventory-form-field" style="margin: 0;">
+                <span style="font-size: 0.75rem;">Item Name</span>
+                <input type="text" name="itemName[]" placeholder="Medicine name" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+            </label>
+            <label class="inventory-form-field" style="margin: 0;">
+                <span style="font-size: 0.75rem;">Quantity</span>
+                <input type="number" name="quantity[]" min="1" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+            </label>
+            <label class="inventory-form-field" style="margin: 0;">
+                <span style="font-size: 0.75rem;">Unit Cost</span>
+                <input type="number" name="unitCost[]" min="0" step="0.01" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+            </label>
+            <label class="inventory-form-field" style="margin: 0;">
+                <span style="font-size: 0.75rem;">Batch</span>
+                <input type="text" name="batch[]" placeholder="Batch no" required style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.75rem;">
+            </label>
+            <button type="button" onclick="this.parentElement.remove()" style="padding: 6px; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Remove</button>
+        `;
+
+        itemsContainer.appendChild(newItem);
+    }
+
+    closePurchaseOrderModal() {
+        const modal = document.getElementById('purchaseOrderModal');
+        if (modal) modal.remove();
+    }
+
+    createPurchaseOrderFromForm(form) {
+        const formData = new FormData(form);
+        const supplierId = formData.get('supplierId');
+        const orderDate = formData.get('orderDate');
+
+        if (!supplierId || !orderDate) {
+            this.showNotification('Please fill all required fields', 'warning');
+            return;
+        }
+
+        // Get items
+        const itemNames = formData.getAll('itemName[]');
+        const quantities = formData.getAll('quantity[]');
+        const unitCosts = formData.getAll('unitCost[]');
+        const batches = formData.getAll('batch[]');
+
+        if (itemNames.length === 0) {
+            this.showNotification('Please add at least one item', 'warning');
+            return;
+        }
+
+        const supplier = this.suppliers.find(s => s.id == supplierId);
+        if (!supplier) {
+            this.showNotification('Invalid supplier selected', 'warning');
+            return;
+        }
+
+        // Create items array
+        const items = [];
+        let totalAmount = 0;
+
+        for (let i = 0; i < itemNames.length; i++) {
+            const quantity = Number(quantities[i]) || 0;
+            const unitCost = Number(unitCosts[i]) || 0;
+            const itemTotal = quantity * unitCost;
+            
+            items.push({
+                name: itemNames[i],
+                quantity,
+                unitCost,
+                batch: batches[i],
+                total: itemTotal
+            });
+            
+            totalAmount += itemTotal;
+        }
+
+        // Generate order number
+        const orderNumber = `PO-${Date.now().toString().slice(-6)}`;
+
+        // Create purchase order
+        const newOrder = {
+            id: Date.now().toString(),
+            orderNumber,
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            orderDate,
+            items,
+            totalAmount,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+
+        // Add to purchase orders
+        this.purchaseOrders.unshift(newOrder);
+        this.savePurchaseOrders();
+
+        // Update UI
+        this.updatePurchasingStats();
+        this.renderPurchasingContent();
+        this.closePurchaseOrderModal();
+        
+        this.showNotification(`Purchase Order ${orderNumber} created successfully!`, 'success');
+    }
+
+    // Purchase Order Actions
+    viewPurchaseOrder(orderId) {
+        const order = this.purchaseOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        this.showNotification(`Viewing order ${order.orderNumber}`, 'info');
+        // TODO: Implement detailed view modal
+    }
+
+    editPurchaseOrder(orderId) {
+        const order = this.purchaseOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        if (order.status !== 'pending') {
+            this.showNotification('Only pending orders can be edited', 'warning');
+            return;
+        }
+
+        this.showNotification(`Editing order ${order.orderNumber}`, 'info');
+        // TODO: Implement edit modal
+    }
+
+    receivePurchaseOrder(orderId) {
+        const order = this.purchaseOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        if (order.status !== 'pending') {
+            this.showNotification('Only pending orders can be received', 'warning');
+            return;
+        }
+
+        // Update order status
+        order.status = 'received';
+        order.receivedDate = new Date().toISOString();
+        
+        this.savePurchaseOrders();
+        this.updatePurchasingStats();
+        this.renderPurchasingContent();
+        
+        this.showNotification(`Order ${order.orderNumber} received successfully!`, 'success');
+    }
+
+    // Supplier Management
+    openAddSupplierModal() {
+        if (document.getElementById('supplierModal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'supplierModal';
+        modal.className = 'inventory-modal-overlay';
+        modal.innerHTML = `
+            <div class="inventory-modal" style="max-width: 700px;" role="dialog" aria-modal="true" aria-labelledby="supplierTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="supplierTitle">🏢 Add New Supplier</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close supplier form">×</button>
+                </div>
+                <form id="supplierForm" class="inventory-form-grid">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Supplier Name *</span>
+                            <input type="text" name="name" required placeholder="e.g. MediSupply Ltd" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Company Registration</span>
+                            <input type="text" name="registration" placeholder="e.g. PV-2023-1234" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Email *</span>
+                            <input type="email" name="email" required placeholder="supplier@example.com" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Phone *</span>
+                            <input type="tel" name="phone" required placeholder="0112-345678" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Mobile</span>
+                            <input type="tel" name="mobile" placeholder="077-1234567" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Fax</span>
+                            <input type="tel" name="fax" placeholder="0112-345679" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <label class="inventory-form-field" style="margin-bottom: 1rem;">
+                        <span>Address *</span>
+                        <textarea name="address" required placeholder="123 Main Street, Colombo 01, Sri Lanka" rows="2" style="font-size: 0.875rem; resize: vertical; min-height: 60px;"></textarea>
+                    </label>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>City *</span>
+                            <input type="text" name="city" required placeholder="Colombo" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Postal Code</span>
+                            <input type="text" name="postalCode" placeholder="00100" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Country</span>
+                            <input type="text" name="country" placeholder="Sri Lanka" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Contact Person</span>
+                            <input type="text" name="contactPerson" placeholder="Mr. John Doe" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Designation</span>
+                            <input type="text" name="designation" placeholder="Sales Manager" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Payment Terms</span>
+                            <select name="paymentTerms" style="font-size: 0.875rem;">
+                                <option value="COD">Cash on Delivery</option>
+                                <option value="7days">7 Days</option>
+                                <option value="14days">14 Days</option>
+                                <option value="30days" selected>30 Days</option>
+                                <option value="60days">60 Days</option>
+                                <option value="90days">90 Days</option>
+                            </select>
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Credit Limit (LKR)</span>
+                            <input type="number" name="creditLimit" min="0" step="1000" placeholder="500000" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <label class="inventory-form-field" style="margin-bottom: 1rem;">
+                        <span>Notes</span>
+                        <textarea name="notes" placeholder="Additional notes about the supplier..." rows="2" style="font-size: 0.875rem; resize: vertical; min-height: 60px;"></textarea>
+                    </label>
+                    
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="cancelSupplierBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">🏢 Add Supplier</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeSupplierModal();
+        modal.querySelector('.inventory-modal-close')?.addEventListener('click', close);
+        modal.querySelector('#cancelSupplierBtn')?.addEventListener('click', close);
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector('#supplierForm');
+        form?.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            this.createSupplierFromForm(form);
+        });
+    }
+
+    closeSupplierModal() {
+        const modal = document.getElementById('supplierModal');
+        if (modal) modal.remove();
+    }
+
+    createSupplierFromForm(form) {
+        const formData = new FormData(form);
+        const name = String(formData.get('name') || '').trim();
+        const email = String(formData.get('email') || '').trim();
+        const phone = String(formData.get('phone') || '').trim();
+        const address = String(formData.get('address') || '').trim();
+        const city = String(formData.get('city') || '').trim();
+
+        if (!name || !email || !phone || !address || !city) {
+            this.showNotification('Please fill all required fields', 'warning');
+            return;
+        }
+
+        const newSupplier = {
+            id: Date.now().toString(),
+            name,
+            registration: String(formData.get('registration') || '').trim(),
+            email,
+            phone,
+            mobile: String(formData.get('mobile') || '').trim(),
+            fax: String(formData.get('fax') || '').trim(),
+            address,
+            city,
+            postalCode: String(formData.get('postalCode') || '').trim(),
+            country: String(formData.get('country') || 'Sri Lanka').trim(),
+            contactPerson: String(formData.get('contactPerson') || '').trim(),
+            designation: String(formData.get('designation') || '').trim(),
+            paymentTerms: String(formData.get('paymentTerms') || '30days').trim(),
+            creditLimit: Number(formData.get('creditLimit')) || 0,
+            notes: String(formData.get('notes') || '').trim(),
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            totalOrders: 0,
+            totalPurchases: 0
+        };
+
+        this.suppliers.push(newSupplier);
+        this.saveSuppliers();
+
+        this.updatePurchasingStats();
+        this.renderPurchasingContent();
+        this.closeSupplierModal();
+        
+        this.showNotification(`🏢 Supplier "${name}" added successfully!`, 'success');
+    }
+
+    editSupplier(supplierId) {
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (!supplier) return;
+
+        this.openEditSupplierModal(supplier);
+    }
+
+    openEditSupplierModal(supplier) {
+        if (document.getElementById('supplierModal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'supplierModal';
+        modal.className = 'inventory-modal-overlay';
+        modal.innerHTML = `
+            <div class="inventory-modal" style="max-width: 700px;" role="dialog" aria-modal="true" aria-labelledby="supplierTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="supplierTitle">✏️ Edit Supplier</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close supplier form">×</button>
+                </div>
+                <form id="supplierForm" class="inventory-form-grid">
+                    <input type="hidden" name="supplierId" value="${supplier.id}">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Supplier Name *</span>
+                            <input type="text" name="name" required value="${supplier.name}" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Company Registration</span>
+                            <input type="text" name="registration" value="${supplier.registration || ''}" placeholder="e.g. PV-2023-1234" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Email *</span>
+                            <input type="email" name="email" required value="${supplier.email}" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Phone *</span>
+                            <input type="tel" name="phone" required value="${supplier.phone}" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Mobile</span>
+                            <input type="tel" name="mobile" value="${supplier.mobile || ''}" placeholder="077-1234567" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Fax</span>
+                            <input type="tel" name="fax" value="${supplier.fax || ''}" placeholder="0112-345679" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <label class="inventory-form-field" style="margin-bottom: 1rem;">
+                        <span>Address *</span>
+                        <textarea name="address" required style="font-size: 0.875rem; resize: vertical; min-height: 60px;">${supplier.address}</textarea>
+                    </label>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>City *</span>
+                            <input type="text" name="city" required value="${supplier.city}" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Postal Code</span>
+                            <input type="text" name="postalCode" value="${supplier.postalCode || ''}" placeholder="00100" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Country</span>
+                            <input type="text" name="country" value="${supplier.country || 'Sri Lanka'}" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Contact Person</span>
+                            <input type="text" name="contactPerson" value="${supplier.contactPerson || ''}" placeholder="Mr. John Doe" style="font-size: 0.875rem;">
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Designation</span>
+                            <input type="text" name="designation" value="${supplier.designation || ''}" placeholder="Sales Manager" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <label class="inventory-form-field">
+                            <span>Payment Terms</span>
+                            <select name="paymentTerms" style="font-size: 0.875rem;">
+                                <option value="COD" ${supplier.paymentTerms === 'COD' ? 'selected' : ''}>Cash on Delivery</option>
+                                <option value="7days" ${supplier.paymentTerms === '7days' ? 'selected' : ''}>7 Days</option>
+                                <option value="14days" ${supplier.paymentTerms === '14days' ? 'selected' : ''}>14 Days</option>
+                                <option value="30days" ${supplier.paymentTerms === '30days' ? 'selected' : ''}>30 Days</option>
+                                <option value="60days" ${supplier.paymentTerms === '60days' ? 'selected' : ''}>60 Days</option>
+                                <option value="90days" ${supplier.paymentTerms === '90days' ? 'selected' : ''}>90 Days</option>
+                            </select>
+                        </label>
+                        <label class="inventory-form-field">
+                            <span>Credit Limit (LKR)</span>
+                            <input type="number" name="creditLimit" min="0" step="1000" value="${supplier.creditLimit || 0}" style="font-size: 0.875rem;">
+                        </label>
+                    </div>
+                    
+                    <label class="inventory-form-field" style="margin-bottom: 1rem;">
+                        <span>Notes</span>
+                        <textarea name="notes" style="font-size: 0.875rem; resize: vertical; min-height: 60px;">${supplier.notes || ''}</textarea>
+                    </label>
+                    
+                    <div class="inventory-form-actions">
+                        <button type="button" class="btn btn-secondary compact" id="cancelSupplierBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary compact">💾 Update Supplier</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeSupplierModal();
+        modal.querySelector('.inventory-modal-close')?.addEventListener('click', close);
+        modal.querySelector('#cancelSupplierBtn')?.addEventListener('click', close);
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) close();
+        });
+
+        const form = modal.querySelector('#supplierForm');
+        form?.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            this.updateSupplierFromForm(form);
+        });
+    }
+
+    updateSupplierFromForm(form) {
+        const formData = new FormData(form);
+        const supplierId = String(formData.get('supplierId') || '').trim();
+        const name = String(formData.get('name') || '').trim();
+        const email = String(formData.get('email') || '').trim();
+        const phone = String(formData.get('phone') || '').trim();
+        const address = String(formData.get('address') || '').trim();
+        const city = String(formData.get('city') || '').trim();
+
+        if (!supplierId || !name || !email || !phone || !address || !city) {
+            this.showNotification('Please fill all required fields', 'warning');
+            return;
+        }
+
+        const supplierIndex = this.suppliers.findIndex(s => s.id === supplierId);
+        if (supplierIndex === -1) {
+            this.showNotification('Supplier not found', 'error');
+            return;
+        }
+
+        // Update supplier
+        this.suppliers[supplierIndex] = {
+            ...this.suppliers[supplierIndex],
+            name,
+            registration: String(formData.get('registration') || '').trim(),
+            email,
+            phone,
+            mobile: String(formData.get('mobile') || '').trim(),
+            fax: String(formData.get('fax') || '').trim(),
+            address,
+            city,
+            postalCode: String(formData.get('postalCode') || '').trim(),
+            country: String(formData.get('country') || 'Sri Lanka').trim(),
+            contactPerson: String(formData.get('contactPerson') || '').trim(),
+            designation: String(formData.get('designation') || '').trim(),
+            paymentTerms: String(formData.get('paymentTerms') || '30days').trim(),
+            creditLimit: Number(formData.get('creditLimit')) || 0,
+            notes: String(formData.get('notes') || '').trim(),
+            updatedAt: new Date().toISOString()
+        };
+
+        this.saveSuppliers();
+        this.updatePurchasingStats();
+        this.renderPurchasingContent();
+        this.closeSupplierModal();
+        
+        this.showNotification(`✏️ Supplier "${name}" updated successfully!`, 'success');
+    }
+
+    viewSupplier(supplierId) {
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (!supplier) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'supplierViewModal';
+        modal.className = 'inventory-modal-overlay';
+        modal.innerHTML = `
+            <div class="inventory-modal" style="max-width: 600px;" role="dialog" aria-modal="true" aria-labelledby="supplierViewTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="supplierViewTitle">🏢 ${supplier.name}</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close supplier view">×</button>
+                </div>
+                <div style="padding: 1rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">📋 Company Details</h4>
+                            <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.5;">
+                                ${supplier.registration ? `<div><strong>Registration:</strong> ${supplier.registration}</div>` : ''}
+                                <div><strong>Status:</strong> ${supplier.status === 'active' ? '✅ Active' : '❌ Inactive'}</div>
+                                <div><strong>Created:</strong> ${new Date(supplier.createdAt).toLocaleDateString()}</div>
+                                ${supplier.updatedAt ? `<div><strong>Updated:</strong> ${new Date(supplier.updatedAt).toLocaleDateString()}</div>` : ''}
+                            </div>
+                        </div>
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">💰 Payment Info</h4>
+                            <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.5;">
+                                <div><strong>Payment Terms:</strong> ${supplier.paymentTerms}</div>
+                                <div><strong>Credit Limit:</strong> ${this.formatLKR(supplier.creditLimit || 0)}</div>
+                                <div><strong>Total Orders:</strong> ${supplier.totalOrders || 0}</div>
+                                <div><strong>Total Purchases:</strong> ${this.formatLKR(supplier.totalPurchases || 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">👤 Contact Person</h4>
+                        <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.5;">
+                            ${supplier.contactPerson ? `<div><strong>Name:</strong> ${supplier.contactPerson}</div>` : '<div style="color: #9ca3af;">No contact person specified</div>'}
+                            ${supplier.designation ? `<div><strong>Designation:</strong> ${supplier.designation}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">📍 Address</h4>
+                        <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.5;">
+                            <div>${supplier.address}</div>
+                            <div>${supplier.city}${supplier.postalCode ? `, ${supplier.postalCode}` : ''}${supplier.country ? `, ${supplier.country}` : ''}</div>
+                        </div>
+                    </div>
+                    
+                    ${supplier.notes ? `
+                    <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #374151; font-weight: 600;">📝 Notes</h4>
+                        <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.5;">${supplier.notes}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="inventory-form-actions" style="margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary compact" onclick="pharmacyPOS.closeSupplierViewModal()">Close</button>
+                        <button type="button" class="btn btn-primary compact" onclick="pharmacyPOS.openEditSupplierModal(pharmacyPOS.suppliers.find(s => s.id === '${supplier.id}'))">✏️ Edit Supplier</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => this.closeSupplierViewModal();
+        modal.querySelector('.inventory-modal-close')?.addEventListener('click', close);
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) close();
+        });
+    }
+
+    closeSupplierViewModal() {
+        const modal = document.getElementById('supplierViewModal');
+        if (modal) modal.remove();
+    }
+
+    deleteSupplier(supplierId) {
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (!supplier) return;
+
+        if (confirm(`Are you sure you want to delete supplier "${supplier.name}"? This action cannot be undone.`)) {
+            const supplierIndex = this.suppliers.findIndex(s => s.id === supplierId);
+            if (supplierIndex !== -1) {
+                this.suppliers.splice(supplierIndex, 1);
+                this.saveSuppliers();
+                this.updatePurchasingStats();
+                this.renderPurchasingContent();
+                this.showNotification(`🗑️ Supplier "${supplier.name}" deleted successfully!`, 'success');
+            }
+        }
+    }
+
+    toggleSupplierStatus(supplierId) {
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (!supplier) return;
+
+        supplier.status = supplier.status === 'active' ? 'inactive' : 'active';
+        this.saveSuppliers();
+        this.updatePurchasingStats();
+        this.renderPurchasingContent();
+        
+        const statusText = supplier.status === 'active' ? 'activated' : 'deactivated';
+        this.showNotification(`Supplier "${supplier.name}" ${statusText}`, 'success');
     }
 
     cleanup() {
