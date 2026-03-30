@@ -36,4 +36,14 @@
 
 
 
+    <menuitem id="menu_pharmacy_reports"
+
+              name="Reports"
+
+              parent="menu_pharmacy_root"
+
+              action="action_pharmacy_reports"/>
+
+
+
 </odoo>

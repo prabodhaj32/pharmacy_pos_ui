@@ -12,6 +12,7 @@ class PharmacyDashboard extends Component {
         this.customers = [];
         this.selectedCustomer = null;
         this.purchasingInstance = null;
+        this.reportsInstance = null;
         
         // Initialize customer data
         this.initializeCustomerData();
@@ -477,398 +478,35 @@ class PharmacyDashboard extends Component {
     renderReports() {
         const container = document.getElementById("dashboard_container");
         
-        // Use current date for date pickers in correct format
-        const today = new Date().toISOString().split('T')[0];
+        // Debug: Check if PharmacyReports is available
+        console.log('PharmacyReports available:', typeof window.PharmacyReports);
         
-        // Format LKR correctly for exact requirements
-        const formatValue = (val) => `LKR ${val.toLocaleString()}`;
-
-        container.innerHTML = `
-            <div class="dashboard reports-dashboard">
-                <div class="reports-header-row">
-                    <div class="reports-title-section">
-                        <h2>Reports & Analytics</h2>
-                        <span class="subtitle">Insights and data export</span>
-                    </div>
-
-                    <div class="reports-controls-bar">
-                        <div class="date-range">
-                            <input type="date" value="${today}" class="date-input compact" />
-                            <span class="date-separator">to</span>
-                            <input type="date" value="${today}" class="date-input compact" />
-                        </div>
-                        <div class="action-buttons">
-                            <button class="btn btn-secondary compact" id="btnExportCSV">
-                                <span class="btn-icon">📄</span> Export CSV
-                            </button>
-                            <button class="btn btn-secondary compact" id="btnPrintReport">
-                                <span class="btn-icon">🖨️</span> Print
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="reports-tabs">
-                    <button class="tab-btn active">Daily Sales</button>
-                    <button class="tab-btn">Profit Report</button>
-                    <button class="tab-btn">Fast Movers</button>
-                    <button class="tab-btn">Expiry Report</button>
-                    <button class="tab-btn">Stock Valuation</button>
-                    <button class="tab-btn">Cashier Summary</button>
-                </div>
-
-                <div class="metrics-grid reports-metrics-grid">
-                    <div class="metric-card success">
-                        <div class="metric-header">
-                            <div>
-                                <h3 class="metric-title">Gross Sales</h3>
-                                <p class="metric-value">LKR 48,750</p>
-                            </div>
-                            <div class="metric-icon">💰</div>
-                        </div>
-                    </div>
-
-                    <div class="metric-card info">
-                        <div class="metric-header">
-                            <div>
-                                <h3 class="metric-title">Net Sales</h3>
-                                <p class="metric-value">LKR 47,550</p>
-                            </div>
-                            <div class="metric-icon">💵</div>
-                        </div>
-                    </div>
-
-                    <div class="metric-card warning">
-                        <div class="metric-header">
-                            <div>
-                                <h3 class="metric-title">Total Discount</h3>
-                                <p class="metric-value">LKR 1,200</p>
-                            </div>
-                            <div class="metric-icon">🏷️</div>
-                        </div>
-                    </div>
-
-                    <div class="metric-card danger">
-                        <div class="metric-header">
-                            <div>
-                                <h3 class="metric-title">Total Returns</h3>
-                                <p class="metric-value">LKR 1,200</p>
-                            </div>
-                            <div class="metric-icon">🔄</div>
-                        </div>
-                    </div>
-
-                    <div class="metric-card" style="border-left: 4px solid #8b5cf6">
-                        <div class="metric-header">
-                            <div>
-                                <h3 class="metric-title">Tax Collected</h3>
-                                <p class="metric-value">LKR 180</p>
-                            </div>
-                            <div class="metric-icon">📋</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="charts-grid reports-charts">
-                    <div class="chart-card full-width reports-weekly-trend-card">
-                        <div class="reports-weekly-trend-head">
-                            <h3 class="chart-title reports-weekly-trend-title">Weekly Sales Trend</h3>
-                            <div class="reports-weekly-trend-legend" aria-hidden="true">
-                                <span class="reports-weekly-trend-legend-item"><i class="dot sales"></i>Sales</span>
-                                <span class="reports-weekly-trend-legend-item"><i class="dot profit"></i>Profit</span>
-                            </div>
-                        </div>
-                        <div class="chart-container reports-weekly-trend-canvas-wrap">
-                            <canvas id="reportsTrendChart" aria-label="Weekly Sales Trend"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.setupReportsHandlers();
-
-        // Initialize reports chart after rendering
-        setTimeout(() => {
-            this.initializeReportsChart();
-        }, 100);
-    }
-
-    setupReportsHandlers() {
-        const tabs = document.querySelectorAll('.reports-tabs .tab-btn');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                tabs.forEach(t => t.classList.remove('active'));
-                e.target.classList.add('active');
-                // Could refresh data based on tab here
-            });
-        });
-
-        // Add event listeners for Export and Print buttons
-        const btnExportCSV = document.getElementById('btnExportCSV');
-        if (btnExportCSV) {
-            btnExportCSV.addEventListener('click', () => {
-                this.exportReportsCSV();
-            });
+        // Clean up previous reports instance if exists
+        if (this.reportsInstance) {
+            this.reportsInstance.cleanup();
         }
-
-        const btnPrintReport = document.getElementById('btnPrintReport');
-        if (btnPrintReport) {
-            btnPrintReport.addEventListener('click', () => {
-                window.print();
-            });
+        
+        // Create new reports instance using global class
+        if (typeof window.PharmacyReports === 'function') {
+            this.reportsInstance = new window.PharmacyReports();
+        } else {
+            // Fallback: Show error message
+            container.innerHTML = `
+                <div class="dashboard">
+                    <div class="error-message">
+                        <h3>Reports Component Not Available</h3>
+                        <p>Please refresh the page and try again.</p>
+                    </div>
+                </div>
+            `;
+            return;
         }
-    }
-
-    exportReportsCSV() {
-        const csvContent = "data:text/csv;charset=utf-8," + 
-            "Report,Gross Sales,Net Sales,Total Discount,Total Returns,Tax Collected\\n" +
-            "Summary,48750,47550,1200,1200,180\\n" +
-            "\\n" +
-            "Day,Sales,Profit\\n" +
-            "Mon,35000,9500\\n" +
-            "Tue,48000,12000\\n" +
-            "Wed,42000,10500\\n" +
-            "Thu,61000,16000\\n" +
-            "Fri,78000,22000\\n" +
-            "Sat,72000,19500\\n" +
-            "Sun,48750,12400\\n";
         
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "pharmacy_reports.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    initializeReportsChart() {
-        const canvas = document.getElementById('reportsTrendChart');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        
-        // Exact requested data spanning Monday to Sunday
-        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        
-        // Data ranging between 0 and 80k roughly as requested
-        const salesData = [35000, 48000, 42000, 61000, 78000, 72000, 48750];
-        const profitData = [9500, 12000, 10500, 16000, 22000, 19500, 12400];
-
-        // Draw animated modern bar chart
-        this.drawAnimatedBarChart(ctx, canvas, labels, salesData, profitData);
-    }
-
-    drawAnimatedBarChart(ctx, canvas, labels, salesData, profitData) {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const logicalW = canvas.offsetWidth;
-        const logicalH = canvas.offsetHeight;
-        canvas.width = Math.round(logicalW * dpr);
-        canvas.height = Math.round(logicalH * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        const padL = 40;
-        const padR = 15;
-        const padT = 12;
-        const padB = 30;
-
-        const chartWidth = logicalW - padL - padR;
-        const chartHeight = logicalH - padT - padB;
-
-        const maxValue = 80000;
-        const minValue = 0;
-
-        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-        const easeOutElastic = (t) => {
-            const c4 = (2 * Math.PI) / 3;
-            return t === 0
-                ? 0
-                : t === 1
-                ? 1
-                : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-        };
-        const stagger = 0.08;
-        const barRadius = 6;
-        const totalFrames = 64;
-        let frame = 0;
-
-        const colorSalesTop = '#5eead4';
-        const colorSalesMid = '#14b8a6';
-        const colorSalesBot = '#0d9488';
-        const colorProfitTop = '#86efac';
-        const colorProfitMid = '#16a34a';
-        const colorProfitBot = '#15803d';
-
-        const fillBarRoundedTop = (x, y, w, h, r, gradient) => {
-            if (h <= 0.5) return;
-            const rad = Math.min(r, w / 2, h);
-            ctx.save();
-            ctx.fillStyle = gradient;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 2;
-            ctx.beginPath();
-            ctx.moveTo(x, y + h);
-            ctx.lineTo(x, y + rad);
-            ctx.quadraticCurveTo(x, y, x + rad, y);
-            ctx.lineTo(x + w - rad, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
-            ctx.lineTo(x + w, y + h);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        };
-
-        const createGradient = (ctx, x, y, h, colorTop, colorMid, colorBot) => {
-            const gradient = ctx.createLinearGradient(0, y, 0, y + h);
-            gradient.addColorStop(0, colorTop);
-            gradient.addColorStop(0.5, colorMid);
-            gradient.addColorStop(1, colorBot);
-            return gradient;
-        };
-
-        const groupProgress = (globalT, index) => {
-            const raw = (globalT - index * stagger) / (1 - stagger * (labels.length - 1));
-            return Math.max(0, Math.min(1, raw));
-        };
-
-        const renderFrame = () => {
-            frame += 1;
-            const linearT = Math.min(1, frame / totalFrames);
-            const easedGlobal = easeOutCubic(linearT);
-
-            const appEl = document.getElementById('pharmacy_app');
-            const isDark = appEl && appEl.classList.contains('dark-mode');
-            const plotBg = isDark ? 'rgba(30, 41, 59, 0.35)' : 'rgba(248, 250, 252, 0.8)';
-            const gridMajor = isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(148, 163, 184, 0.25)';
-            const gridMinor = isDark ? 'rgba(71, 85, 105, 0.25)' : 'rgba(203, 213, 225, 0.35)';
-            const axisColor = isDark ? 'rgba(148, 163, 184, 0.7)' : 'rgba(100, 116, 139, 0.6)';
-            const labelMuted = isDark ? '#94a3b8' : '#64748b';
-            const labelPrimary = isDark ? '#e2e8f0' : '#334155';
-
-            ctx.clearRect(0, 0, logicalW, logicalH);
-
-            // Draw plot background with gradient
-            const bgGradient = ctx.createLinearGradient(padL, padT, padL, padT + chartHeight);
-            bgGradient.addColorStop(0, isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(248, 250, 252, 0.9)');
-            bgGradient.addColorStop(1, isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(241, 245, 249, 0.7)');
-            ctx.fillStyle = bgGradient;
-            ctx.fillRect(padL, padT, chartWidth, chartHeight);
-
-            ctx.fillStyle = labelMuted;
-            ctx.font = '10px Inter, system-ui, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-
-            for (let i = 0; i <= 4; i++) {
-                const stepY = padT + (chartHeight / 4) * i;
-                const value = 80 - i * 20;
-
-                if (i < 4) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.setLineDash([3, 5]);
-                    ctx.strokeStyle = gridMajor;
-                    ctx.lineWidth = 1;
-                    ctx.moveTo(padL, stepY);
-                    ctx.lineTo(padL + chartWidth, stepY);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-
-                ctx.beginPath();
-                ctx.strokeStyle = axisColor;
-                ctx.lineWidth = 1;
-                ctx.moveTo(padL - 3, stepY);
-                ctx.lineTo(padL, stepY);
-                ctx.stroke();
-
-                const labelText = i === 4 ? '0' : `${value}k`;
-                ctx.fillText(labelText, padL - 6, stepY);
-            }
-
-            const segmentWidth = chartWidth / labels.length;
-            const barWidth = Math.min(segmentWidth * 0.32, 22);
-            const groupWidth = barWidth * 2 + 3;
-            const gapBetweenPairs = 3;
-
-            ctx.save();
-            ctx.setLineDash([3, 5]);
-            ctx.strokeStyle = gridMinor;
-            ctx.lineWidth = 1;
-            labels.forEach((_, i) => {
-                const centerX = padL + segmentWidth * i + segmentWidth / 2;
-                ctx.beginPath();
-                ctx.moveTo(centerX, padT);
-                ctx.lineTo(centerX, padT + chartHeight);
-                ctx.stroke();
-            });
-            ctx.restore();
-
-            ctx.beginPath();
-            ctx.strokeStyle = axisColor;
-            ctx.lineWidth = 1;
-            ctx.moveTo(padL, padT);
-            ctx.lineTo(padL, padT + chartHeight);
-            ctx.lineTo(padL + chartWidth, padT + chartHeight);
-            ctx.stroke();
-
-            labels.forEach((label, i) => {
-                const gp = easeOutElastic(groupProgress(easedGlobal, i));
-                const groupX = padL + segmentWidth * i + (segmentWidth - groupWidth) / 2;
-
-                const sFull = ((salesData[i] - minValue) / (maxValue - minValue)) * chartHeight;
-                const sHeight = sFull * gp;
-                const sY = padT + chartHeight - sHeight;
-                if (sHeight > 0) {
-                    const salesGradient = createGradient(ctx, groupX, sY, sHeight, colorSalesTop, colorSalesMid, colorSalesBot);
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(13, 148, 136, 0.3)';
-                    ctx.shadowBlur = 10;
-                    ctx.shadowOffsetY = 3;
-                    fillBarRoundedTop(groupX, sY, barWidth, sHeight, barRadius, salesGradient);
-                    ctx.restore();
-                }
-
-                const pFull = ((profitData[i] - minValue) / (maxValue - minValue)) * chartHeight;
-                const pHeight = pFull * gp;
-                const pY = padT + chartHeight - pHeight;
-                const px = groupX + barWidth + gapBetweenPairs;
-                if (pHeight > 0) {
-                    const profitGradient = createGradient(ctx, px, pY, pHeight, colorProfitTop, colorProfitMid, colorProfitBot);
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(22, 163, 74, 0.25)';
-                    ctx.shadowBlur = 8;
-                    ctx.shadowOffsetY = 2;
-                    fillBarRoundedTop(px, pY, barWidth, pHeight, barRadius, profitGradient);
-                    ctx.restore();
-                }
-
-                // Enhanced axis ticks
-                const centerX = padL + segmentWidth * i + segmentWidth / 2;
-                ctx.beginPath();
-                ctx.strokeStyle = axisColor;
-                ctx.lineWidth = 2;
-                ctx.moveTo(centerX, padT + chartHeight);
-                ctx.lineTo(centerX, padT + chartHeight + 4);
-                ctx.stroke();
-
-                // Enhanced labels
-                ctx.fillStyle = labelPrimary;
-                ctx.font = '11px Inter, system-ui, sans-serif';
-                ctx.fontWeight = '500';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillText(label, centerX, padT + chartHeight + 8);
-            });
-
-            if (frame < totalFrames) {
-                requestAnimationFrame(renderFrame);
-            }
-        };
-
-        requestAnimationFrame(renderFrame);
+        // Update topbar title
+        const topbarTitle = document.querySelector('.topbar h1');
+        if (topbarTitle) {
+            topbarTitle.textContent = 'Reports';
+        }
     }
 
     roundRect(ctx, x, y, width, height, radius) {
@@ -3328,6 +2966,12 @@ formatLKR(amount) {
         if (this.purchasingInstance) {
             this.purchasingInstance.cleanup();
             this.purchasingInstance = null;
+        }
+        
+        // Clean up reports instance
+        if (this.reportsInstance) {
+            this.reportsInstance.cleanup();
+            this.reportsInstance = null;
         }
         
         // Clean up charts

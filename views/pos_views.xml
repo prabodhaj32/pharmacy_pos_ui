@@ -7,6 +7,12 @@
         <field name="tag">pharmacy_pos_action</field>
     </record>
 
+    <!-- REPORTS ACTION -->
+    <record id="action_pharmacy_reports" model="ir.actions.client">
+        <field name="name">Pharmacy Reports</field>
+        <field name="tag">pharmacy_reports_action</field>
+    </record>
+
     <!-- POS ROOT TEMPLATE -->
     <template id="pharmacy_pos_layout">
         <div id="pos_container" class="pos-container">
