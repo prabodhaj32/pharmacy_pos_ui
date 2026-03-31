@@ -707,7 +707,7 @@ formatLKR(amount) {
                                             <td>${item.stock}</td>
                                             <td class="unit-price">${Number(item.cost || 0).toFixed(2)}</td>
                                             <td class="unit-price">${Number(item.price || 0).toFixed(2)}</td>
-                                            <td class="unit-price">${marginPct.toFixed(0)}%</td>
+                                            <td class="unit-price">${Number(marginPct).toFixed(0)}%</td>
                                             <td>${statusPill}</td>
                                         </tr>
                                     `;
@@ -796,8 +796,9 @@ formatLKR(amount) {
                             <button class="action-btn camera-btn" onclick="pharmacyPOS.openCamera()" title="Open Barcode Scanner">
                                 📷 Barcode Scanner
                             </button>
-                            <button class="action-btn customer-btn" onclick="pharmacyPOS.selectWalkInCustomer()" title="Walk-in Customer">
-                                🧍 Walk-in Customer
+                            <button class="action-btn customer-btn" onclick="pharmacyPOS.selectWalkInCustomer()" title="Select Customer">
+                                <span id="customerButtonIcon">🧍</span>
+                                <span id="customerButtonText">Select Customer</span>
                             </button>
                             <button class="action-btn hold-btn" onclick="pharmacyPOS.holdBill()" title="Hold Bill">
                                 ⏸ Hold Bill
@@ -814,6 +815,7 @@ formatLKR(amount) {
                                     placeholder="🔍 Scan or search to add items"
                                     id="medicineSearch"
                                     onkeyup="pharmacyPOS.searchMedicines(this.value)"
+                                    onkeypress="if(event.key==='Enter') pharmacyPOS.handleSearchEnter(event)"
                                 />
                                 <div class="search-suggestions" id="searchSuggestions"></div>
                             </div>
@@ -937,8 +939,11 @@ formatLKR(amount) {
             isWalkIn: true
         };
         
-        // Initialize held bills
-        this.heldBills = [];
+        // Load held bills from localStorage
+        this.loadHeldBills();
+        
+        // Update held bills count display
+        this.updateHeldBillsCount();
         
         // Barcode reader state
         this.isScanning = false;
@@ -948,6 +953,29 @@ formatLKR(amount) {
         this.renderProducts(this.products);
     }
     
+    loadHeldBills() {
+        const savedHeldBills = localStorage.getItem('pharmacy_pos_held_bills');
+        if (savedHeldBills) {
+            try {
+                this.heldBills = JSON.parse(savedHeldBills);
+            } catch (error) {
+                console.error('Error loading held bills from localStorage:', error);
+                this.heldBills = [];
+            }
+        } else {
+            this.heldBills = [];
+        }
+    }
+
+    saveHeldBills() {
+        try {
+            localStorage.setItem('pharmacy_pos_held_bills', JSON.stringify(this.heldBills));
+        } catch (error) {
+            console.error('Error saving held bills to localStorage:', error);
+            this.showNotification('Failed to save held bills to local storage.', 'error');
+        }
+    }
+
     openCamera() {
         this.startBarcodeScanner();
     }
@@ -1038,13 +1066,16 @@ formatLKR(amount) {
     }
     
     simulateBarcodeScanning() {
-        // Simulate barcode scanning with sample barcodes
+        // Simulate barcode scanning with actual barcodes from medicine data
         const sampleBarcodes = [
-            '1234567890123', // Paracetamol
-            '2345678901234', // Ibuprofen
-            '3456789012345', // Amoxicillin
-            '4567890123456', // Cough Syrup
-            '5678901234567'  // Vitamin C
+            '8901234567002', // Amoxicillin 500
+            '8901234557003', // Augmentin 625
+            '8901234557004', // Cetirizine 10
+            '8901234557005', // Diazepam 5
+            '8901234557006', // Losartan 50
+            '8901234557007', // Metformin 500
+            '8901234557008', // Omeprazole 20
+            '8901234557011'  // Vitamin C 500
         ];
         
         if (this.isScanning) {
@@ -1090,12 +1121,14 @@ formatLKR(amount) {
             }, 1500);
         }
     }
-    // barcode search (supports base medicines data)
+    // barcode search (supports base medicines data + localStorage items)
     findProductByBarcode(barcode) {
         const searchKey = String(barcode || "").trim();
         if (!searchKey) return null;
 
-        const dataset = medicines;
+        // Use same data source as other methods (localStorage + default)
+        const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+        const dataset = savedItems ? JSON.parse(savedItems) : medicines;
 
         // Prefer exact barcode match first
         const byBarcode = dataset.find(m => String(m.barcode) === searchKey);
@@ -1112,19 +1145,19 @@ formatLKR(amount) {
         if (existingItem) {
             // Increment quantity if already exists
             existingItem.quantity += 1;
-            existingItem.total = existingItem.unitPrice * existingItem.quantity;
+            existingItem.total = Number(existingItem.unitPrice || 0) * existingItem.quantity;
         } else {
             // Add new item to cart
             const cartItem = {
                 id: product.id,
                 name: product.name,
-                batch: product.batch,
-                expiry: product.expiry,
+                batch: product.batch || 'N/A',
+                expiry: product.expiryLabel || product.expiry || 'N/A',
                 quantity: 1,
-                unitPrice: product.price,
+                unitPrice: Number(product.price) || 0,
                 discount: 0,
-                total: product.price,
-                icon: product.icon
+                total: Number(product.price) || 0,
+                icon: product.icon || '💊'
             };
             
             this.cart.push(cartItem);
@@ -1192,9 +1225,9 @@ formatLKR(amount) {
                         <button class="qty-btn" onclick="pharmacyPOS.updateQuantity(${index}, 1)">+</button>
                     </div>
                 </td>
-                <td class="price-cell">$${(item.unitPrice || 0).toFixed(2)}</td>
-                <td class="discount-cell">${item.discount || 0}%</td>
-                <td class="total-cell">$${(item.total || 0).toFixed(2)}</td>
+                <td class="price-cell">LKR ${Number(item.unitPrice || 0).toFixed(2)}</td>
+                <td class="discount-cell">${Number(item.discount || 0)}%</td>
+                <td class="total-cell">LKR ${Number(item.total || 0).toFixed(2)}</td>
                 <td class="actions-cell">
                     <button class="action-btn delete" onclick="pharmacyPOS.removeItem(${index})" title="Remove item">
                         🗑️
@@ -1219,9 +1252,9 @@ formatLKR(amount) {
         const grandTotal = subtotal - totalDiscount;
 
         document.getElementById('cartItemCount').textContent = itemCount;
-        document.getElementById('cartSubtotal').textContent = `$${subtotal.toFixed(2)}`;
-        document.getElementById('cartDiscount').textContent = `$${totalDiscount.toFixed(2)}`;
-        document.getElementById('cartTotal').textContent = `$${grandTotal.toFixed(2)}`;
+        document.getElementById('cartSubtotal').textContent = `LKR ${Number(subtotal).toFixed(2)}`;
+        document.getElementById('cartDiscount').textContent = `LKR ${Number(totalDiscount).toFixed(2)}`;
+        document.getElementById('cartTotal').textContent = `LKR ${Number(grandTotal).toFixed(2)}`;
     }
     
     updateQuantity(index, change) {
@@ -1235,7 +1268,7 @@ formatLKR(amount) {
             return;
         }
         
-        item.total = (item.unitPrice || 0) * item.quantity;
+        item.total = Number(item.unitPrice || 0) * item.quantity;
         
         this.updateCartDisplay();
         this.updateSalesTable();
@@ -1424,6 +1457,19 @@ formatLKR(amount) {
                 ${!this.currentCustomer.isWalkIn ? `<br><small>📱 ${this.currentCustomer.phone}</small>` : ''}
             `;
         }
+        
+        // Also update the customer button text and icon
+        const customerButtonIcon = document.getElementById('customerButtonIcon');
+        const customerButtonText = document.getElementById('customerButtonText');
+        if (customerButtonIcon && customerButtonText) {
+            if (this.currentCustomer.isWalkIn) {
+                customerButtonIcon.textContent = '🧍';
+                customerButtonText.textContent = this.currentCustomer.name;
+            } else {
+                customerButtonIcon.textContent = '👤';
+                customerButtonText.textContent = this.currentCustomer.name;
+            }
+        }
     }
 
     closeCustomerDropdown() {
@@ -1436,55 +1482,472 @@ formatLKR(amount) {
     
     holdBill() {
         if (this.cart.length === 0) {
-            alert('⏸ Cart is empty. Add items before holding a bill.');
+            this.showNotification('⏸ Cart is empty. Add items before holding a bill.', 'warning');
             return;
         }
         
-        const billName = prompt('Enter bill reference name:', `Bill_${Date.now()}`);
-        if (billName) {
-            this.heldBills.push({
+        const billName = prompt('Enter bill reference name:', `Bill_${Date.now().toString().slice(-6)}`);
+        if (billName && billName.trim()) {
+            const heldBill = {
                 id: Date.now(),
-                name: billName,
+                name: billName.trim(),
+                customer: this.currentCustomer,
                 items: [...this.cart],
                 total: this.getCartTotal(),
-                timestamp: new Date().toLocaleString()
-            });
+                timestamp: new Date().toISOString(),
+                displayTimestamp: new Date().toLocaleString()
+            };
             
-            alert(`⏸ Bill held successfully!\n\nBill: ${billName}\nItems: ${this.cart.length}\nTotal: $${this.getCartTotal().toFixed(2)}`);
+            this.heldBills.push(heldBill);
+            this.saveHeldBills();
+            
+            this.showNotification(`⏸ Bill "${billName}" held successfully! (${this.cart.length} items, LKR ${Number(this.getCartTotal()).toFixed(2)})`, 'success');
             this.clearCart();
+            
+            // Update held bills count display
+            this.updateHeldBillsCount();
         }
     }
     
     handleReturns() {
         if (this.heldBills.length === 0) {
-            alert('🔁 No held bills available for returns.');
+            this.showNotification('🔁 No held bills available for returns.', 'info');
             return;
         }
         
-        let billsList = 'Available Bills for Returns:\n\n';
-        this.heldBills.forEach((bill, index) => {
-            billsList += `${index + 1}. ${bill.name} - $${bill.total.toFixed(2)} (${bill.timestamp})\n`;
+        this.showReturnsModal();
+    }
+
+    showReturnsModal() {
+        // Remove existing modal
+        this.closeReturnsModal();
+        
+        const modal = document.createElement('div');
+        modal.id = 'returnsModal';
+        modal.className = 'inventory-modal-overlay';
+        modal.innerHTML = `
+            <div class="inventory-modal returns-modal" role="dialog" aria-modal="true" aria-labelledby="returnsTitle">
+                <div class="inventory-modal-header">
+                    <h3 id="returnsTitle">🔁 Process Returns / Retrieve Held Bills</h3>
+                    <button type="button" class="inventory-modal-close" aria-label="Close returns modal">×</button>
+                </div>
+                <div class="returns-content">
+                    <div class="held-bills-list">
+                        ${this.heldBills.length > 0 ? `
+                            <h4>Available Held Bills</h4>
+                            <div class="bills-grid">
+                                ${this.heldBills.map((bill, index) => `
+                                    <div class="held-bill-card" data-bill-index="${index}">
+                                        <div class="bill-header">
+                                            <div class="bill-name">${bill.name}</div>
+                                            <div class="bill-customer">${bill.customer?.name || 'Walk-in Customer'}</div>
+                                        </div>
+                                        <div class="bill-details">
+                                            <div class="bill-info">
+                                                <span class="bill-items">${bill.items.length} items</span>
+                                                <span class="bill-total">LKR ${Number(bill.total).toFixed(2)}</span>
+                                            </div>
+                                            <div class="bill-date">${bill.displayTimestamp}</div>
+                                        </div>
+                                        <div class="bill-actions">
+                                            <button class="btn btn-primary btn-sm" onclick="pharmacyPOS.retrieveBill(${index})">
+                                                🛒 Retrieve
+                                            </button>
+                                            <button class="btn btn-secondary btn-sm" onclick="pharmacyPOS.processReturn(${index})">
+                                                🔁 Return
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="pharmacyPOS.deleteHeldBill(${index})">
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📋</div>
+                                <div class="empty-state-title">No Held Bills Available</div>
+                                <div class="empty-state-text">
+                                    There are currently no held bills to process returns or retrieve.<br>
+                                    Hold bills from the cart to see them appear here.
+                                </div>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup modal close handlers
+        const close = () => this.closeReturnsModal();
+        modal.querySelector('.inventory-modal-close')?.addEventListener('click', close);
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) close();
         });
+    }
+
+    closeReturnsModal() {
+        const modal = document.getElementById('returnsModal');
+        if (modal) modal.remove();
+    }
+
+    retrieveBill(billIndex) {
+        const bill = this.heldBills[billIndex];
+        if (!bill) return;
         
-        const billIndex = prompt(billsList + '\nEnter bill number (or cancel):');
-        
-        if (billIndex && !isNaN(billIndex)) {
-            const index = parseInt(billIndex) - 1;
-            if (index >= 0 && index < this.heldBills.length) {
-                const bill = this.heldBills[index];
-                alert(`🔁 Processing return for: ${bill.name}\n\nOriginal Items: ${bill.items.length}\nReturn Amount: $${bill.total.toFixed(2)}`);
-                this.heldBills.splice(index, 1);
+        // Clear current cart if not empty
+        if (this.cart.length > 0) {
+            if (!confirm('Current cart is not empty. Clear it and retrieve held bill?')) {
+                return;
             }
+            this.clearCart(false);
+        }
+        
+        // Restore cart items
+        this.cart = [...bill.items];
+        this.currentCustomer = bill.customer;
+        
+        // Update displays
+        this.updateCartDisplay();
+        this.updateSalesTable();
+        this.updateCartSummary();
+        this.updateCustomerDisplay();
+        
+        // Remove the held bill
+        this.heldBills.splice(billIndex, 1);
+        this.saveHeldBills();
+        
+        this.showNotification(`🛒 Retrieved bill "${bill.name}" with ${bill.items.length} items`, 'success');
+        this.closeReturnsModal();
+        this.updateHeldBillsCount();
+    }
+
+    processReturn(billIndex) {
+        const bill = this.heldBills[billIndex];
+        if (!bill) return;
+        
+        if (confirm(`Process return for "${bill.name}"?\n\nItems: ${bill.items.length}\nTotal Refund: LKR ${Number(bill.total).toFixed(2)}`)) {
+            // Process return logic
+            const returnTransaction = {
+                id: Date.now(),
+                originalBillId: bill.id,
+                originalBillName: bill.name,
+                items: [...bill.items],
+                totalAmount: bill.total,
+                refundAmount: bill.total,
+                customer: bill.customer,
+                timestamp: new Date().toLocaleString(),
+                type: 'RETURN'
+            };
+            
+            // Add to sales history as a return
+            if (!this.salesHistory) this.salesHistory = [];
+            this.salesHistory.push(returnTransaction);
+            
+            // Show return receipt
+            this.printReturnReceipt(returnTransaction);
+            
+            // Remove the held bill
+            this.heldBills.splice(billIndex, 1);
+            this.saveHeldBills();
+            
+            this.showNotification(`🔁 Return processed for "${bill.name}" - Refund: LKR ${Number(bill.total).toFixed(2)}`, 'success');
+            this.closeReturnsModal();
+            this.updateHeldBillsCount();
+        }
+    }
+
+    deleteHeldBill(billIndex) {
+        const bill = this.heldBills[billIndex];
+        if (!bill) return;
+        
+        if (confirm(`Delete held bill "${bill.name}"? This action cannot be undone.`)) {
+            this.heldBills.splice(billIndex, 1);
+            this.saveHeldBills();
+            
+            this.showNotification(`🗑️ Held bill "${bill.name}" deleted`, 'info');
+            this.closeReturnsModal();
+            this.updateHeldBillsCount();
+        }
+    }
+
+    updateHeldBillsCount() {
+        // Update held bills count display if exists
+        const heldBillsCount = document.getElementById('heldBillsCount');
+        if (heldBillsCount) {
+            heldBillsCount.textContent = this.heldBills.length;
+        }
+        
+        // Update returns button text to show count
+        const returnsBtn = document.querySelector('.returns-btn');
+        if (returnsBtn) {
+            returnsBtn.innerHTML = `🔁 Returns ${this.heldBills.length > 0 ? `(${this.heldBills.length})` : ''}`;
         }
     }
     
+    printReturnReceipt(returnTransaction) {
+        const receiptContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>RETURN Receipt - ${returnTransaction.id}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Courier New', monospace;
+                        background: white;
+                        margin: 0;
+                        padding: 20px;
+                        max-width: 400px;
+                    }
+                    .receipt-container {
+                        background: white;
+                        padding: 30px;
+                        border: 1px solid #333;
+                    }
+                    .receipt-header {
+                        text-align: center;
+                        border-bottom: 3px double #333;
+                        padding-bottom: 15px;
+                        margin-bottom: 20px;
+                    }
+                    .receipt-title {
+                        font-size: 28px;
+                        font-weight: bold;
+                        color: #dc2626;
+                        margin: 10px 0;
+                    }
+                    .receipt-subtitle {
+                        font-size: 14px;
+                        color: #6c757d;
+                        margin: 5px 0;
+                        font-weight: 600;
+                    }
+                    .receipt-info {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 10px;
+                        margin: 15px 0;
+                        font-size: 13px;
+                        color: #495057;
+                    }
+                    .receipt-info-item {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .receipt-info-label {
+                        font-weight: 600;
+                        color: #6c757d;
+                        margin-bottom: 3px;
+                    }
+                    .receipt-items {
+                        margin: 25px 0;
+                        border-top: 2px solid #e9ecef;
+                        padding-top: 15px;
+                    }
+                    .receipt-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        margin: 8px 0;
+                        padding: 10px 0;
+                        border-bottom: 1px dashed #e9ecef;
+                    }
+                    .receipt-item:last-child {
+                        border-bottom: none;
+                    }
+                    .receipt-item-name {
+                        flex: 1;
+                        font-weight: 600;
+                        color: #2c3e50;
+                        line-height: 1.4;
+                    }
+                    .receipt-batch {
+                        font-size: 10px;
+                        color: #6c757d;
+                        margin-top: 2px;
+                    }
+                    .receipt-item-details {
+                        text-align: right;
+                        min-width: 120px;
+                        font-size: 12px;
+                        color: #495057;
+                    }
+                    .receipt-totals {
+                        background: #fef2f2;
+                        border: 2px solid #dc2626;
+                        border-radius: 8px;
+                        padding: 20px;
+                        margin: 20px 0;
+                    }
+                    .receipt-total-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 8px 0;
+                        font-size: 14px;
+                    }
+                    .receipt-grand-total {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #dc2626;
+                        border-top: 2px solid #e9ecef;
+                        padding-top: 10px;
+                        margin-top: 10px;
+                    }
+                    .receipt-payment {
+                        background: #dc2626;
+                        color: white;
+                        padding: 15px;
+                        margin: 20px 0;
+                        border-radius: 8px;
+                        text-align: center;
+                    }
+                    .receipt-payment-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 5px 0;
+                        font-size: 13px;
+                    }
+                    .receipt-footer {
+                        text-align: center;
+                        margin-top: 30px;
+                        padding: 20px;
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                        border: 1px solid #e9ecef;
+                    }
+                    .receipt-thank {
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: #dc2626;
+                        margin-bottom: 10px;
+                    }
+                    .receipt-contact {
+                        font-size: 12px;
+                        color: #6c757d;
+                        margin: 5px 0;
+                    }
+                    .receipt-barcode {
+                        text-align: center;
+                        margin: 20px 0;
+                        font-family: 'Code 128', monospace;
+                        font-size: 14px;
+                        letter-spacing: 2px;
+                    }
+                    @media print {
+                        body { margin: 0; padding: 10px; }
+                        .receipt-container { 
+                            border: 1px solid #333; 
+                            margin: 0; 
+                            max-width: 100%; 
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="receipt-container">
+                    <div class="receipt-header">
+                        <div class="receipt-title">🏥 PHARMACY</div>
+                        <div class="receipt-subtitle">RETURN RECEIPT</div>
+                    </div>
+                    
+                    <div class="receipt-info">
+                        <div class="receipt-info-item">
+                            <div class="receipt-info-label">Return #</div>
+                            <div>RET${returnTransaction.id}</div>
+                        </div>
+                        <div class="receipt-info-item">
+                            <div class="receipt-info-label">Date & Time</div>
+                            <div>${returnTransaction.timestamp}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-info">
+                        <div class="receipt-info-item">
+                            <div class="receipt-info-label">Original Bill</div>
+                            <div>${returnTransaction.originalBillName}</div>
+                        </div>
+                        <div class="receipt-info-item">
+                            <div class="receipt-info-label">Customer</div>
+                            <div>${returnTransaction.customer?.name || 'Walk-in Customer'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-items">
+                        ${returnTransaction.items.map(item => `
+                            <div class="receipt-item">
+                                <div class="receipt-item-name">
+                                    ${item.name}
+                                    <div class="receipt-batch">Batch: ${item.batch || 'N/A'} | Exp: ${item.expiry || 'N/A'}</div>
+                                </div>
+                                <div class="receipt-item-details">
+                                    ${item.quantity} × LKR ${Number(item.unitPrice || 0).toFixed(2)}<br>
+                                    <strong>LKR ${Number((item.unitPrice || 0) * item.quantity).toFixed(2)}</strong>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="receipt-totals">
+                        <div class="receipt-total-row">
+                            <span>Items Returned (${returnTransaction.items.length}):</span>
+                            <span>${returnTransaction.items.length}</span>
+                        </div>
+                        <div class="receipt-total-row">
+                            <span>Original Total:</span>
+                            <span>LKR ${Number(returnTransaction.totalAmount).toFixed(2)}</span>
+                        </div>
+                        <div class="receipt-grand-total">
+                            <span>REFUND AMOUNT:</span>
+                            <span>LKR ${Number(returnTransaction.refundAmount).toFixed(2)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-payment">
+                        <div class="receipt-payment-row">
+                            <span>Refund Processed</span>
+                            <span>✓ COMPLETED</span>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-footer">
+                        <div class="receipt-thank">Return Processed Successfully!</div>
+                        <div class="receipt-contact"> +94 123 456 7890</div>
+                        <div class="receipt-contact"> 123 Pharmacy Street, Colombo</div>
+                        <div class="receipt-contact">📞 +94 123 456 7890</div>
+                        <div class="receipt-contact">📍 123 Pharmacy Street, Colombo</div>
+                        <div class="receipt-barcode">|||RET${returnTransaction.id}|||</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        // Auto-download return receipt
+        const blob = new Blob([receiptContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = `Return_Receipt_RET${returnTransaction.id}.html`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+        
+        // Show notification
+        this.showNotification(`📥 Return receipt downloaded - RET${returnTransaction.id}`, 'success');
+    }
+
     getCartTotal() {
-        return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+        return this.cart.reduce((total, item) => total + (Number(item.unitPrice || 0) * Number(item.quantity || 0)), 0);
     }
 
     loadProducts() {
-         // Load from centralized dataset
-         this.products = medicines;
+         // Load from localStorage (includes default + new products)
+         const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+         this.products = savedItems ? JSON.parse(savedItems) : medicines;
     }
 
     renderProducts(productsToRender) {
@@ -1497,7 +1960,7 @@ formatLKR(amount) {
                 <div class="product-info">
                     <h3 class="product-name">${product.name}</h3>
                     <p class="product-category">Category: ${this.getCategoryName(product.category)}</p>
-                    <p class="product-price">💰 Price: $${product.price.toFixed(2)}</p>
+                    <p class="product-price">💰 Price: LKR ${Number(product.price || 0).toFixed(2)}</p>
                     <p class="product-stock ${product.stock < 20 ? 'low-stock' : ''}">
                         📦 Stock: ${product.stock} in stock
                         ${product.stock < 20 ? '⚠️ Low Stock' : ''}
@@ -1529,6 +1992,35 @@ formatLKR(amount) {
         return categoryNames[category] || category;
     }
 
+    handleSearchEnter(event) {
+        const query = event.target.value.trim();
+        const suggestionsContainer = document.getElementById('searchSuggestions');
+        
+        if (!query) return;
+        
+        // Check if there's exactly one suggestion and add it
+        const suggestions = suggestionsContainer.querySelectorAll('.suggestion-item:not(.no-results)');
+        if (suggestions.length === 1) {
+            suggestions[0].click();
+        } else if (suggestions.length > 1) {
+            // If multiple suggestions, do nothing and let user choose
+            return;
+        } else {
+            // No suggestions, check if it's a barcode
+            if (/^\d{9,}$/.test(query)) {
+                const product = this.findProductByBarcode(query);
+                if (product) {
+                    this.addProductToCart(product);
+                    event.target.value = '';
+                    suggestionsContainer.innerHTML = '';
+                    this.showNotification(`✅ ${product.name} added via barcode scan`, 'success');
+                } else {
+                    this.showNotification(`❌ No product found for barcode: ${query}`, 'error');
+                }
+            }
+        }
+    }
+
     searchMedicines(query) {
         const suggestionsContainer = document.getElementById('searchSuggestions');
         
@@ -1537,9 +2029,29 @@ formatLKR(amount) {
             return;
         }
         
-        const filtered = this.products.filter(product => 
+        // Check if input looks like a barcode (all numbers and longer than 8 digits)
+        if (/^\d{9,}$/.test(query.trim())) {
+            // Try to find product by barcode
+            const product = this.findProductByBarcode(query.trim());
+            if (product) {
+                this.addProductToCart(product);
+                // Clear search after successful barcode scan
+                const searchInput = document.getElementById('medicineSearch');
+                searchInput.value = '';
+                suggestionsContainer.innerHTML = '';
+                this.showNotification(`✅ ${product.name} added via barcode scan`, 'success');
+                return;
+            }
+        }
+        
+        // Use localStorage data (pharmacy_pos_inventory_items) - includes default + new products
+        const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+        const allProducts = savedItems ? JSON.parse(savedItems) : medicines;
+        
+        const filtered = allProducts.filter(product => 
             product.name.toLowerCase().includes(query.toLowerCase()) ||
-            product.category.toLowerCase().includes(query.toLowerCase())
+            product.category.toLowerCase().includes(query.toLowerCase()) ||
+            product.barcode === query.trim()
         );
         
         if (filtered.length === 0) {
@@ -1553,7 +2065,8 @@ formatLKR(amount) {
                 <div class="suggestion-info">
                     <div class="suggestion-name">${product.name}</div>
                     <div class="suggestion-details">
-                        💰 $${product.price.toFixed(2)} | 📦 ${product.stock} in stock
+                        💰 LKR ${Number(product.price || 0).toFixed(2)} | 📦 ${product.stock} in stock
+                        ${product.barcode ? ` | 📊 ${product.barcode}` : ''}
                     </div>
                 </div>
                 <div class="suggestion-action">➕</div>
@@ -1570,7 +2083,10 @@ formatLKR(amount) {
     }
     
     addToCartFromSearch(productId, productName) {
-        const product = this.products.find(p => p.id === productId);
+        // Use same data source as search (localStorage + default)
+        const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+        const allProducts = savedItems ? JSON.parse(savedItems) : medicines;
+        const product = allProducts.find(p => p.id === productId);
         if (!product) return;
         
         this.addToCart(productId);
@@ -1589,130 +2105,24 @@ formatLKR(amount) {
     }
 
     addToCart(productId) {
-        const product = this.products.find(p => p.id === productId);
+        // Use same data source as search (localStorage + default)
+        const savedItems = localStorage.getItem('pharmacy_pos_inventory_items');
+        const allProducts = savedItems ? JSON.parse(savedItems) : medicines;
+        const product = allProducts.find(p => p.id === productId);
         if (!product) return;
 
-        const existingItem = this.cart.find(item => item.id === productId);
-        if (existingItem) {
-            existingItem.quantity++;
-        } else {
-            this.cart.push({
-                ...product,
-                quantity: 1,
-                discount: 0 // Default discount percentage
-            });
-        }
-
-        this.updateCartDisplay();
+        // Use the same logic as addProductToCart for consistency
+        this.addProductToCart(product);
     }
 
     removeFromCart(productId) {
         this.cart = this.cart.filter(item => item.id !== productId);
         this.updateCartDisplay();
+        this.updateSalesTable();
+        this.updateCartSummary();
     }
 
-    updateQuantity(productId, change) {
-        const item = this.cart.find(item => item.id === productId);
-        if (item) {
-            item.quantity += change;
-            if (item.quantity <= 0) {
-                this.removeFromCart(productId);
-            } else {
-                this.updateCartDisplay();
-            }
-        }
-    }
-
-    updateCartDisplay() {
-        const cartTableBody = document.getElementById('cartTableBody');
-        const cartSubtotal = document.getElementById('cartSubtotal');
-        const cartDiscount = document.getElementById('cartDiscount');
-        const cartTotal = document.getElementById('cartTotal');
-        const cartItemCount = document.getElementById('cartItemCount');
-        
-        if (!cartTableBody || !cartSubtotal || !cartDiscount || !cartTotal) return;
-
-        if (this.cart.length === 0) {
-            cartTableBody.innerHTML = `
-                <tr class="cart-empty-row">
-                    <td colspan="7" class="cart-empty">
-                        <p>Cart is empty</p>
-                    </td>
-                </tr>
-            `;
-            cartSubtotal.textContent = '$0.00';
-            cartDiscount.textContent = '$0.00';
-            cartTotal.textContent = '$0.00';
-            if (cartItemCount) cartItemCount.textContent = '0';
-            return;
-        }
-
-        // Generate table rows
-        cartTableBody.innerHTML = this.cart.map(item => {
-            const itemTotal = item.price * item.quantity;
-            const discountAmount = itemTotal * (item.discount / 100);
-            const finalTotal = itemTotal - discountAmount;
-            
-            return `
-                <tr class="cart-row" data-item-id="${item.id}">
-                    <td class="item-name">
-                        <div class="product-info">
-                            <span class="name">${item.name}</span>
-                            <span class="icon">${item.icon}</span>
-                        </div>
-                    </td>
-                    <td class="batch-expiry">
-                        <div class="batch-info">
-                            <span class="batch">${item.batch}</span>
-                            <span class="expiry">${this.formatDate(item.expiry)}</span>
-                        </div>
-                    </td>
-                    <td class="quantity">
-                        <div class="quantity-controls">
-                            <button class="btn-quantity" onclick="pharmacyPOS.updateQuantity(${item.id}, -1)">-</button>
-                            <span class="quantity-value">${item.quantity}</span>
-                            <button class="btn-quantity" onclick="pharmacyPOS.updateQuantity(${item.id}, 1)">+</button>
-                        </div>
-                    </td>
-                    <td class="unit-price">$${item.price.toFixed(2)}</td>
-                    <td class="discount">
-                        <div class="discount-controls">
-                            <input type="number" 
-                                   class="discount-input" 
-                                   value="${item.discount}" 
-                                   min="0" 
-                                   max="100" 
-                                   step="0.1"
-                                   onchange="pharmacyPOS.updateDiscount(${item.id}, this.value)"
-                                   onclick="this.select()">
-                            <span>%</span>
-                        </div>
-                    </td>
-                    <td class="item-total">$${finalTotal.toFixed(2)}</td>
-                    <td class="actions">
-                        <button class="btn-remove" onclick="pharmacyPOS.removeFromCart(${item.id})" title="Remove item">
-                            🗑️
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        // Calculate totals
-        const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const totalDiscount = this.cart.reduce((sum, item) => {
-            const itemTotal = item.price * item.quantity;
-            return sum + (itemTotal * (item.discount / 100));
-        }, 0);
-        const grandTotal = subtotal - totalDiscount;
-
-        // Update totals display
-        cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
-        cartDiscount.textContent = `$${totalDiscount.toFixed(2)}`;
-        cartTotal.textContent = `$${grandTotal.toFixed(2)}`;
-        if (cartItemCount) cartItemCount.textContent = String(this.cart.reduce((sum, item) => sum + item.quantity, 0));
-    }
-
+    
     formatDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { 
@@ -1726,6 +2136,8 @@ formatLKR(amount) {
         if (item) {
             item.discount = Math.max(0, Math.min(100, parseFloat(discountValue) || 0));
             this.updateCartDisplay();
+            this.updateSalesTable();
+            this.updateCartSummary();
         }
     }
 
@@ -1733,6 +2145,8 @@ formatLKR(amount) {
         if (!askConfirm || confirm('Are you sure you want to clear the cart?')) {
             this.cart = [];
             this.updateCartDisplay();
+            this.updateSalesTable();
+            this.updateCartSummary();
         }
     }
 
@@ -1769,7 +2183,7 @@ formatLKR(amount) {
 
                 <div class="payment-total-modern">
                     <div class="total-label">TOTAL</div>
-                    <div class="total-amount-large">LKR ${total.toFixed(2)}</div>
+                    <div class="total-amount-large">LKR ${Number(total).toFixed(2)}</div>
                 </div>
 
                 <div class="payment-methods-modern" role="radiogroup" aria-label="Payment method">
@@ -1800,7 +2214,7 @@ formatLKR(amount) {
                     <label for="amountPaid">Amount Paid</label>
                     <div class="amount-input-wrapper">
                         <span class="currency-prefix">LKR</span>
-                        <input class="amount-input-modern" type="number" id="amountPaid" value="${total.toFixed(2)}" step="0.01" min="0" inputmode="decimal">
+                        <input class="amount-input-modern" type="number" id="amountPaid" value="${Number(total).toFixed(2)}" step="0.01" min="0" inputmode="decimal">
                     </div>
                     <div class="quick-amounts-modern">
                         <button class="quick-amt-btn" type="button" onclick="pharmacyPOS.setAmount(10)">10</button>
@@ -1813,7 +2227,7 @@ formatLKR(amount) {
                 <div class="payment-balance-modern">
                     <div class="balance-card">
                         <span class="balance-label">Balance</span>
-                        <span class="balance-value" id="balanceAmount">LKR ${total.toFixed(2)} (due)</span>
+                        <span class="balance-value" id="balanceAmount">LKR ${Number(total).toFixed(2)} (due)</span>
                     </div>
                 </div>
 
@@ -1865,8 +2279,8 @@ formatLKR(amount) {
             const paid = parseFloat(amountPaid.value) || 0;
             const balance = total - paid;
             balanceAmount.textContent = balance > 0 ? 
-                `LKR ${balance.toFixed(2)} (due)` : 
-                `LKR ${Math.abs(balance).toFixed(2)} (change)`;
+                `LKR ${Number(balance).toFixed(2)} (due)` : 
+                `LKR ${Number(Math.abs(balance)).toFixed(2)} (change)`;
         };
         
         amountPaid.addEventListener('input', updateBalance);
@@ -1888,9 +2302,13 @@ formatLKR(amount) {
             return;
         }
         
+        // Generate receipt number
+        const receiptNumber = 'R' + Date.now().toString().slice(-8);
+        
         // Process sale
         const sale = {
             id: Date.now(),
+            receiptNumber: receiptNumber,
             items: [...this.cart],
             total: total,
             amountPaid: amountPaid,
@@ -1903,12 +2321,77 @@ formatLKR(amount) {
         if (!this.salesHistory) this.salesHistory = [];
         this.salesHistory.push(sale);
         
-        this.showNotification(`🧾 Sale completed - LKR ${total.toFixed(2)}`, 'success');
+        // Update customer data if not walk-in customer
+        if (this.currentCustomer && !this.currentCustomer.isWalkIn) {
+            this.updateCustomerAfterSale(this.currentCustomer, total);
+        }
+        
+        this.showNotification(`🧾 Sale completed - LKR ${Number(total).toFixed(2)}`, 'success');
         this.clearCart(false);
         this.closePaymentDropdown();
         
         // Print receipt (simulation)
         this.printReceipt(sale);
+    }
+
+    getCustomerRecentPurchases(customerId, limit = 5) {
+        if (!this.salesHistory || !customerId) return [];
+        
+        // Filter sales for this customer and sort by timestamp (most recent first)
+        const customerSales = this.salesHistory
+            .filter(sale => sale.customer && sale.customer.id === customerId)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .slice(0, limit);
+        
+        return customerSales.map(sale => ({
+            date: new Date(sale.timestamp).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            }),
+            items: sale.items.map(item => item.name).join(', '),
+            amount: sale.total,
+            receiptNumber: sale.receiptNumber,
+            paymentMethod: sale.paymentMethod
+        }));
+    }
+
+    updateCustomerAfterSale(customer, saleAmount) {
+        // Find customer in the customers array
+        const customerIndex = this.customers.findIndex(c => c.id === customer.id);
+        if (customerIndex === -1) return;
+        
+        // Update customer data
+        this.customers[customerIndex].totalPurchases = (this.customers[customerIndex].totalPurchases || 0) + saleAmount;
+        
+        // Calculate loyalty points (1 point per LKR 100 spent)
+        const pointsEarned = Math.floor(saleAmount / 100);
+        this.customers[customerIndex].loyaltyPoints = (this.customers[customerIndex].loyaltyPoints || 0) + pointsEarned;
+        
+        // Update customer tier based on total purchases
+        const totalPurchases = this.customers[customerIndex].totalPurchases;
+        if (totalPurchases >= 100000) {
+            this.customers[customerIndex].tier = 'Platinum';
+        } else if (totalPurchases >= 50000) {
+            this.customers[customerIndex].tier = 'Gold';
+        } else if (totalPurchases >= 25000) {
+            this.customers[customerIndex].tier = 'Silver';
+        } else {
+            this.customers[customerIndex].tier = 'Bronze';
+        }
+        
+        // Save updated customer data to localStorage
+        this.saveCustomersToStorage();
+        
+        // Show notification about points earned
+        if (pointsEarned > 0) {
+            this.showNotification(`🎉 ${customer.name} earned ${pointsEarned} loyalty points!`, 'success');
+        }
+        
+        // Refresh customer details if currently viewing this customer
+        if (this.selectedCustomer && this.selectedCustomer.id === customer.id) {
+            this.refreshCustomerDetails(customer.id);
+        }
     }
 
     printReceipt(sale) {
@@ -2107,8 +2590,8 @@ formatLKR(amount) {
                                     <div class="receipt-batch">Batch: ${item.batch || 'N/A'} | Exp: ${item.expiry || 'N/A'}</div>
                                 </div>
                                 <div class="receipt-item-details">
-                                    ${item.quantity} × LKR ${(item.price || 0).toFixed(2)}<br>
-                                    <strong>LKR ${((item.price || 0) * item.quantity).toFixed(2)}</strong>
+                                    ${item.quantity} × LKR ${Number(item.price || 0).toFixed(2)}<br>
+                                    <strong>LKR ${Number((item.price || 0) * item.quantity).toFixed(2)}</strong>
                                 </div>
                             </div>
                         `).join('')}
@@ -2121,7 +2604,7 @@ formatLKR(amount) {
                         </div>
                         <div class="receipt-total-row">
                             <span>Subtotal:</span>
-                            <span>LKR ${sale.total.toFixed(2)}</span>
+                            <span>LKR ${Number(sale.total).toFixed(2)}</span>
                         </div>
                         <div class="receipt-total-row">
                             <span>Discount:</span>
@@ -2129,23 +2612,25 @@ formatLKR(amount) {
                         </div>
                         <div class="receipt-grand-total">
                             <span>GRAND TOTAL:</span>
-                            <span>LKR ${sale.total.toFixed(2)}</span>
+                            <span>LKR ${Number(sale.total).toFixed(2)}</span>
                         </div>
                     </div>
                     
                     <div class="receipt-payment">
                         <div class="receipt-payment-row">
                             <span>Amount Paid:</span>
-                            <span>LKR ${sale.amountPaid.toFixed(2)}</span>
+                            <span>LKR ${Number(sale.amountPaid).toFixed(2)}</span>
                         </div>
                         <div class="receipt-payment-row">
                             <span>Change:</span>
-                            <span>LKR ${(sale.amountPaid - sale.total).toFixed(2)}</span>
+                            <span>LKR ${Number(sale.amountPaid - sale.total).toFixed(2)}</span>
                         </div>
                     </div>
                     
                     <div class="receipt-footer">
                         <div class="receipt-thank">Thank You For Your Purchase!</div>
+                        <div class="receipt-contact"> +94 123 456 7890</div>
+                        <div class="receipt-contact"> 123 Pharmacy Street, Colombo</div>
                         <div class="receipt-contact">📞 +94 123 456 7890</div>
                         <div class="receipt-contact">📍 123 Pharmacy Street, Colombo</div>
                         <div class="receipt-barcode">|||${sale.receiptNumber}|||</div>
@@ -2202,13 +2687,13 @@ formatLKR(amount) {
 
     // Helper methods for calculations
     calculateSubtotal() {
-        return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return this.cart.reduce((sum, item) => sum + (Number(item.unitPrice || 0) * Number(item.quantity || 0)), 0);
     }
 
     calculateTotalDiscount() {
         return this.cart.reduce((sum, item) => {
-            const itemTotal = item.price * item.quantity;
-            return sum + (itemTotal * (item.discount / 100));
+            const itemTotal = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+            return sum + (itemTotal * (Number(item.discount || 0) / 100));
         }, 0);
     }
 
@@ -2447,6 +2932,9 @@ formatLKR(amount) {
     renderCustomerDetails(customer) {
         const creditPercentage = customer.creditLimit > 0 ? (customer.creditUsed / customer.creditLimit) * 100 : 0;
         
+        // Get recent purchases from sales history
+        const recentPurchases = this.getCustomerRecentPurchases(customer.id, 3);
+        
         return `
             <div class="customer-details-content">
                 <div class="customer-details-header">
@@ -2519,21 +3007,17 @@ formatLKR(amount) {
                 <div class="customer-history">
                     <h4>Recent Purchases</h4>
                     <div class="purchase-history">
-                        <div class="purchase-item">
-                            <div class="purchase-date">Mar 25, 2026</div>
-                            <div class="purchase-items">Antibiotics, Vitamins</div>
-                            <div class="purchase-amount">LKR 2,450</div>
-                        </div>
-                        <div class="purchase-item">
-                            <div class="purchase-date">Mar 18, 2026</div>
-                            <div class="purchase-items">Pain Relief</div>
-                            <div class="purchase-amount">LKR 1,200</div>
-                        </div>
-                        <div class="purchase-item">
-                            <div class="purchase-date">Mar 10, 2026</div>
-                            <div class="purchase-items">Diabetes Medication</div>
-                            <div class="purchase-amount">LKR 3,800</div>
-                        </div>
+                        ${recentPurchases.length > 0 ? recentPurchases.map(purchase => `
+                            <div class="purchase-item">
+                                <div class="purchase-date">${purchase.date}</div>
+                                <div class="purchase-items">${purchase.items}</div>
+                                <div class="purchase-amount">LKR ${Number(purchase.amount).toFixed(2)}</div>
+                            </div>
+                        `).join('') : `
+                            <div class="no-purchases">
+                                <p>No recent purchases found</p>
+                            </div>
+                        `}
                     </div>
                 </div>
             </div>
@@ -2605,6 +3089,17 @@ formatLKR(amount) {
                     this.selectCustomer(customerId);
                 });
             });
+        }
+    }
+
+    refreshCustomerDetails(customerId) {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (!customer) return;
+        
+        // Update customer details
+        const customerDetails = document.getElementById("customerDetails");
+        if (customerDetails) {
+            customerDetails.innerHTML = this.renderCustomerDetails(customer);
         }
     }
 

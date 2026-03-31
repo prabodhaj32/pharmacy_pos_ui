@@ -2341,15 +2341,28 @@ input:checked + .slider:before {
 
     background: #dbeafe;
 
-    border-color: #1e40af;
+border-color: #1e40af;
 
 }
 
 .customer-btn {
 
-    border-color: #8b5cf6;
+border-color: #8b5cf6;
 
-    color: #5b21b6;
+min-width: 160px;
+max-width: 160px;
+width: 160px;
+    
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 6px;
+    
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+
+color: #5b21b6;
 
 }
 
@@ -7465,9 +7478,9 @@ input:checked + .slider:before {
     background: var(--bg-card, #ffffff);
     border-radius: 12px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    max-width: 600px;
+    max-width: 500px;
     width: 90%;
-    max-height: 90vh;
+    max-height: 85vh;
     overflow-y: auto;
     animation: slideUp 0.3s ease-out;
 }
@@ -7506,24 +7519,24 @@ input:checked + .slider:before {
 }
 
 .inventory-form-grid {
-    padding: 24px;
+    padding: 16px;
 }
 
 .inventory-form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .inventory-form-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .inventory-form-field span {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-primary, #1e293b);
 }
@@ -7531,10 +7544,10 @@ input:checked + .slider:before {
 .inventory-form-field input[type="text"],
 .inventory-form-field input[type="number"],
 .inventory-form-field input[type="date"] {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.2s;
     background: var(--bg-card, #ffffff);
     color: var(--text-primary, #1e293b);
@@ -7566,8 +7579,8 @@ input:checked + .slider:before {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    margin-top: 24px;
-    padding-top: 16px;
+    margin-top: 16px;
+    padding-top: 12px;
     border-top: 1px solid var(--border-color, #e5e7eb);
 }
 
@@ -7613,5 +7626,349 @@ input:checked + .slider:before {
     
     .inventory-form-actions .btn {
         width: 100%;
+    }
+}
+
+/* Returns Modal Enhanced Styles */
+.returns-modal {
+    max-width: 650px;
+    width: 95%;
+}
+
+.returns-content {
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.held-bills-list h4 {
+    margin: 0 0 20px 0;
+    color: var(--text-primary, #1e293b);
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.held-bills-list h4::before {
+    content: "📋";
+    font-size: 20px;
+}
+
+.bills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.held-bill-card {
+    background: var(--bg-secondary, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.held-bill-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.held-bill-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-color: #3b82f6;
+}
+
+.held-bill-card:hover::before {
+    opacity: 1;
+}
+
+.bill-header {
+    margin-bottom: 12px;
+}
+
+.bill-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #1e293b);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bill-name::before {
+    content: "🧾";
+    font-size: 14px;
+}
+
+.bill-customer {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--primary-color, #3b82f6);
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #bfdbfe;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.bill-customer:hover {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px -1px rgba(59, 130, 246, 0.2);
+}
+
+.bill-customer::before {
+    content: "👤";
+    font-size: 12px;
+}
+
+.bill-details {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-primary, #ffffff);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.bill-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.bill-items {
+    font-size: 13px;
+    color: var(--text-secondary, #64748b);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bill-items::before {
+    content: "📦";
+    font-size: 12px;
+}
+
+.bill-total {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--success-color, #059669);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bill-total::before {
+    content: "💰";
+    font-size: 13px;
+}
+
+.bill-date {
+    font-size: 12px;
+    color: var(--text-muted, #94a3b8);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bill-date::before {
+    content: "🕐";
+    font-size: 11px;
+}
+
+.bill-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bill-actions .btn {
+    flex: 1;
+    min-width: 80px;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.bill-actions .btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.bill-actions .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: 1px solid #2563eb;
+    color: white;
+}
+
+.bill-actions .btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(59, 130, 246, 0.4);
+}
+
+.bill-actions .btn-secondary {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    border: 1px solid #4b5563;
+    color: white;
+}
+
+.bill-actions .btn-secondary:hover {
+    background: linear-gradient(135deg, #4b5563, #374151);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(107, 114, 128, 0.4);
+}
+
+.bill-actions .btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border: 1px solid #dc2626;
+    color: white;
+}
+
+.bill-actions .btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.4);
+}
+
+/* Empty State for No Held Bills */
+.held-bills-list .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted, #94a3b8);
+}
+
+.held-bills-list .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.held-bills-list .empty-state-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-secondary, #64748b);
+}
+
+.held-bills-list .empty-state-text {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Dark Mode Support */
+.dark-mode .held-bill-card {
+    background: var(--bg-secondary, #1e293b);
+    border-color: var(--border-color, #334155);
+}
+
+.dark-mode .bill-details {
+    background: var(--bg-card, #0f172a);
+    border-color: var(--border-color, #334155);
+}
+
+.dark-mode .bill-name {
+    color: var(--text-primary, #f1f5f9);
+}
+
+.dark-mode .bill-customer {
+    color: var(--primary-color, #60a5fa);
+    background: linear-gradient(135deg, #1e3a8a, #1e40af);
+    border-color: #3b82f6;
+}
+
+.dark-mode .bill-items {
+    color: var(--text-secondary, #cbd5e1);
+}
+
+.dark-mode .bill-date {
+    color: var(--text-muted, #64748b);
+}
+
+.dark-mode .held-bills-list h4 {
+    color: var(--text-primary, #f1f5f9);
+}
+
+.dark-mode .held-bills-list .empty-state-title {
+    color: var(--text-secondary, #cbd5e1);
+}
+
+.dark-mode .held-bills-list .empty-state-text {
+    color: var(--text-muted, #94a3b8);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .returns-modal {
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .returns-content {
+        padding: 16px;
+    }
+    
+    .bills-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .held-bill-card {
+        padding: 12px;
+    }
+    
+    .bill-actions {
+        flex-direction: column;
+    }
+    
+    .bill-actions .btn {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .bill-actions .btn-sm {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .bill-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .bill-actions {
+        gap: 6px;
+    }
+    
+    .bill-actions .btn {
+        font-size: 11px;
+        padding: 6px 8px;
     }
 }
