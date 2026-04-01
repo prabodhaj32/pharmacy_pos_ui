@@ -19,6 +19,7 @@
             'pharmacy_pos_ui/static/src/js/pos.js',
             'pharmacy_pos_ui/static/src/js/pharmacy_purchasing.js',
             'pharmacy_pos_ui/static/src/js/pharmacy_reports.js',
+            'pharmacy_pos_ui/static/src/js/pharmacy_settings.js',
             'pharmacy_pos_ui/static/src/xml/templates.xml',
              'pharmacy_pos_ui/static/src/lib/chart.min.js',
         ],

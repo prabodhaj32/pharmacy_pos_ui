@@ -64,10 +64,13 @@
                 </nav>
 
                 <footer class="sidebar-footer">
-                    <div class="theme-toggle">
-                        <label class="switch" for="darkModeToggle">
+                    <div class="theme-toggle modern">
+                        <label class="switch modern-switch" for="darkModeToggle">
                             <input type="checkbox" id="darkModeToggle" aria-label="Toggle dark mode"/>
-                            <span class="slider"></span>
+                            <div class="slider round">
+                                <span class="icon sun">☀️</span>
+                                <span class="icon moon">🌙</span>
+                            </div>
                         </label>
                         <span class="toggle-label">Dark Mode</span>
                     </div>
