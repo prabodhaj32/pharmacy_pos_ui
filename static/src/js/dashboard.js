@@ -832,13 +832,15 @@ class PharmacyDashboard extends Component {
   toggleDarkMode(isDark) {
     const app = document.getElementById("pharmacy_app");
     if (isDark) {
-      app.classList.add("dark-mode");
+      if (app) app.classList.add("dark-mode");
+      document.body.classList.add("dark-mode");
       document.documentElement.style.setProperty("--bg-main", "#0f172a");
       document.documentElement.style.setProperty("--bg-card", "#1e293b");
       document.documentElement.style.setProperty("--border-color", "#334155");
       document.documentElement.style.setProperty("--text-primary", "#f1f5f9");
     } else {
-      app.classList.remove("dark-mode");
+      if (app) app.classList.remove("dark-mode");
+      document.body.classList.remove("dark-mode");
       document.documentElement.style.setProperty("--bg-main", "#f8fafc");
       document.documentElement.style.setProperty("--bg-card", "#ffffff");
       document.documentElement.style.setProperty("--border-color", "#e2e8f0");

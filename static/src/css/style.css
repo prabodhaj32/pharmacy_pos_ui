@@ -14923,6 +14923,85 @@ body.dark-mode .sidebar {
 }
 
 
+/* =============================================
+   DARK MODE FOR SETTINGS
+   ============================================= */
+.dark-mode .settings-container {
+  background: var(--bg-main, #0f172a);
+}
+
+.dark-mode .settings-header,
+.dark-mode .settings-nav,
+.dark-mode .settings-section {
+  background: var(--bg-card, #1e293b);
+  border-color: var(--border-color, #334155);
+}
+
+.dark-mode .header-content h1,
+.dark-mode .section-header h2 {
+  color: var(--primary-color, #4ade80);
+}
+
+.dark-mode .nav-btn {
+  color: var(--text-muted, #94a3b8);
+}
+
+.dark-mode .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--primary-color, #4ade80);
+}
+
+.dark-mode .form-label,
+.dark-mode .checkbox-label {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.dark-mode .form-input,
+.dark-mode .form-select,
+.dark-mode .form-textarea,
+.dark-mode .checkbox-custom {
+  background: var(--bg-main, #0f172a);
+  color: var(--text-primary, #f1f5f9);
+  border-color: var(--border-color, #334155);
+}
+
+.dark-mode .settings-subsection {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: var(--border-color, #334155);
+}
+
+.dark-mode .roles-table,
+.dark-mode .roles-table th,
+.dark-mode .roles-table td {
+  background: var(--bg-card, #1e293b);
+  color: var(--text-primary, #f1f5f9);
+  border-color: var(--border-color, #334155);
+}
+
+.dark-mode .role-name {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.dark-mode .section-header p,
+.dark-mode .role-id {
+  color: var(--text-muted, #94a3b8);
+}
+
+.dark-mode .permission-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary-color, #4ade80);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .settings-section .btn-secondary {
+  color: var(--text-primary, #f1f5f9) !important;
+  border-color: var(--border-color, #334155) !important;
+}
+
+.dark-mode .settings-section .btn-secondary:hover {
+  background: var(--border-color, #334155) !important;
+}
+
 /* Responsive Design */
 
 @media (max-width: 768px) {
