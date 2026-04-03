@@ -1,0 +1,83 @@
+{
+    "orders": [
+        {
+            "id": "1",
+            "orderNumber": "PO-001234",
+            "supplierId": "1",
+            "supplierName": "MediSupply Ltd",
+            "orderDate": "2025-03-28T10:30:00.000Z",
+            "expectedDeliveryDate": "2025-04-02T14:00:00.000Z",
+            "items": [
+                {
+                    "name": "Paracetamol 500mg",
+                    "quantity": 100,
+                    "unitCost": 5.50,
+                    "batch": "B001",
+                    "total": 550.00
+                },
+                {
+                    "name": "Amoxicillin 250mg",
+                    "quantity": 50,
+                    "unitCost": 8.75,
+                    "batch": "B002",
+                    "total": 437.50
+                }
+            ],
+            "totalAmount": 987.50,
+            "status": "pending",
+            "notes": "Urgent delivery required",
+            "createdAt": "2025-03-28T10:30:00.000Z"
+        },
+        {
+            "id": "2",
+            "orderNumber": "PO-001235",
+            "supplierId": "2",
+            "supplierName": "PharmaDistributors",
+            "orderDate": "2025-03-27T10:30:00.000Z",
+            "expectedDeliveryDate": "2025-03-30T14:00:00.000Z",
+            "receivedDate": "2025-03-29T16:45:00.000Z",
+            "items": [
+                {
+                    "name": "Ibuprofen 400mg",
+                    "quantity": 75,
+                    "unitCost": 6.25,
+                    "batch": "B003",
+                    "total": 468.75
+                }
+            ],
+            "totalAmount": 468.75,
+            "status": "received",
+            "notes": "Received on time",
+            "createdAt": "2025-03-27T10:30:00.000Z"
+        },
+        {
+            "id": "3",
+            "orderNumber": "PO-001236",
+            "supplierId": "1",
+            "supplierName": "MediSupply Ltd",
+            "orderDate": "2025-03-26T10:30:00.000Z",
+            "expectedDeliveryDate": "2025-04-01T14:00:00.000Z",
+            "receivedDate": "2025-03-28T11:20:00.000Z",
+            "items": [
+                {
+                    "name": "Cetirizine 10mg",
+                    "quantity": 120,
+                    "unitCost": 3.25,
+                    "batch": "B004",
+                    "total": 390.00
+                },
+                {
+                    "name": "Loratadine 10mg",
+                    "quantity": 80,
+                    "unitCost": 4.50,
+                    "batch": "B005",
+                    "total": 360.00
+                }
+            ],
+            "totalAmount": 750.00,
+            "status": "received",
+            "notes": "Partial delivery - rest pending",
+            "createdAt": "2025-03-26T10:30:00.000Z"
+        }
+    ]
+}

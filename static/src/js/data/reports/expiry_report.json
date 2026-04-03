@@ -1,0 +1,91 @@
+{
+    "expiring_medicines": [
+        {
+            "medicine": "Alprazolam 0.5mg",
+            "generic_name": "Alprazolam",
+            "batch": "BT2024033",
+            "expiry_date": "9/30/2025",
+            "days_left": -181,
+            "status": "expired",
+            "stock": 45,
+            "value_at_cost": 4275,
+            "value_at_retail": 6750,
+            "action": "Discount",
+            "priority": "high"
+        },
+        {
+            "medicine": "Cetirizine 10mg",
+            "generic_name": "Cetirizine HCl",
+            "batch": "BT2024056",
+            "expiry_date": "10/31/2025",
+            "days_left": -150,
+            "status": "expired",
+            "stock": 22,
+            "value_at_cost": 264,
+            "value_at_retail": 440,
+            "action": "Discount",
+            "priority": "high"
+        },
+        {
+            "medicine": "Augmentin 625",
+            "generic_name": "Amoxicillin + Clavulanate",
+            "batch": "BT2024045",
+            "expiry_date": "12/31/2025",
+            "days_left": -89,
+            "status": "expired",
+            "stock": 80,
+            "value_at_cost": 14800,
+            "value_at_retail": 20000,
+            "action": "Discount",
+            "priority": "high"
+        },
+        {
+            "medicine": "Vitamin C 1000",
+            "generic_name": "Ascorbic Acid",
+            "batch": "BT2024110",
+            "expiry_date": "4/30/2026",
+            "days_left": 31,
+            "status": "expiring_soon",
+            "stock": 420,
+            "value_at_cost": 23100,
+            "value_at_retail": 35700,
+            "action": "Discount",
+            "priority": "medium"
+        },
+        {
+            "medicine": "Losartan 50mg",
+            "generic_name": "Losartan Potassium",
+            "batch": "BT2024102",
+            "expiry_date": "6/30/2026",
+            "days_left": 92,
+            "status": "expiring_soon",
+            "stock": 340,
+            "value_at_cost": 22100,
+            "value_at_retail": 32300,
+            "action": "Monitor",
+            "priority": "medium"
+        },
+        {
+            "medicine": "Panadol 500mg",
+            "generic_name": "Paracetamol",
+            "batch": "BT2024001",
+            "expiry_date": "8/31/2026",
+            "days_left": 154,
+            "status": "expiring_soon",
+            "stock": 1200,
+            "value_at_cost": 54000,
+            "value_at_retail": 78000,
+            "action": "Monitor",
+            "priority": "low"
+        }
+    ],
+    "summary": {
+        "total_items": 6,
+        "expired_items": 3,
+        "expiring_soon_items": 3,
+        "total_value_at_risk": 118439,
+        "high_priority_items": 3,
+        "medium_priority_items": 2,
+        "low_priority_items": 1
+    }
+}

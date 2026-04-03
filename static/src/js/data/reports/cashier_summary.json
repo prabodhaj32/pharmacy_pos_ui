@@ -1,0 +1,81 @@
+{
+    "cashier_performance": [
+        {
+            "cashier": "Cashier 1",
+            "cashier_id": "EMP001",
+            "shift": "Morning",
+            "performance": {
+                "bills_processed": 18,
+                "total_sales": 28500,
+                "avg_bill_value": 1583,
+                "cash_collected": 18525,
+                "card_collected": 9975,
+                "mobile_payment": 0,
+                "total_discount_given": 450,
+                "returns_processed": 2,
+                "customer_satisfaction": 4.5
+            },
+            "payment_breakdown": {
+                "cash_percentage": 65.0,
+                "card_percentage": 35.0,
+                "mobile_percentage": 0.0
+            },
+            "hourly_breakdown": [
+                {"hour": "09:00", "sales": 3500, "bills": 2},
+                {"hour": "10:00", "sales": 5200, "bills": 3},
+                {"hour": "11:00", "sales": 4800, "bills": 3},
+                {"hour": "12:00", "sales": 6200, "bills": 4},
+                {"hour": "13:00", "sales": 8800, "bills": 6}
+            ]
+        },
+        {
+            "cashier": "Cashier 2",
+            "cashier_id": "EMP002",
+            "shift": "Afternoon",
+            "performance": {
+                "bills_processed": 16,
+                "total_sales": 20250,
+                "avg_bill_value": 1266,
+                "cash_collected": 13163,
+                "card_collected": 7088,
+                "mobile_payment": 0,
+                "total_discount_given": 325,
+                "returns_processed": 1,
+                "customer_satisfaction": 4.2
+            },
+            "payment_breakdown": {
+                "cash_percentage": 65.0,
+                "card_percentage": 35.0,
+                "mobile_percentage": 0.0
+            },
+            "hourly_breakdown": [
+                {"hour": "14:00", "sales": 4200, "bills": 3},
+                {"hour": "15:00", "sales": 5100, "bills": 4},
+                {"hour": "16:00", "sales": 3800, "bills": 3},
+                {"hour": "17:00", "sales": 4550, "bills": 3},
+                {"hour": "18:00", "sales": 2600, "bills": 3}
+            ]
+        }
+    ],
+    "summary": {
+        "total_cashiers": 2,
+        "total_sales": 48750,
+        "total_bills": 34,
+        "avg_bill_value": 1433.82,
+        "total_cash_collected": 31688,
+        "total_card_collected": 17063,
+        "total_discount_given": 775,
+        "total_returns": 3,
+        "peak_hour": "13:00",
+        "best_performer": "Cashier 1",
+        "date": "2025-03-30"
+    },
+    "kpi_comparison": {
+        "sales_target": 50000,
+        "achievement_rate": 97.5,
+        "bills_target": 35,
+        "bills_achievement_rate": 97.1,
+        "customer_satisfaction_target": 4.0,
+        "satisfaction_achievement_rate": 108.9
+    }
+}

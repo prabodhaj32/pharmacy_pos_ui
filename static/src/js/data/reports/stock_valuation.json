@@ -1,0 +1,118 @@
+{
+    "summary": {
+        "total_cost_value": 143859,
+        "total_selling_value": 212950,
+        "potential_profit": 69091,
+        "total_items": 8,
+        "valuation_date": "2025-03-30",
+        "currency": "LKR"
+    },
+    "details": [
+        {
+            "medicine": "Panadol 500mg",
+            "generic_name": "Paracetamol",
+            "stock": 1200,
+            "cost_per_unit": 45,
+            "sell_per_unit": 65,
+            "cost_value": 54000,
+            "sell_value": 78000,
+            "potential_profit": 24000,
+            "profit_margin": 30.8,
+            "category": "Pain Relief"
+        },
+        {
+            "medicine": "Augmentin 625",
+            "generic_name": "Amoxicillin + Clavulanate",
+            "stock": 80,
+            "cost_per_unit": 185,
+            "sell_per_unit": 250,
+            "cost_value": 14800,
+            "sell_value": 20000,
+            "potential_profit": 5200,
+            "profit_margin": 26.0,
+            "category": "Antibiotics"
+        },
+        {
+            "medicine": "Omeprazole 20",
+            "generic_name": "Omeprazole",
+            "stock": 650,
+            "cost_per_unit": 28,
+            "sell_per_unit": 42,
+            "cost_value": 18200,
+            "sell_value": 27300,
+            "potential_profit": 9100,
+            "profit_margin": 33.3,
+            "category": "GI Medicine"
+        },
+        {
+            "medicine": "Losartan 50",
+            "generic_name": "Losartan Potassium",
+            "stock": 340,
+            "cost_per_unit": 65,
+            "sell_per_unit": 95,
+            "cost_value": 22100,
+            "sell_value": 32300,
+            "potential_profit": 10200,
+            "profit_margin": 31.6,
+            "category": "Cardiovascular"
+        },
+        {
+            "medicine": "Cetirizine 10",
+            "generic_name": "Cetirizine HCl",
+            "stock": 22,
+            "cost_per_unit": 12,
+            "sell_per_unit": 20,
+            "cost_value": 264,
+            "sell_value": 440,
+            "potential_profit": 176,
+            "profit_margin": 40.0,
+            "category": "Antihistamines"
+        },
+        {
+            "medicine": "Metformin 500",
+            "generic_name": "Metformin HCl",
+            "stock": 890,
+            "cost_per_unit": 8,
+            "sell_per_unit": 14,
+            "cost_value": 7120,
+            "sell_value": 12460,
+            "potential_profit": 5340,
+            "profit_margin": 42.9,
+            "category": "Diabetes"
+        },
+        {
+            "medicine": "Alprazolam 0.5",
+            "generic_name": "Alprazolam",
+            "stock": 45,
+            "cost_per_unit": 95,
+            "sell_per_unit": 150,
+            "cost_value": 4275,
+            "sell_value": 6750,
+            "potential_profit": 2475,
+            "profit_margin": 36.7,
+            "category": "CNS Medicine"
+        },
+        {
+            "medicine": "Vitamin C 1000",
+            "generic_name": "Ascorbic Acid",
+            "stock": 420,
+            "cost_per_unit": 55,
+            "sell_per_unit": 85,
+            "cost_value": 23100,
+            "sell_value": 35700,
+            "potential_profit": 12600,
+            "profit_margin": 35.3,
+            "category": "Vitamins"
+        }
+    ],
+    "category_breakdown": {
+        "Pain Relief": { "items": 1, "cost_value": 54000, "sell_value": 78000, "profit": 24000 },
+        "Antibiotics": { "items": 1, "cost_value": 14800, "sell_value": 20000, "profit": 5200 },
+        "GI Medicine": { "items": 1, "cost_value": 18200, "sell_value": 27300, "profit": 9100 },
+        "Cardiovascular": { "items": 1, "cost_value": 22100, "sell_value": 32300, "profit": 10200 },
+        "Antihistamines": { "items": 1, "cost_value": 264, "sell_value": 440, "profit": 176 },
+        "Diabetes": { "items": 1, "cost_value": 7120, "sell_value": 12460, "profit": 5340 },
+        "CNS Medicine": { "items": 1, "cost_value": 4275, "sell_value": 6750, "profit": 2475 },
+        "Vitamins": { "items": 1, "cost_value": 23100, "sell_value": 35700, "profit": 12600 }
+    }
+}

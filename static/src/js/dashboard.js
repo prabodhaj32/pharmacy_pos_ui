@@ -8,13 +8,9 @@ class PharmacyDashboard extends Component {
   setup() {
     this.charts = {};
     this.refreshInterval = null;
-    this.customers = [];
-    this.selectedCustomer = null;
     this.purchasingInstance = null;
     this.reportsInstance = null;
-
-    // Initialize customer data
-    this.initializeCustomerData();
+    this.customersInstance = null;
 
     onMounted(() => {
       this.renderDashboard();
@@ -60,7 +56,7 @@ class PharmacyDashboard extends Component {
                     <div class="metric-card info">
                         <div class="metric-header">
                             <div>
-                                <h3 class="metric-title">Customers Served</h3>
+                                <h3 class="metric-title">Transactions Today</h3>
                                 <p class="metric-value">28</p>
                                 <p class="metric-subtitle">Avg. LKR 1,433.82/bill</p>
                             </div>
@@ -68,7 +64,7 @@ class PharmacyDashboard extends Component {
                         </div>
                         <div class="metric-change positive">
                             <span>📊</span>
-                            <span>+5 customers vs yesterday</span>
+                            <span>+5 transactions vs yesterday</span>
                         </div>
                     </div>
 
@@ -505,7 +501,7 @@ class PharmacyDashboard extends Component {
         this.navigateToFarmacyInventory();
         break;
       case "customers":
-        this.renderCustomers();
+        this.renderCustomersPage();
         break;
       case "purchasing":
         this.renderPurchasing();
@@ -531,10 +527,13 @@ class PharmacyDashboard extends Component {
     // Initialize settings component
     if (typeof window.PharmacySettings === "function") {
       // Clean up previous instance if exists
-      if (window.pharmacySettings && typeof window.pharmacySettings.cleanup === "function") {
+      if (
+        window.pharmacySettings &&
+        typeof window.pharmacySettings.cleanup === "function"
+      ) {
         window.pharmacySettings.cleanup();
       }
-      
+
       // Create new instance using static method
       window.pharmacySettings = window.PharmacySettings.createInstance();
     } else {
@@ -885,7 +884,7 @@ class PharmacyDashboard extends Component {
     const container = document.getElementById("dashboard_container");
 
     container.innerHTML = `
-            <div class="pharmacy-pos">
+          <div class="pharmacy-pos">
                 <!-- Main Content Grid: Sales Table + Cart Split -->
                 <div class="pos-main-grid-split-75-35 pos-main-grid-right-rail">
                     <div class="pos-left-top">
@@ -1441,197 +1440,6 @@ class PharmacyDashboard extends Component {
     }, 3000);
   }
 
-  selectWalkInCustomer() {
-    this.showCustomerDropdown();
-  }
-
-  showCustomerDropdown() {
-    const customerBtn = document.querySelector(".customer-btn");
-    if (!customerBtn) return;
-
-    // Remove existing dropdown
-    this.closeCustomerDropdown();
-
-    // Create dropdown
-    const dropdown = document.createElement("div");
-    dropdown.className = "customer-dropdown";
-    dropdown.innerHTML = `
-            <div class="customer-dropdown-header">
-                <input type="text" placeholder="Search customers..." id="customerSearchDropdown" class="customer-dropdown-search">
-            </div>
-            <div class="customer-dropdown-list" id="customerDropdownList">
-                ${this.renderCustomerDropdownList()}
-            </div>
-            <div class="customer-dropdown-footer">
-                <div class="customer-dropdown-item walk-in-item" onclick="pharmacyPOS.selectWalkInCustomerByName()">
-                    <div class="customer-item-avatar">🧍</div>
-                    <div class="customer-item-info">
-                        <div class="customer-item-name">Walk-in Customer</div>
-                        <div class="customer-item-phone">Anonymous customer</div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    // Position dropdown below the button
-    const rect = customerBtn.getBoundingClientRect();
-    dropdown.style.top = `${rect.bottom + window.scrollY + 5}px`;
-    dropdown.style.left = `${rect.left + window.scrollX}px`;
-    dropdown.style.width = `${rect.width}px`;
-
-    document.body.appendChild(dropdown);
-
-    // Setup search functionality
-    setTimeout(() => {
-      this.setupCustomerDropdownSearch();
-
-      // Close dropdown when clicking outside
-      document.addEventListener("click", this.handleDropdownClickOutside);
-    }, 100);
-  }
-
-  renderCustomerDropdownList() {
-    return this.customers
-      .map(
-        (customer) => `
-            <div class="customer-dropdown-item" onclick="pharmacyPOS.selectCustomerFromDropdown(${customer.id})">
-                <div class="customer-item-avatar">
-                    ${customer.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .substring(0, 2)}
-                </div>
-                <div class="customer-item-info">
-                    <div class="customer-item-name">${customer.name}</div>
-                    <div class="customer-item-phone">${customer.phone}</div>
-                    <div class="customer-item-tier">
-                        <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
-                        <span class="customer-item-points">${customer.loyaltyPoints} pts</span>
-                    </div>
-                </div>
-            </div>
-        `,
-      )
-      .join("");
-  }
-
-  setupCustomerDropdownSearch() {
-    const searchInput = document.getElementById("customerSearchDropdown");
-    const customerList = document.getElementById("customerDropdownList");
-
-    searchInput.addEventListener("input", (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      const filteredCustomers = this.customers.filter(
-        (customer) =>
-          customer.name.toLowerCase().includes(searchTerm) ||
-          customer.phone.includes(searchTerm) ||
-          customer.email.toLowerCase().includes(searchTerm),
-      );
-
-      customerList.innerHTML = filteredCustomers
-        .map(
-          (customer) => `
-                <div class="customer-dropdown-item" onclick="pharmacyPOS.selectCustomerFromDropdown(${customer.id})">
-                    <div class="customer-item-avatar">
-                        ${customer.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .substring(0, 2)}
-                    </div>
-                    <div class="customer-item-info">
-                        <div class="customer-item-name">${customer.name}</div>
-                        <div class="customer-item-phone">${customer.phone}</div>
-                        <div class="customer-item-tier">
-                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
-                            <span class="customer-item-points">${customer.loyaltyPoints} pts</span>
-                        </div>
-                    </div>
-                </div>
-            `,
-        )
-        .join("");
-    });
-  }
-
-  handleDropdownClickOutside = (e) => {
-    const dropdown = document.querySelector(".customer-dropdown");
-    const customerBtn = document.querySelector(".customer-btn");
-
-    if (
-      dropdown &&
-      !dropdown.contains(e.target) &&
-      !customerBtn.contains(e.target)
-    ) {
-      this.closeCustomerDropdown();
-    }
-  };
-
-  selectCustomerFromDropdown(customerId) {
-    const customer = this.customers.find((c) => c.id === customerId);
-    if (customer) {
-      this.currentCustomer = {
-        ...customer,
-        isWalkIn: false,
-      };
-      this.updateCustomerDisplay();
-      this.closeCustomerDropdown();
-      alert(
-        `🧍 Customer selected: ${customer.name}\n📱 ${customer.phone}\n⭐ ${customer.tier} - ${customer.loyaltyPoints} points`,
-      );
-    }
-  }
-
-  selectWalkInCustomerByName() {
-    const customerName = prompt(
-      "Enter customer name (leave blank for Walk-in):",
-      "Walk-in Customer",
-    );
-    if (customerName !== null) {
-      this.currentCustomer = {
-        name: customerName || "Walk-in Customer",
-        isWalkIn: customerName === "" || customerName === "Walk-in Customer",
-      };
-      this.updateCustomerDisplay();
-      this.closeCustomerDropdown();
-      alert(`🧍 Customer selected: ${this.currentCustomer.name}`);
-    }
-  }
-
-  updateCustomerDisplay() {
-    const customerDisplay = document.querySelector(".current-customer");
-    if (customerDisplay) {
-      customerDisplay.innerHTML = `
-                <strong>🧍 Customer:</strong> ${this.currentCustomer.name}
-                ${!this.currentCustomer.isWalkIn ? `<br><small>📱 ${this.currentCustomer.phone}</small>` : ""}
-            `;
-    }
-
-    // Also update the customer button text and icon
-    const customerButtonIcon = document.getElementById("customerButtonIcon");
-    const customerButtonText = document.getElementById("customerButtonText");
-    if (customerButtonIcon && customerButtonText) {
-      if (this.currentCustomer.isWalkIn) {
-        customerButtonIcon.textContent = "🧍";
-        customerButtonText.textContent = this.currentCustomer.name;
-      } else {
-        customerButtonIcon.textContent = "👤";
-        customerButtonText.textContent = this.currentCustomer.name;
-      }
-    }
-  }
-
-  closeCustomerDropdown() {
-    const dropdown = document.querySelector(".customer-dropdown");
-    if (dropdown) {
-      dropdown.remove();
-    }
-    document.removeEventListener("click", this.handleDropdownClickOutside);
-  }
-
   holdBill() {
     if (this.cart.length === 0) {
       this.showNotification(
@@ -1758,7 +1566,6 @@ class PharmacyDashboard extends Component {
       if (ev.target === modal) close();
     });
   }
-
   closeReturnsModal() {
     const modal = document.getElementById("returnsModal");
     if (modal) modal.remove();
@@ -1780,20 +1587,35 @@ class PharmacyDashboard extends Component {
 
     // Restore cart items
     this.cart = [...bill.items];
-    this.currentCustomer = bill.customer;
+
+    // Restore customer information
+    if (bill.customer) {
+      this.currentCustomer = { ...bill.customer };
+      this.updateCustomerButton();
+    } else {
+      this.currentCustomer = {
+        name: "Walk-in Customer",
+        isWalkIn: true,
+      };
+      this.updateCustomerButton();
+    }
 
     // Update displays
     this.updateCartDisplay();
     this.updateSalesTable();
     this.updateCartSummary();
-    this.updateCustomerDisplay();
 
     // Remove the held bill
     this.heldBills.splice(billIndex, 1);
     this.saveHeldBills();
 
+    const customerInfo =
+      bill.customer && !bill.customer.isWalkIn
+        ? ` for ${bill.customer.name}`
+        : "";
+
     this.showNotification(
-      `🛒 Retrieved bill "${bill.name}" with ${bill.items.length} items`,
+      `🛒 Retrieved bill "${bill.name}" with ${bill.items.length} items${customerInfo}`,
       "success",
     );
     this.closeReturnsModal();
@@ -1817,7 +1639,6 @@ class PharmacyDashboard extends Component {
         items: [...bill.items],
         totalAmount: bill.total,
         refundAmount: bill.total,
-        customer: bill.customer,
         timestamp: new Date().toLocaleString(),
         type: "RETURN",
       };
@@ -2056,7 +1877,7 @@ class PharmacyDashboard extends Component {
                         </div>
                         <div class="receipt-info-item">
                             <div class="receipt-info-label">Customer</div>
-                            <div>${returnTransaction.customer?.name || "Walk-in Customer"}</div>
+                            <div>Walk-in Customer</div>
                         </div>
                     </div>
                     
@@ -2530,7 +2351,7 @@ class PharmacyDashboard extends Component {
     // Generate receipt number
     const receiptNumber = "R" + Date.now().toString().slice(-8);
 
-    // Process sale
+    // Create sale record
     const sale = {
       id: Date.now(),
       receiptNumber: receiptNumber,
@@ -2538,92 +2359,93 @@ class PharmacyDashboard extends Component {
       total: total,
       amountPaid: amountPaid,
       paymentMethod: paymentMethod,
-      customer: this.currentCustomer,
-      timestamp: new Date().toLocaleString(),
+      timestamp: new Date().toISOString(),
+      displayTimestamp: new Date().toLocaleString(),
+      customer: this.currentCustomer ? { ...this.currentCustomer } : null,
     };
 
     // Store sale (in real implementation, save to database)
     if (!this.salesHistory) this.salesHistory = [];
     this.salesHistory.push(sale);
 
-    // Update customer data if not walk-in customer
+    // Update customer's purchase history if customer is selected
     if (this.currentCustomer && !this.currentCustomer.isWalkIn) {
-      this.updateCustomerAfterSale(this.currentCustomer, total);
+      this.updateCustomerPurchaseHistory(this.currentCustomer.id, sale);
     }
 
+    const customerInfo =
+      this.currentCustomer && !this.currentCustomer.isWalkIn
+        ? ` for ${this.currentCustomer.name}`
+        : "";
+
     this.showNotification(
-      `🧾 Sale completed - LKR ${Number(total).toFixed(2)}`,
+      `🧾 Sale completed${customerInfo} - LKR ${Number(total).toFixed(2)}`,
       "success",
     );
     this.clearCart(false);
     this.closePaymentDropdown();
 
+    // Reset customer to walk-in after sale
+    this.currentCustomer = {
+      name: "Walk-in Customer",
+      isWalkIn: true,
+    };
+    this.updateCustomerButton();
+
     // Print receipt (simulation)
     this.printReceipt(sale);
   }
 
-  getCustomerRecentPurchases(customerId, limit = 5) {
-    if (!this.salesHistory || !customerId) return [];
+  updateCustomerPurchaseHistory(customerId, sale) {
+    // Load customers from localStorage
+    const customers = this.loadCustomersFromStorage();
+    const customerIndex = customers.findIndex((c) => c.id === customerId);
 
-    // Filter sales for this customer and sort by timestamp (most recent first)
-    const customerSales = this.salesHistory
-      .filter((sale) => sale.customer && sale.customer.id === customerId)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, limit);
+    if (customerIndex !== -1) {
+      // Add sale to customer's purchase history
+      if (!customers[customerIndex].recentPurchases) {
+        customers[customerIndex].recentPurchases = [];
+      }
 
-    return customerSales.map((sale) => ({
-      date: new Date(sale.timestamp).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      items: sale.items.map((item) => item.name).join(", "),
-      amount: sale.total,
-      receiptNumber: sale.receiptNumber,
-      paymentMethod: sale.paymentMethod,
-    }));
-  }
+      // Create purchase record
+      const purchaseRecord = {
+        saleId: sale.id,
+        receiptNumber: sale.receiptNumber,
+        items: sale.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice || item.price,
+          total: item.total || item.quantity * (item.unitPrice || item.price),
+          batch: item.batch,
+          expiry: item.expiry,
+        })),
+        totalAmount: sale.total,
+        paymentMethod: sale.paymentMethod,
+        timestamp: sale.timestamp,
+        displayTimestamp: sale.displayTimestamp,
+      };
 
-  updateCustomerAfterSale(customer, saleAmount) {
-    // Find customer in the customers array
-    const customerIndex = this.customers.findIndex((c) => c.id === customer.id);
-    if (customerIndex === -1) return;
+      // Add to recent purchases (keep only last 10 purchases)
+      customers[customerIndex].recentPurchases.unshift(purchaseRecord);
+      if (customers[customerIndex].recentPurchases.length > 10) {
+        customers[customerIndex].recentPurchases = customers[
+          customerIndex
+        ].recentPurchases.slice(0, 10);
+      }
 
-    // Update customer data
-    this.customers[customerIndex].totalPurchases =
-      (this.customers[customerIndex].totalPurchases || 0) + saleAmount;
+      // Update total purchases amount
+      customers[customerIndex].totalPurchases += sale.total;
 
-    // Calculate loyalty points (1 point per LKR 100 spent)
-    const pointsEarned = Math.floor(saleAmount / 100);
-    this.customers[customerIndex].loyaltyPoints =
-      (this.customers[customerIndex].loyaltyPoints || 0) + pointsEarned;
-
-    // Update customer tier based on total purchases
-    const totalPurchases = this.customers[customerIndex].totalPurchases;
-    if (totalPurchases >= 100000) {
-      this.customers[customerIndex].tier = "Platinum";
-    } else if (totalPurchases >= 50000) {
-      this.customers[customerIndex].tier = "Gold";
-    } else if (totalPurchases >= 25000) {
-      this.customers[customerIndex].tier = "Silver";
-    } else {
-      this.customers[customerIndex].tier = "Bronze";
-    }
-
-    // Save updated customer data to localStorage
-    this.saveCustomersToStorage();
-
-    // Show notification about points earned
-    if (pointsEarned > 0) {
-      this.showNotification(
-        `🎉 ${customer.name} earned ${pointsEarned} loyalty points!`,
-        "success",
-      );
-    }
-
-    // Refresh customer details if currently viewing this customer
-    if (this.selectedCustomer && this.selectedCustomer.id === customer.id) {
-      this.refreshCustomerDetails(customer.id);
+      // Save updated customers back to localStorage
+      try {
+        localStorage.setItem("pharmacy_customers", JSON.stringify(customers));
+        console.log(
+          "Customer purchase history updated for:",
+          customers[customerIndex].name,
+        );
+      } catch (error) {
+        console.error("Error saving customer purchase history:", error);
+      }
     }
   }
 
@@ -2802,17 +2624,16 @@ class PharmacyDashboard extends Component {
                             <div class="receipt-info-label">Date & Time</div>
                             <div>${sale.timestamp}</div>
                         </div>
-                    </div>
-                    
-                    <div class="receipt-info">
-                        <div class="receipt-info-item">
+                        ${
+                          sale.customer && !sale.customer.isWalkIn
+                            ? `
+                        <div class="receipt-info-item" style="grid-column: 1 / -1;">
                             <div class="receipt-info-label">Customer</div>
                             <div>${sale.customer.name}</div>
                         </div>
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Payment Method</div>
-                            <div>${sale.paymentMethod.toUpperCase()}</div>
-                        </div>
+                        `
+                            : ""
+                        }
                     </div>
                     
                     <div class="receipt-items">
@@ -2988,202 +2809,180 @@ class PharmacyDashboard extends Component {
     alert("Payment functionality would be implemented here");
   }
 
-  startNewSale() {
-    // Navigate to POS interface
-    window.location.href = "/pos/web";
+  selectWalkInCustomer() {
+    this.toggleCustomerDropdown();
   }
 
-  initializeCustomerData() {
-    // Load customers from localStorage, or use default sample data
-    const savedCustomers = localStorage.getItem("pharmacy_customers");
-    if (savedCustomers) {
-      try {
-        this.customers = JSON.parse(savedCustomers);
-      } catch (error) {
-        console.error("Error loading customers from localStorage:", error);
-        this.customers = this.getDefaultCustomers();
-      }
-    } else {
-      this.customers = this.getDefaultCustomers();
+  toggleCustomerDropdown() {
+    const existingDropdown = document.querySelector(
+      ".customer-button-dropdown",
+    );
+    if (existingDropdown) {
+      this.closeCustomerDropdown();
+      return;
     }
+
+    this.showCustomerDropdown();
   }
 
-  getDefaultCustomers() {
-    return [
-      {
-        id: 1,
-        name: "Dilani Fernando",
-        phone: "+94774567890",
-        email: "dilani.fernando@email.com",
-        tier: "Bronze",
-        loyaltyPoints: 50,
-        creditUsed: 0,
-        creditLimit: 0,
-        memberSince: "Feb 2026",
-        address: "123 Main St, Colombo",
-        totalPurchases: 12500,
-      },
-      {
-        id: 2,
-        name: "Kumari Jayawardena",
-        phone: "+94771234567",
-        email: "kumari.j@email.com",
-        tier: "Silver",
-        loyaltyPoints: 450,
-        creditUsed: 5000,
-        creditLimit: 15000,
-        memberSince: "Jan 2025",
-        address: "456 Park Ave, Kandy",
-        totalPurchases: 45000,
-      },
-      {
-        id: 3,
-        name: "Mahinda Rajapaksa",
-        phone: "+94772345678",
-        email: "mahinda.r@email.com",
-        tier: "Bronze",
-        loyaltyPoints: 120,
-        creditUsed: 0,
-        creditLimit: 5000,
-        memberSince: "Mar 2026",
-        address: "789 Queen St, Galle",
-        totalPurchases: 18000,
-      },
-      {
-        id: 4,
-        name: "Nishantha Silva",
-        phone: "+94775678901",
-        email: "nishantha.s@email.com",
-        tier: "Platinum",
-        loyaltyPoints: 2500,
-        creditUsed: 12000,
-        creditLimit: 50000,
-        memberSince: "Dec 2024",
-        address: "321 King St, Jaffna",
-        totalPurchases: 125000,
-      },
-      {
-        id: 5,
-        name: "Saman Perera",
-        phone: "+94773456789",
-        email: "saman.p@email.com",
-        tier: "Gold",
-        loyaltyPoints: 1200,
-        creditUsed: 8000,
-        creditLimit: 30000,
-        memberSince: "Nov 2024",
-        address: "654 Beach Rd, Matara",
-        totalPurchases: 85000,
-      },
-    ];
-  }
+  showCustomerDropdown() {
+    const customerBtn = document.querySelector(".customer-btn");
+    if (!customerBtn) return;
 
-  saveCustomersToStorage() {
-    try {
-      localStorage.setItem(
-        "pharmacy_customers",
-        JSON.stringify(this.customers),
-      );
-    } catch (error) {
-      console.error("Error saving customers to localStorage:", error);
-      this.showNotification(
-        "Failed to save customer data to local storage.",
-        "error",
-      );
-    }
-  }
+    // Remove existing dropdown
+    this.closeCustomerDropdown();
 
-  renderCustomers() {
-    const container = document.getElementById("dashboard_container");
-
-    container.innerHTML = `
-            <div class="dashboard">
-
-                <div class="customers-search-section">
-                    <div class="search-bar">
-                        <input
-                            type="text"
-                            id="customerSearchInput"
-                            placeholder="🔍 Name or phone..."
-                            class="search-input"
-                        >
-                    </div>
-                    <div class="filter-tabs">
-                        <button class="filter-tab active" data-tier="all">All</button>
-                        <button class="filter-tab" data-tier="platinum">Platinum</button>
-                        <button class="filter-tab" data-tier="gold">Gold</button>
-                        <button class="filter-tab" data-tier="silver">Silver</button>
-                        <button class="filter-tab" data-tier="bronze">Bronze</button>
-                    </div>
-                     <div class="customers-header-actions">
-                        <button class="btn btn-primary" id="addCustomerBtn">
-                            <span class="btn-icon">➕</span>
-                            Add Customer
-                        </button>
-                    </div>
-                </div>
-
-                <div class="customers-content">
-                    <div class="customers-list" id="customersList">
-                        ${this.renderCustomerList(this.customers)}
-                    </div>
-                    
-                    <div class="customer-details" id="customerDetails">
-                        ${
-                          this.selectedCustomer
-                            ? this.renderCustomerDetails(this.selectedCustomer)
-                            : `
-                            <div class="no-customer-selected">
-                                <div class="no-customer-icon">👥</div>
-                                <h3>Select a Customer</h3>
-                                <p>Choose a customer from the list to view their details</p>
-                            </div>
-                        `
-                        }
+    // Create dropdown
+    const dropdown = document.createElement("div");
+    dropdown.className = "customer-dropdown customer-button-dropdown";
+    dropdown.innerHTML = `
+            <div class="customer-dropdown-header" style="padding: 8px;">
+                <input type="text" placeholder="Search..." id="customerSearchDropdown" class="customer-dropdown-search" style="font-size: 12px; padding: 6px;">
+            </div>
+            <div class="customer-dropdown-list" id="customerDropdownList" style="max-height: 150px; overflow-y: auto;">
+                ${this.renderCustomerDropdownList()}
+            </div>
+            <div class="customer-dropdown-footer" style="padding: 6px;">
+                <div class="customer-dropdown-item walk-in-item" onclick="window.pharmacyPOS.selectWalkInCustomerByName()" style="display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: 12px;">
+                    <div class="customer-item-avatar" style="margin-right: 6px; font-size: 14px;">🧍</div>
+                    <div class="customer-item-info">
+                        <div class="customer-item-name" style="font-size: 12px; font-weight: 600;">Walk-in Customer</div>
                     </div>
                 </div>
             </div>
         `;
 
-    this.setupCustomerHandlers();
+    // Position dropdown below the button
+    const rect = customerBtn.getBoundingClientRect();
+    dropdown.style.top = `${rect.bottom + window.scrollY + 5}px`;
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.width = `${rect.width}px`;
+
+    document.body.appendChild(dropdown);
+
+    // Setup search functionality
+    setTimeout(() => {
+      this.setupCustomerDropdownSearch();
+
+      // Close dropdown when clicking outside - bind the method to this instance
+      this.boundHandleDropdownClickOutside =
+        this.handleDropdownClickOutside.bind(this);
+      document.addEventListener("click", this.boundHandleDropdownClickOutside);
+    }, 100);
   }
 
-  renderCustomerList(customers) {
+  loadCustomersFromStorage() {
+    const savedCustomers = localStorage.getItem("pharmacy_customers");
+    if (savedCustomers) {
+      try {
+        return JSON.parse(savedCustomers);
+      } catch (error) {
+        console.error("Error loading customers:", error);
+        return [];
+      }
+    }
+    return [];
+  }
+
+  renderCustomerDropdownList() {
+    const customers = this.loadCustomersFromStorage();
     if (!customers || customers.length === 0) {
-      return `
-                <div class="no-customers">
-                    <div class="no-customers-icon">🔍</div>
-                    <h3>No customers found</h3>
-                    <p>Try adjusting your search or filters</p>
-                </div>
-            `;
+      return '<div class="no-customers-found" style="padding: 8px; font-size: 11px; text-align: center;">No customers found</div>';
     }
 
     return customers
       .map(
         (customer) => `
-            <div class="customer-card ${this.selectedCustomer?.id === customer.id ? "selected" : ""}" 
-                 data-customer-id="${customer.id}">
-                <div class="customer-card-header">
-                    <div class="customer-avatar">
-                        <span class="avatar-text">${customer.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}</span>
-                    </div>
-                    <div class="customer-info">
-                        <h4 class="customer-name">${customer.name}</h4>
-                        <div class="customer-tier">
-                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
-                            <span class="customer-phone">${customer.phone}</span>
-                        </div>
-                    </div>
+            <div class="customer-dropdown-item" onclick="window.pharmacyPOS.selectCustomerFromDropdown(${customer.id})" style="padding: 6px 8px; font-size: 11px;">
+                <div class="customer-item-avatar" style="font-size: 10px; width: 24px; height: 24px; line-height: 24px;">
+                    ${customer.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .substring(0, 2)}
                 </div>
-                <div class="customer-stats">
-                    <div class="customer-stat">
-                        <span class="stat-label">Loyalty Points</span>
-                        <span class="stat-value">${customer.loyaltyPoints.toLocaleString()} pts</span>
-                    </div>
+                <div class="customer-item-info">
+                    <div class="customer-item-name" style="font-size: 11px; font-weight: 600;">${customer.name}</div>
+                    <div class="customer-item-phone" style="font-size: 10px; color: #666;">${customer.phone}</div>
+                </div>
+            </div>
+        `,
+      )
+      .join("");
+  }
+  selectCustomerFromDropdown(customerId) {
+    const customers = this.loadCustomersFromStorage();
+    const customer = customers.find((c) => c.id === customerId);
+
+    if (customer) {
+      this.currentCustomer = { ...customer, isWalkIn: false };
+      this.updateCustomerButton();
+      this.showNotification(`Customer selected: ${customer.name}`, "success");
+      this.closeCustomerDropdown();
+      this.updateCurrentSaleWithCustomer();
+    }
+  }
+
+  selectWalkInCustomerByName() {
+    this.currentCustomer = {
+      name: "Walk-in Customer",
+      isWalkIn: true,
+    };
+    this.updateCustomerButton();
+    this.showNotification("Walk-in customer selected", "info");
+    this.closeCustomerDropdown();
+    this.updateCurrentSaleWithCustomer();
+  }
+
+  setupCustomerDropdownSearch() {
+    const searchInput = document.getElementById("customerSearchDropdown");
+    if (!searchInput) return;
+
+    searchInput.addEventListener("input", () => {
+      const searchTerm = searchInput.value.toLowerCase();
+      const customers = this.loadCustomersFromStorage();
+
+      const filtered = customers.filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(searchTerm) ||
+          customer.phone.includes(searchTerm) ||
+          (customer.email && customer.email.toLowerCase().includes(searchTerm)),
+      );
+
+      const listContainer = document.getElementById("customerDropdownList");
+      if (listContainer) {
+        if (filtered.length === 0 && searchTerm) {
+          listContainer.innerHTML =
+            '<div class="no-customers-found" style="padding: 8px; font-size: 11px; text-align: center;">No matches found</div>';
+        } else {
+          listContainer.innerHTML =
+            this.renderCustomerDropdownListFiltered(filtered);
+        }
+      }
+    });
+  }
+
+  renderCustomerDropdownListFiltered(customers) {
+    if (!customers || customers.length === 0) {
+      return '<div class="no-customers-found" style="padding: 8px; font-size: 11px; text-align: center;">No customers found</div>';
+    }
+
+    return customers
+      .map(
+        (customer) => `
+            <div class="customer-dropdown-item" onclick="window.pharmacyPOS.selectCustomerFromDropdown(${customer.id})" style="padding: 6px 8px; font-size: 11px;">
+                <div class="customer-item-avatar" style="font-size: 10px; width: 24px; height: 24px; line-height: 24px;">
+                    ${customer.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .substring(0, 2)}
+                </div>
+                <div class="customer-item-info">
+                    <div class="customer-item-name" style="font-size: 11px; font-weight: 600;">${customer.name}</div>
+                    <div class="customer-item-phone" style="font-size: 10px; color: #666;">${customer.phone}</div>
                 </div>
             </div>
         `,
@@ -3191,557 +2990,157 @@ class PharmacyDashboard extends Component {
       .join("");
   }
 
-  renderCustomerDetails(customer) {
-    const creditPercentage =
-      customer.creditLimit > 0
-        ? (customer.creditUsed / customer.creditLimit) * 100
-        : 0;
+  handleDropdownClickOutside(event) {
+    const dropdown = document.querySelector(
+      ".customer-dropdown, .customer-button-dropdown",
+    );
+    const customerBtn = document.querySelector(".customer-btn");
 
-    // Get recent purchases from sales history
-    const recentPurchases = this.getCustomerRecentPurchases(customer.id, 3);
-
-    return `
-            <div class="customer-details-content">
-                <div class="customer-details-header">
-                    <div class="customer-avatar large">
-                        <span class="avatar-text">${customer.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}</span>
-                    </div>
-                    <div class="customer-details-info">
-                        <h3 class="customer-name">${customer.name}</h3>
-                        <div class="customer-tier">
-                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">⭐ ${customer.tier}</span>
-                        </div>
-                        <div class="customer-contact">
-                            <div class="contact-item">
-                                <span class="contact-label">📱</span>
-                                <span class="contact-value">${customer.phone}</span>
-                            </div>
-                            <div class="contact-item">
-                                <span class="contact-label">✉️</span>
-                                <span class="contact-value">${customer.email}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="customer-metrics">
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">💎</span>
-                            <span class="metric-title">Loyalty Points</span>
-                        </div>
-                        <div class="metric-value">${customer.loyaltyPoints.toLocaleString()}</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">💳</span>
-                            <span class="metric-title">Credit Used</span>
-                        </div>
-                        <div class="metric-value">LKR ${customer.creditUsed.toLocaleString()}</div>
-                        <div class="metric-subtitle">of LKR ${customer.creditLimit.toLocaleString()} limit</div>
-                        <div class="credit-progress">
-                            <div class="credit-progress-bar" style="width: ${creditPercentage}%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">📅</span>
-                            <span class="metric-title">Member Since</span>
-                        </div>
-                        <div class="metric-value">${customer.memberSince}</div>
-                    </div>
-                </div>
-
-                <div class="customer-actions">
-                    <button class="btn btn-primary" onclick="dashboard.startNewSaleForCustomer(${customer.id})">
-                        <span class="btn-icon">🛒</span>
-                        New Sale for Customer
-                    </button>
-                    <button class="btn btn-secondary" onclick="dashboard.editCustomer(${customer.id})">
-                        <span class="btn-icon">✏️</span>
-                        Edit Profile
-                    </button>
-                    <button class="btn btn-danger" onclick="dashboard.confirmDeleteCustomer(${customer.id}, '${customer.name.replace(/'/g, "\\'")}')">
-                        <span class="btn-icon">🗑️</span>
-                        Delete Customer
-                    </button>
-                </div>
-
-                <div class="customer-history">
-                    <h4>Recent Purchases</h4>
-                    <div class="purchase-history">
-                        ${
-                          recentPurchases.length > 0
-                            ? recentPurchases
-                                .map(
-                                  (purchase) => `
-                            <div class="purchase-item">
-                                <div class="purchase-date">${purchase.date}</div>
-                                <div class="purchase-items">${purchase.items}</div>
-                                <div class="purchase-amount">LKR ${Number(purchase.amount).toFixed(2)}</div>
-                            </div>
-                        `,
-                                )
-                                .join("")
-                            : `
-                            <div class="no-purchases">
-                                <p>No recent purchases found</p>
-                            </div>
-                        `
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-  }
-
-  setupCustomerHandlers() {
-    const searchInput = document.getElementById("customerSearchInput");
-    const filterTabs = document.querySelectorAll(".filter-tab");
-    const addCustomerBtn = document.getElementById("addCustomerBtn");
-
-    // Search functionality
-    searchInput?.addEventListener("input", () => {
-      this.filterCustomers();
-    });
-
-    // Filter tabs
-    filterTabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        filterTabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        this.filterCustomers();
-      });
-    });
-
-    // Customer card selection
-    const customerCards = document.querySelectorAll(".customer-card");
-    customerCards.forEach((card) => {
-      card.addEventListener("click", () => {
-        const customerId = parseInt(card.dataset.customerId);
-        this.selectCustomer(customerId);
-      });
-    });
-
-    // Add customer button
-    addCustomerBtn?.addEventListener("click", () => {
-      this.showAddCustomerModal();
-    });
-  }
-
-  filterCustomers() {
-    const searchInput = document.getElementById("customerSearchInput");
-    const activeTab = document.querySelector(".filter-tab.active");
-    const searchTerm = (searchInput?.value || "").toLowerCase();
-    const tierFilter = activeTab?.dataset.tier || "all";
-
-    let filteredCustomers = this.customers.filter((customer) => {
-      const matchesSearch =
-        customer.name.toLowerCase().includes(searchTerm) ||
-        customer.phone.includes(searchTerm);
-
-      const matchesTier =
-        tierFilter === "all" || customer.tier.toLowerCase() === tierFilter;
-
-      return matchesSearch && matchesTier;
-    });
-
-    this.updateCustomerList(filteredCustomers);
-  }
-
-  updateCustomerList(customers) {
-    const customersList = document.getElementById("customersList");
-    if (customersList) {
-      customersList.innerHTML = this.renderCustomerList(customers);
-
-      // Re-attach click handlers to new customer cards
-      const customerCards = customersList.querySelectorAll(".customer-card");
-      customerCards.forEach((card) => {
-        card.addEventListener("click", () => {
-          const customerId = parseInt(card.dataset.customerId);
-          this.selectCustomer(customerId);
-        });
-      });
+    if (
+      dropdown &&
+      !dropdown.contains(event.target) &&
+      !customerBtn.contains(event.target)
+    ) {
+      this.closeCustomerDropdown();
     }
   }
 
-  refreshCustomerDetails(customerId) {
-    const customer = this.customers.find((c) => c.id === customerId);
-    if (!customer) return;
+  filterCustomersInDropdown() {
+    const searchTerm = (
+      document.getElementById("customerDropdownSearch")?.value || ""
+    ).toLowerCase();
+    const customers = this.loadCustomersFromStorage();
 
-    // Update customer details
-    const customerDetails = document.getElementById("customerDetails");
-    if (customerDetails) {
-      customerDetails.innerHTML = this.renderCustomerDetails(customer);
+    const filtered = customers.filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchTerm) ||
+        customer.phone.includes(searchTerm) ||
+        (customer.email && customer.email.toLowerCase().includes(searchTerm)),
+    );
+
+    const listContainer = document.getElementById("customerDropdownList");
+    if (listContainer) {
+      listContainer.innerHTML = this.renderCustomerDropdownList(filtered);
     }
   }
 
   selectCustomer(customerId) {
-    this.selectedCustomer = this.customers.find((c) => c.id === customerId);
+    const customers = this.loadCustomersFromStorage();
+    const customer = customers.find((c) => c.id === customerId);
 
-    // Update selected state in customer list
-    const customerCards = document.querySelectorAll(".customer-card");
-    customerCards.forEach((card) => {
-      card.classList.toggle(
-        "selected",
-        parseInt(card.dataset.customerId) === customerId,
-      );
-    });
-
-    // Update customer details
-    const customerDetails = document.getElementById("customerDetails");
-    if (customerDetails && this.selectedCustomer) {
-      customerDetails.innerHTML = this.renderCustomerDetails(
-        this.selectedCustomer,
-      );
-    }
-  }
-
-  startNewSaleForCustomer(customerId) {
-    const customer = this.customers.find((c) => c.id === customerId);
     if (customer) {
-      // Navigate to POS with selected customer
-      this.currentCustomer = customer;
-      this.showNotification(
-        `Starting new sale for ${customer.name}`,
-        "success",
-      );
-      // In a real implementation, this would navigate to the POS interface
-      setTimeout(() => {
-        this.handlePageNavigation("sales");
-      }, 1000);
+      this.currentCustomer = { ...customer, isWalkIn: false };
+      this.updateCustomerButton();
+      this.showNotification(`Customer selected: ${customer.name}`, "success");
+      this.closeCustomerDropdown();
+
+      // Update current sale with customer info
+      this.updateCurrentSaleWithCustomer();
     }
   }
 
-  editCustomer(customerId) {
-    const customer = this.customers.find((c) => c.id === customerId);
-    if (!customer) {
-      this.showNotification("Customer not found.", "error");
-      return;
-    }
-
-    this.showEditCustomerModal(customer);
-  }
-
-  showEditCustomerModal(customer) {
-    if (document.getElementById("editCustomerModal")) return;
-
-    const modal = document.createElement("div");
-    modal.id = "editCustomerModal";
-    modal.className = "inventory-modal-overlay";
-    modal.innerHTML = `
-            <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
-                <div class="inventory-modal-header">
-                    <h3 id="editCustomerTitle">Edit Customer</h3>
-                    <button type="button" class="inventory-modal-close" aria-label="Close edit customer form">×</button>
-                </div>
-                <form id="editCustomerForm" class="inventory-form-grid">
-                    <input type="hidden" name="customerId" value="${customer.id}">
-                    <label class="inventory-form-field">
-                        <span>Name *</span>
-                        <input type="text" name="name" required value="${customer.name}" placeholder="e.g. John Doe">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Phone *</span>
-                        <input type="tel" name="phone" required value="${customer.phone}" placeholder="e.g. +94771234567">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Email</span>
-                        <input type="email" name="email" value="${customer.email || ""}" placeholder="e.g. john.doe@email.com">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Address</span>
-                        <input type="text" name="address" value="${customer.address || ""}" placeholder="e.g. 123 Main St, Colombo">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Tier</span>
-                        <select name="tier">
-                            <option value="Bronze" ${customer.tier === "Bronze" ? "selected" : ""}>Bronze</option>
-                            <option value="Silver" ${customer.tier === "Silver" ? "selected" : ""}>Silver</option>
-                            <option value="Gold" ${customer.tier === "Gold" ? "selected" : ""}>Gold</option>
-                            <option value="Platinum" ${customer.tier === "Platinum" ? "selected" : ""}>Platinum</option>
-                        </select>
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Credit Limit (LKR)</span>
-                        <input type="number" name="creditLimit" min="0" step="100" value="${customer.creditLimit || 0}" placeholder="0">
-                    </label>
-                    <div class="inventory-form-actions">
-                        <button type="button" class="btn btn-secondary compact" id="cancelEditCustomerBtn">Cancel</button>
-                        <button type="submit" class="btn btn-primary compact">Update Customer</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-    document.body.appendChild(modal);
-
-    const close = () => this.closeEditCustomerModal();
-    modal
-      .querySelector(".inventory-modal-close")
-      ?.addEventListener("click", close);
-    modal
-      .querySelector("#cancelEditCustomerBtn")
-      ?.addEventListener("click", close);
-    modal.addEventListener("click", (ev) => {
-      if (ev.target === modal) close();
-    });
-
-    const form = modal.querySelector("#editCustomerForm");
-    form?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      this.updateCustomerFromForm(form);
-    });
-  }
-
-  closeEditCustomerModal() {
-    const modal = document.getElementById("editCustomerModal");
-    if (modal) modal.remove();
-  }
-
-  updateCustomerFromForm(form) {
-    const formData = new FormData(form);
-    const customerId = Number(formData.get("customerId"));
-    const name = String(formData.get("name") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const address = String(formData.get("address") || "").trim();
-    const tier = String(formData.get("tier") || "Bronze");
-    const creditLimit = Number(formData.get("creditLimit") || 0);
-
-    if (!name || !phone) {
-      this.showNotification(
-        "Please fill required fields (Name and Phone).",
-        "warning",
-      );
-      return;
-    }
-
-    // Validate phone number format (basic validation)
-    if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
-      this.showNotification("Please enter a valid phone number.", "warning");
-      return;
-    }
-
-    // Find and update the customer
-    const customerIndex = this.customers.findIndex((c) => c.id === customerId);
-    if (customerIndex === -1) {
-      this.showNotification("Customer not found.", "error");
-      return;
-    }
-
-    // Update customer data
-    this.customers[customerIndex] = {
-      ...this.customers[customerIndex],
-      name: name,
-      phone: phone,
-      email: email || "",
-      address: address || "",
-      tier: tier,
-      creditLimit: creditLimit,
+  setWalkInCustomer() {
+    this.currentCustomer = {
+      name: "Walk-in Customer",
+      isWalkIn: true,
     };
-
-    // Save to localStorage
-    this.saveCustomersToStorage();
-
-    // Close modal
-    this.closeEditCustomerModal();
-
-    // Show success notification
-    this.showNotification(
-      `Customer "${name}" updated successfully!`,
-      "success",
-    );
-
-    // Refresh the customers page to show the updated customer
-    this.renderCustomers();
+    this.updateCustomerButton();
+    this.showNotification("Walk-in customer selected", "info");
+    this.closeCustomerDropdown();
+    this.updateCurrentSaleWithCustomer();
   }
 
-  confirmDeleteCustomer(customerId, customerName) {
+  addNewCustomer() {
+    this.closeCustomerDropdown();
+    // Navigate to customers page to add new customer
     if (
-      confirm(
-        `Are you sure you want to delete customer "${customerName}"? This action cannot be undone.`,
-      )
+      window.dashboard &&
+      typeof window.dashboard.handlePageNavigation === "function"
     ) {
-      this.deleteCustomer(customerId);
+      window.dashboard.handlePageNavigation("customers");
     }
   }
 
-  deleteCustomer(customerId) {
-    const customerIndex = this.customers.findIndex((c) => c.id === customerId);
-    if (customerIndex === -1) {
-      this.showNotification("Customer not found.", "error");
-      return;
-    }
-
-    const customerName = this.customers[customerIndex].name;
-
-    // Remove customer from array
-    this.customers.splice(customerIndex, 1);
-
-    // Save to localStorage
-    this.saveCustomersToStorage();
-
-    // Show success notification
-    this.showNotification(
-      `Customer "${customerName}" deleted successfully!`,
-      "success",
+  closeCustomerDropdown() {
+    const dropdown = document.querySelector(
+      ".customer-dropdown, .customer-button-dropdown",
     );
-
-    // Refresh the customers page
-    this.renderCustomers();
-
-    // Clear customer details if the deleted customer was selected
-    if (this.selectedCustomer && this.selectedCustomer.id === customerId) {
-      this.selectedCustomer = null;
-      const customerDetails = document.getElementById("customerDetails");
-      if (customerDetails) {
-        customerDetails.innerHTML = `
-                    <div class="no-customer-selected">
-                        <div class="no-customer-icon">👥</div>
-                        <h3>Select a Customer</h3>
-                        <p>Choose a customer from the list to view their details</p>
-                    </div>
-                `;
-      }
+    if (dropdown) {
+      dropdown.remove();
+    }
+    // Remove outside click listener if it exists
+    if (this.boundHandleDropdownClickOutside) {
+      document.removeEventListener(
+        "click",
+        this.boundHandleDropdownClickOutside,
+      );
+      this.boundHandleDropdownClickOutside = null;
     }
   }
 
-  showAddCustomerModal() {
-    if (document.getElementById("addCustomerModal")) return;
+  updateCustomerButton() {
+    const iconElement = document.getElementById("customerButtonIcon");
+    const textElement = document.getElementById("customerButtonText");
 
-    const modal = document.createElement("div");
-    modal.id = "addCustomerModal";
-    modal.className = "inventory-modal-overlay";
-    modal.innerHTML = `
-            <div class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="addCustomerTitle">
-                <div class="inventory-modal-header">
-                    <h3 id="addCustomerTitle">Add New Customer</h3>
-                    <button type="button" class="inventory-modal-close" aria-label="Close add customer form">×</button>
+    if (this.currentCustomer) {
+      if (this.currentCustomer.isWalkIn) {
+        iconElement.textContent = "🧍";
+        textElement.textContent = "Walk-in Customer";
+      } else {
+        iconElement.textContent = "👤";
+        textElement.textContent = this.currentCustomer.name;
+      }
+    } else {
+      iconElement.textContent = "🧍";
+      textElement.textContent = "Select Customer";
+    }
+  }
+
+  updateCurrentSaleWithCustomer() {
+    // This will update the current sale/cart with customer information
+    // The customer info will be included when holding bills or completing sales
+    console.log("Current sale updated with customer:", this.currentCustomer);
+  }
+
+  startNewSale() {
+    // Navigate to POS interface
+    window.location.href = "/pos/web";
+  }
+
+  renderCustomersPage() {
+    // Clean up previous customers instance if exists
+    if (this.customersInstance) {
+      this.customersInstance.cleanup();
+    }
+
+    // Create new customers instance using global class
+    this.customersInstance = new window.PharmacyCustomers();
+
+    // Update topbar title
+    const topbarTitle = document.querySelector(".topbar h1");
+    if (topbarTitle) {
+      topbarTitle.textContent = "Customers";
+    }
+  }
+
+  renderEmptyPage() {
+    const container = document.getElementById("dashboard_container");
+    const topbarTitle = document.querySelector(".topbar h1");
+
+    if (topbarTitle) {
+      topbarTitle.textContent = "Customers";
+    }
+
+    container.innerHTML = `
+            <div class="dashboard">
+                <div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <h2>Customers Module</h2>
+                    <p>This module has been removed from the system.</p>
+                    <p>Please use other available modules for your needs.</p>
                 </div>
-                <form id="addCustomerForm" class="inventory-form-grid">
-                    <label class="inventory-form-field">
-                        <span>Name *</span>
-                        <input type="text" name="name" required placeholder="e.g. John Doe">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Phone *</span>
-                        <input type="tel" name="phone" required placeholder="e.g. +94771234567">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Email</span>
-                        <input type="email" name="email" placeholder="e.g. john.doe@email.com">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Address</span>
-                        <input type="text" name="address" placeholder="e.g. 123 Main St, Colombo">
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Tier</span>
-                        <select name="tier">
-                            <option value="Bronze">Bronze</option>
-                            <option value="Silver">Silver</option>
-                            <option value="Gold">Gold</option>
-                            <option value="Platinum">Platinum</option>
-                        </select>
-                    </label>
-                    <label class="inventory-form-field">
-                        <span>Credit Limit (LKR)</span>
-                        <input type="number" name="creditLimit" min="0" step="100" placeholder="0">
-                    </label>
-                    <div class="inventory-form-actions">
-                        <button type="button" class="btn btn-secondary compact" id="cancelAddCustomerBtn">Cancel</button>
-                        <button type="submit" class="btn btn-primary compact">Add Customer</button>
-                    </div>
-                </form>
             </div>
         `;
-
-    document.body.appendChild(modal);
-
-    const close = () => this.closeAddCustomerModal();
-    modal
-      .querySelector(".inventory-modal-close")
-      ?.addEventListener("click", close);
-    modal
-      .querySelector("#cancelAddCustomerBtn")
-      ?.addEventListener("click", close);
-    modal.addEventListener("click", (ev) => {
-      if (ev.target === modal) close();
-    });
-
-    const form = modal.querySelector("#addCustomerForm");
-    form?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      this.createCustomerFromForm(form);
-    });
-  }
-
-  closeAddCustomerModal() {
-    const modal = document.getElementById("addCustomerModal");
-    if (modal) modal.remove();
-  }
-
-  createCustomerFromForm(form) {
-    const formData = new FormData(form);
-    const name = String(formData.get("name") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const address = String(formData.get("address") || "").trim();
-    const tier = String(formData.get("tier") || "Bronze");
-    const creditLimit = Number(formData.get("creditLimit") || 0);
-
-    if (!name || !phone) {
-      this.showNotification(
-        "Please fill required fields (Name and Phone).",
-        "warning",
-      );
-      return;
-    }
-
-    // Validate phone number format (basic validation)
-    if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
-      this.showNotification("Please enter a valid phone number.", "warning");
-      return;
-    }
-
-    // Create new customer
-    const newCustomer = {
-      id: Math.max(...this.customers.map((c) => c.id)) + 1,
-      name: name,
-      phone: phone,
-      email: email || "",
-      address: address || "",
-      tier: tier,
-      loyaltyPoints: 0,
-      creditUsed: 0,
-      creditLimit: creditLimit,
-      memberSince: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      }),
-      totalPurchases: 0,
-    };
-
-    // Add to customers array
-    this.customers.push(newCustomer);
-
-    // Save to localStorage
-    this.saveCustomersToStorage();
-
-    // Close modal
-    this.closeAddCustomerModal();
-
-    // Show success notification
-    this.showNotification(`Customer "${name}" added successfully!`, "success");
-
-    // Refresh the customers page to show the new customer
-    this.renderCustomers();
   }
 
   cleanup() {
@@ -3760,6 +3159,12 @@ class PharmacyDashboard extends Component {
     if (this.reportsInstance) {
       this.reportsInstance.cleanup();
       this.reportsInstance = null;
+    }
+
+    // Clean up customers instance
+    if (this.customersInstance) {
+      this.customersInstance.cleanup();
+      this.customersInstance = null;
     }
 
     // Clean up charts

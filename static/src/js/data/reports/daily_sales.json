@@ -1,0 +1,13 @@
+{
+    "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "sales": [35000, 48000, 42000, 61000, 78000, 72000, 48750],
+    "profit": [9500, 12000, 10500, 16000, 22000, 19500, 12400],
+    "orders": [24, 33, 29, 42, 54, 50, 34],
+    "summary": {
+        "total_sales": 334750,
+        "total_profit": 101950,
+        "total_orders": 266,
+        "avg_daily_sales": 47821.43,
+        "avg_daily_profit": 14564.29
+    }
+}

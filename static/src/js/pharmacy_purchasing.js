@@ -8,21 +8,62 @@ class PharmacyPurchasing {
         this.suppliers = [];
         this.currentPurchasingTab = 'orders';
         this.purchaseOrdersSearchQuery = '';
+        this.dashboardData = {};
+        this.ordersData = {};
+        this.grnData = {};
+        this.suppliersData = {};
         
         // Initialize data
-        this.loadPurchaseOrders();
-        this.loadSuppliers();
-        
-        // Initialize the component
-        this.renderPurchasingPage();
-        this.initializePurchasingHandlers();
-        this.updatePurchasingStats();
-        this.startAutoRefresh();
+        this.loadPurchasingData().then(() => {
+            this.renderPurchasingPage();
+            this.initializePurchasingHandlers();
+            this.updatePurchasingStats();
+            this.startAutoRefresh();
+        });
     }
 
-    loadPurchaseOrders() {
-        const savedOrders = localStorage.getItem('pharmacy_pos_purchase_orders');
-        this.purchaseOrders = savedOrders ? JSON.parse(savedOrders) : [
+    async loadPurchasingData() {
+        const basePath = '/pharmacy_pos_ui/static/src/js/data/purchasing/';
+
+        try {
+            this.dashboardData = await this.fetchJSON(basePath + 'dashboard.json');
+            this.ordersData = await this.fetchJSON(basePath + 'purchase_orders.json');
+            this.grnData = await this.fetchJSON(basePath + 'grn.json');
+            this.suppliersData = await this.fetchJSON(basePath + 'suppliers.json');
+
+            // Use this data instead of hardcoded arrays
+            this.purchaseOrders = this.ordersData.orders || [];
+            this.suppliers = this.suppliersData.suppliers || [];
+            
+            console.log('Purchasing data loaded successfully:', {
+                dashboard: this.dashboardData,
+                orders: this.ordersData,
+                grn: this.grnData,
+                suppliers: this.suppliersData
+            });
+        } catch (error) {
+            console.error('Error loading purchasing data:', error);
+            // Fallback to default data if JSON files fail to load
+            this.loadDefaultPurchasingData();
+        }
+    }
+
+    async fetchJSON(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error fetching JSON from ${url}:`, error);
+            throw error;
+        }
+    }
+
+    loadDefaultPurchasingData() {
+        // Fallback data when JSON files are not available
+        this.purchaseOrders = [
             {
                 id: '1',
                 orderNumber: 'PO-001234',
@@ -326,7 +367,7 @@ class PharmacyPurchasing {
     }
 
     renderGRNTab(container) {
-        const grnOrders = this.purchaseOrders.filter(order => order.status === 'received');
+        const grnRecords = this.grnData?.grn_records || [];
         
         container.innerHTML = `
             <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
@@ -342,7 +383,7 @@ class PharmacyPurchasing {
                         </tr>
                     </thead>
                     <tbody>
-                        ${grnOrders.length === 0 ? `
+                        ${grnRecords.length === 0 ? `
                             <tr class="cart-empty-row">
                                 <td colspan="6" class="cart-empty" style="text-align: center; padding: 2rem 1rem;">
                                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -351,15 +392,15 @@ class PharmacyPurchasing {
                                     </div>
                                 </td>
                             </tr>
-                        ` : grnOrders.map(order => this.renderGRNRow(order)).join('')}
+                        ` : grnRecords.map(grn => this.renderGRNRow(grn)).join('')}
                     </tbody>
                 </table>
             </div>
         `;
     }
 
-    renderGRNRow(order) {
-        const receivedDate = new Date(order.receivedDate || order.orderDate).toLocaleDateString('en-US', { 
+    renderGRNRow(grn) {
+        const receivedDate = new Date(grn.receivedDate || grn.orderDate).toLocaleDateString('en-US', { 
             month: 'short', 
             day: 'numeric', 
             year: 'numeric' 
@@ -367,12 +408,12 @@ class PharmacyPurchasing {
 
         return `
             <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 0.75rem; font-size: 0.75rem; font-weight: 600; color: #1e293b;">GRN-${order.orderNumber.split('-')[1]}</td>
-                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.orderNumber}</td>
-                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.supplierName}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; font-weight: 600; color: #1e293b;">${grn.grnNumber}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${grn.orderNumber}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${grn.supplierName}</td>
                 <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${receivedDate}</td>
-                <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${order.items ? order.items.length : 0} items</td>
-                <td style="padding: 0.75rem; font-size: 0.75rem; text-align: right; font-weight: 600; color: #0f172a;">${this.formatLKR(order.totalAmount)}</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${grn.items ? grn.items.length : 0} items</td>
+                <td style="padding: 0.75rem; font-size: 0.75rem; text-align: right; font-weight: 600; color: #0f172a;">${this.formatLKR(grn.totalAmount)}</td>
             </tr>
         `;
     }

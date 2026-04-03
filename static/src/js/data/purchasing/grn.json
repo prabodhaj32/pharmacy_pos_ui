@@ -1,0 +1,71 @@
+{
+    "grn_records": [
+        {
+            "id": "1",
+            "orderNumber": "PO-001235",
+            "grnNumber": "GRN-2025-001",
+            "supplierId": "2",
+            "supplierName": "PharmaDistributors",
+            "orderDate": "2025-03-27T10:30:00.000Z",
+            "receivedDate": "2025-03-29T16:45:00.000Z",
+            "receivedBy": "John Smith",
+            "verifiedBy": "Sarah Johnson",
+            "items": [
+                {
+                    "name": "Ibuprofen 400mg",
+                    "ordered_quantity": 75,
+                    "received_quantity": 75,
+                    "unitCost": 6.25,
+                    "batch": "B003",
+                    "expiry_date": "2028-12-31",
+                    "total": 471.75,
+                    "condition": "Good",
+                    "remarks": "No issues found"
+                }
+            ],
+            "totalAmount": 471.75,
+            "status": "verified",
+            "notes": "All items received in good condition",
+            "createdAt": "2025-03-29T16:45:00.000Z"
+        },
+        {
+            "id": "2",
+            "orderNumber": "PO-001236",
+            "grnNumber": "GRN-2025-002",
+            "supplierId": "1",
+            "supplierName": "MediSupply Ltd",
+            "orderDate": "2025-03-26T10:30:00.000Z",
+            "receivedDate": "2025-03-28T11:20:00.000Z",
+            "receivedBy": "Mike Wilson",
+            "verifiedBy": "Emily Davis",
+            "items": [
+                {
+                    "name": "Cetirizine 10mg",
+                    "ordered_quantity": 120,
+                    "received_quantity": 120,
+                    "unitCost": 3.25,
+                    "batch": "B004",
+                    "expiry_date": "2027-08-15",
+                    "total": 390.00,
+                    "condition": "Good",
+                    "remarks": "Quality checked"
+                },
+                {
+                    "name": "Loratadine 10mg",
+                    "ordered_quantity": 80,
+                    "received_quantity": 80,
+                    "unitCost": 4.50,
+                    "batch": "B005",
+                    "expiry_date": "2027-06-30",
+                    "total": 360.00,
+                    "condition": "Good",
+                    "remarks": "No issues"
+                }
+            ],
+            "totalAmount": 750.00,
+            "status": "verified",
+            "notes": "Quality inspection completed",
+            "createdAt": "2025-03-28T11:20:00.000Z"
+        }
+    ]
+}

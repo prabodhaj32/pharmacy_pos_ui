@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <!-- Customers Page Template -->
+        <template id="pharmacy_pos_ui.customers_template" name="Pharmacy Customers Page">
+            <t t-call="web.layout">
+                <div class="o_control_panel">
+                    <div class="o_panel">
+                        <h2>Customers Management</h2>
+                        <p>Manage your pharmacy customers, track loyalty points, and monitor credit limits.</p>
+                    </div>
+                </div>
+                
+                <div class="o_content">
+                    <div id="pharmacy_customers_app">
+                        <!-- Customers content will be rendered here by JavaScript -->
+                        <div class="loading-container">
+                            <div class="loading-spinner">⏳ Loading Customers...</div>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </template>
+    </data>
+</odoo>

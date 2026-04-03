@@ -12,6 +12,16 @@
 
 
 
+   <record id="action_pharmacy_customers" model="ir.actions.client">
+
+    <field name="name">Pharmacy Customers</field>
+
+    <field name="tag">pharmacy_customers_action</field>
+
+</record>
+
+
+
     <menuitem id="menu_pharmacy_root" name="Pharmacy POS"/>
 
 
@@ -23,6 +33,16 @@
               parent="menu_pharmacy_root"
 
               action="action_pharmacy_dashboard"/>
+
+
+
+    <menuitem id="menu_pharmacy_customers"
+
+              name="Customers"
+
+              parent="menu_pharmacy_root"
+
+              action="action_pharmacy_customers"/>
 
 
 

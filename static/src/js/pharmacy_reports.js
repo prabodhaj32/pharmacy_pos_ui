@@ -5,7 +5,116 @@ class PharmacyReports {
     constructor() {
         console.log('PharmacyReports constructor() called');
         this.charts = {};
-        this.renderReports();
+        this.dashboardData = {};
+        this.metricsData = {};
+        this.reportData = {};
+        this.loadReportData().then(() => {
+            this.renderReports();
+        });
+    }
+
+    async loadReportData() {
+        const basePath = '/pharmacy_pos_ui/static/src/js/data/reports/';   // updated path for reports subfolder
+
+        try {
+            this.dashboardData = await this.fetchJSON(basePath + 'dashboard.json');
+            this.metricsData = await this.fetchJSON(basePath + 'metrics.json');
+            
+            this.reportData = {
+                daily_sales: await this.fetchJSON(basePath + 'daily_sales.json'),
+                profit_report: await this.fetchJSON(basePath + 'profit_report.json'),
+                fast_movers: await this.fetchJSON(basePath + 'fast_movers.json'),
+                expiry_report: await this.fetchJSON(basePath + 'expiry_report.json'),
+                stock_valuation: await this.fetchJSON(basePath + 'stock_valuation.json'),
+                cashier_summary: await this.fetchJSON(basePath + 'cashier_summary.json')
+            };
+            
+            console.log('Report data loaded successfully:', this.reportData);
+        } catch (error) {
+            console.error('Error loading report data:', error);
+            // Fallback to default data if JSON files fail to load
+            this.setDefaultData();
+        }
+    }
+
+    async fetchJSON(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error fetching JSON from ${url}:`, error);
+            throw error;
+        }
+    }
+
+    setDefaultData() {
+        // Fallback data when JSON files are not available
+        this.dashboardData = {
+            total_sales: 48750,
+            net_sales: 47550,
+            total_discount: 1200,
+            total_returns: 1200,
+            tax_collected: 180
+        };
+        
+        this.metricsData = {
+            gross_sales: 48750,
+            net_sales: 47550,
+            total_discount: 1200,
+            total_returns: 1200,
+            tax_collected: 180
+        };
+        
+        this.reportData = {
+            daily_sales: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                sales: [35000, 48000, 42000, 61000, 78000, 72000, 48750],
+                profit: [9500, 12000, 10500, 16000, 22000, 19500, 12400]
+            },
+            profit_report: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                profit: [9500, 12000, 10500, 16000, 22000, 19500, 12400]
+            },
+            fast_movers: [
+                { rank: 1, medicine: 'Panadol 500mg', qty_sold: 450, revenue: 29250, avg_per_day: 64 },
+                { rank: 2, medicine: 'Omeprazole 20mg', qty_sold: 220, revenue: 9240, avg_per_day: 31 },
+                { rank: 3, medicine: 'Augmentin 625', qty_sold: 85, revenue: 21250, avg_per_day: 12 },
+                { rank: 4, medicine: 'Vitamin C 1000', qty_sold: 180, revenue: 15300, avg_per_day: 26 },
+                { rank: 5, medicine: 'Cetirizine 10mg', qty_sold: 310, revenue: 6200, avg_per_day: 44 }
+            ],
+            expiry_report: [
+                { medicine: 'Alprazolam 0.5mg', batch: 'BT2024033', expiry_date: '9/30/2025', days_left: -181, stock: 45, value_at_cost: 4275, action: 'Discount' },
+                { medicine: 'Cetirizine 10mg', batch: 'BT2024056', expiry_date: '10/31/2025', days_left: -150, stock: 22, value_at_cost: 264, action: 'Discount' },
+                { medicine: 'Augmentin 625', batch: 'BT2024045', expiry_date: '12/31/2025', days_left: -89, stock: 80, value_at_cost: 14800, action: 'Discount' },
+                { medicine: 'Vitamin C 1000', batch: 'BT2024110', expiry_date: '4/30/2026', days_left: 31, stock: 420, value_at_cost: 23100, action: 'Discount' },
+                { medicine: 'Losartan 50mg', batch: 'BT2024102', expiry_date: '6/30/2026', days_left: 92, stock: 340, value_at_cost: 22100, action: 'Discount' },
+                { medicine: 'Panadol 500mg', batch: 'BT2024001', expiry_date: '8/31/2026', days_left: 154, stock: 1200, value_at_cost: 54000, action: 'Discount' }
+            ],
+            stock_valuation: {
+                summary: {
+                    total_cost_value: 143859,
+                    total_selling_value: 212950,
+                    potential_profit: 69091
+                },
+                details: [
+                    { medicine: 'Panadol 500mg', stock: 1200, cost_per_unit: 45, sell_per_unit: 65, cost_value: 54000, sell_value: 78000, potential_profit: 24000 },
+                    { medicine: 'Augmentin 625', stock: 80, cost_per_unit: 185, sell_per_unit: 250, cost_value: 14800, sell_value: 20000, potential_profit: 5200 },
+                    { medicine: 'Omeprazole 20', stock: 650, cost_per_unit: 28, sell_per_unit: 42, cost_value: 18200, sell_value: 27300, potential_profit: 9100 },
+                    { medicine: 'Losartan 50', stock: 340, cost_per_unit: 65, sell_per_unit: 95, cost_value: 22100, sell_value: 32300, potential_profit: 10200 },
+                    { medicine: 'Cetirizine 10', stock: 22, cost_per_unit: 12, sell_per_unit: 20, cost_value: 264, sell_value: 440, potential_profit: 176 },
+                    { medicine: 'Metformin 500', stock: 890, cost_per_unit: 8, sell_per_unit: 14, cost_value: 7120, sell_value: 12460, potential_profit: 5340 },
+                    { medicine: 'Alprazolam 0.5', stock: 45, cost_per_unit: 95, sell_per_unit: 150, cost_value: 4275, sell_value: 6750, potential_profit: 2475 },
+                    { medicine: 'Vitamin C 1000', stock: 420, cost_per_unit: 55, sell_per_unit: 85, cost_value: 23100, sell_value: 35700, potential_profit: 12600 }
+                ]
+            },
+            cashier_summary: [
+                { cashier: 'Cashier 1', bills_processed: 18, total_sales: 28500, avg_bill_value: 1583, cash_collected: 18525, card_collected: 9975 },
+                { cashier: 'Cashier 2', bills_processed: 16, total_sales: 20250, avg_bill_value: 1266, cash_collected: 13163, card_collected: 7088 }
+            ]
+        };
     }
 
     renderReports() {
@@ -21,6 +130,15 @@ class PharmacyReports {
         // Use current date for date pickers
         const today = new Date().toISOString().split('T')[0];
         console.log('Rendering Reports content...');
+
+        // Get metrics data or use defaults
+        const metrics = this.metricsData || {
+            gross_sales: 48750,
+            net_sales: 47550,
+            total_discount: 1200,
+            total_returns: 1200,
+            tax_collected: 180
+        };
 
         container.innerHTML = `
             <div class="dashboard reports-dashboard">
@@ -60,7 +178,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Gross Sales</h3>
-                                <p class="metric-value">LKR 48,750</p>
+                                <p class="metric-value">LKR ${metrics.gross_sales?.toLocaleString() || '48,750'}</p>
                             </div>
                             <div class="metric-icon">💰</div>
                         </div>
@@ -70,7 +188,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Net Sales</h3>
-                                <p class="metric-value">LKR 47,550</p>
+                                <p class="metric-value">LKR ${metrics.net_sales?.toLocaleString() || '47,550'}</p>
                             </div>
                             <div class="metric-icon">💵</div>
                         </div>
@@ -80,7 +198,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Total Discount</h3>
-                                <p class="metric-value">LKR 1,200</p>
+                                <p class="metric-value">LKR ${metrics.total_discount?.toLocaleString() || '1,200'}</p>
                             </div>
                             <div class="metric-icon">🏷️</div>
                         </div>
@@ -90,7 +208,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Total Returns</h3>
-                                <p class="metric-value">LKR 1,200</p>
+                                <p class="metric-value">LKR ${metrics.total_returns?.toLocaleString() || '1,200'}</p>
                             </div>
                             <div class="metric-icon">🔄</div>
                         </div>
@@ -100,7 +218,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Tax Collected</h3>
-                                <p class="metric-value">LKR 180</p>
+                                <p class="metric-value">LKR ${metrics.tax_collected?.toLocaleString() || '180'}</p>
                             </div>
                             <div class="metric-icon">📋</div>
                         </div>
@@ -902,9 +1020,16 @@ class PharmacyReports {
 
         const ctx = canvas.getContext('2d');
 
-        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const salesData = [35000, 48000, 42000, 61000, 78000, 72000, 48750];
-        const profitData = [9500, 12000, 10500, 16000, 22000, 19500, 12400];
+        // Use loaded data or fallback to defaults
+        const dailySalesData = this.reportData.daily_sales || {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            sales: [35000, 48000, 42000, 61000, 78000, 72000, 48750],
+            profit: [9500, 12000, 10500, 16000, 22000, 19500, 12400]
+        };
+
+        const labels = dailySalesData.labels;
+        const salesData = dailySalesData.sales;
+        const profitData = dailySalesData.profit;
 
         this.drawAnimatedBarChart(ctx, canvas, labels, salesData, profitData);
     }

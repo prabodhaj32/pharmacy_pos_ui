@@ -1,0 +1,16 @@
+{
+    "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "profit": [9500, 12000, 10500, 16000, 22000, 19500, 12400],
+    "profit_margin": [27.1, 25.0, 25.0, 26.2, 28.2, 27.1, 25.4],
+    "cost_breakdown": {
+        "cost_of_goods": [25500, 36000, 31500, 45000, 56000, 52500, 36350],
+        "operational_costs": [2000, 2500, 2200, 3000, 3500, 3200, 2500],
+        "total_costs": [27500, 38500, 33700, 48000, 59500, 55700, 38850]
+    },
+    "summary": {
+        "total_profit": 101950,
+        "avg_profit_margin": 26.3,
+        "highest_profit_day": "Friday",
+        "lowest_profit_day": "Monday"
+    }
+}

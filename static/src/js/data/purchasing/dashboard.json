@@ -1,0 +1,30 @@
+{
+    "total_orders": 156,
+    "pending_orders": 12,
+    "received_orders": 144,
+    "total_value": 245678.50,
+    "active_suppliers": 8,
+    "total_suppliers": 10,
+    "monthly_trend": {
+        "jan": 189234.50,
+        "feb": 156789.00,
+        "mar": 245678.50,
+        "apr": 198456.75,
+        "may": 267890.25,
+        "jun": 234567.80
+    },
+    "top_suppliers": [
+        {
+            "name": "MediSupply Ltd",
+            "total_orders": 45,
+            "total_value": 89678.50,
+            "percentage": 36.5
+        },
+        {
+            "name": "PharmaDistributors",
+            "total_orders": 38,
+            "total_value": 67890.25,
+            "percentage": 27.6
+        }
+    ]
+}

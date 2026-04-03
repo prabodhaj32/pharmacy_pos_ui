@@ -1,0 +1,11 @@
+{
+    "gross_sales": 400750,
+    "net_sales": 47550,
+    "total_discount": 10000,
+    "total_returns": 1200,
+    "tax_collected": 18,
+    "total_orders": 34,
+    "average_order_value": 1433.82,
+    "top_product": "Panadol 500mg",
+    "peak_day": "Friday"
+}
