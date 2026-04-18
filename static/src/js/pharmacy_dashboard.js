@@ -122,21 +122,6 @@ class PharmacyDashboard extends Component {
                     </div>
                 </div>
 
-                <!-- Additional Stats -->
-                <div class="dashboard-grid">
-                    <div class="card">
-                        <h3>Low Stock Alerts</h3>
-                        <p>12 medicines need restocking</p>
-                    </div>
-                    <div class="card">
-                        <h3>Expiring Soon</h3>
-                        <p>8 medicines expire in 30 days</p>
-                    </div>
-                    <div class="card">
-                        <h3>Pending Orders</h3>
-                        <p>5 supplier orders pending</p>
-                    </div>
-                </div>
             </div>
         `;
 

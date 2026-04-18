@@ -4,7 +4,7 @@ import { registry } from "@web/core/registry";
 import { Component, onMounted, onWillUnmount } from "@odoo/owl";
 import { medicines } from "./data/medicine_data.js";
 
-class PharmacyDashboard extends Component {
+export class PharmacyDashboard extends Component {
   setup() {
     this.charts = {};
     this.refreshInterval = null;
@@ -28,136 +28,197 @@ class PharmacyDashboard extends Component {
 
   renderDashboard() {
     const container = document.getElementById("dashboard_container");
-    const currentDate = new Date().toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
+
+    // Calculate dynamic metrics from localStorage
+    const metrics = this.updateMetricsData() || {
+      sales: "0",
+      invoices: "0",
+      transactions: "0",
+      avgBill: "0",
+      profit: "0",
+      margin: "0",
+      returns: "0",
+      returnCount: "0",
+    };
 
     container.innerHTML = `
             <div class="dashboard">
-                <!-- Metrics Section -->
+                <!-- Metrics Grid -->
                 <div class="metrics-grid">
-                    <div class="metric-card success">
+                    <div class="metric-card glass-card success">
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Today's Sales</h3>
-                                <p class="metric-value">LKR 48,750</p>
-                                <p class="metric-subtitle">34 invoices</p>
+                                <p class="metric-value">${metrics.sales}</p>
+                                <p class="metric-subtitle">${metrics.invoices} bills</p>
                             </div>
                             <div class="metric-icon">💰</div>
                         </div>
-                        <div class="metric-change positive">
-                            <span>📈</span>
-                            <span>+12.4% vs yesterday</span>
+                        <div class="metric-change ${metrics.salesGrowth.startsWith("+") ? "positive" : "negative"}">
+                            <span>${metrics.salesGrowth.startsWith("+") ? "📈" : "📉"}</span>
+                            <span>${metrics.salesGrowth}</span>
                         </div>
                     </div>
 
-                    <div class="metric-card info">
+                    <div class="metric-card glass-card info">
                         <div class="metric-header">
                             <div>
-                                <h3 class="metric-title">Transactions Today</h3>
-                                <p class="metric-value">28</p>
-                                <p class="metric-subtitle">Avg. LKR 1,433.82/bill</p>
+                                <h3 class="metric-title">Transactions</h3>
+                                <p class="metric-value">${metrics.transactions}</p>
+                                <p class="metric-subtitle">Avg ${metrics.avgBill}</p>
                             </div>
                             <div class="metric-icon">👥</div>
                         </div>
-                        <div class="metric-change positive">
-                            <span>📊</span>
-                            <span>+5 transactions vs yesterday</span>
+                        <div class="metric-change ${Number(metrics.transactionsGrowth) >= 0 ? "positive" : "negative"}">
+                            <span>${Number(metrics.transactionsGrowth) >= 0 ? "📊" : "📉"}</span>
+                            <span>${Number(metrics.transactionsGrowth) >= 0 ? "+" : ""}${metrics.transactionsGrowth}</span>
                         </div>
                     </div>
 
-                    <div class="metric-card success">
+                    <div class="metric-card glass-card success">
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Gross Profit</h3>
-                                <p class="metric-value">LKR 18,420</p>
-                                <p class="metric-subtitle">37.8% margin</p>
+                                <p class="metric-value">${metrics.profit}</p>
+                                <p class="metric-subtitle">${metrics.margin}</p>
                             </div>
                             <div class="metric-icon">📈</div>
                         </div>
-                        <div class="metric-change positive">
-                            <span>💹</span>
-                            <span>+8.2% vs yesterday</span>
+                        <div class="metric-change ${metrics.profitGrowth.startsWith("+") ? "positive" : "negative"}">
+                            <span>${metrics.profitGrowth.startsWith("+") ? "💹" : "📉"}</span>
+                            <span>${metrics.profitGrowth}</span>
                         </div>
                     </div>
 
-                    <div class="metric-card danger">
+                    <div class="metric-card glass-card danger">
                         <div class="metric-header">
                             <div>
-                                <h3 class="metric-title">Returns Today</h3>
-                                <p class="metric-value">LKR 1,200</p>
-                                <p class="metric-subtitle">2 return transactions</p>
+                                <h3 class="metric-title">Returns</h3>
+                                <p class="metric-value">${metrics.returns}</p>
+                                <p class="metric-subtitle">${metrics.returnCount}</p>
                             </div>
                             <div class="metric-icon">🔄</div>
                         </div>
                         <div class="metric-change negative">
                             <span>📉</span>
-                            <span>-LKR 300 vs yesterday</span>
+                            <span>-${metrics.returns}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Charts Section -->
-                <div class="charts-grid">
-                    <div class="chart-card">
+                <!-- Main Charts Grid - One Line (7.5 / 3.5) -->
+                <div class="charts-grid slim" style="height: 50px;">
+                    <div class="chart-card glass-card">
                         <div class="chart-header">
-                            <div>
-                                <h3 class="chart-title">Weekly Sales & Profit</h3>
-                                <p class="chart-subtitle">Last 7 days performance</p>
-                            </div>
-                            <select class="chart-filter" aria-label="Filter chart data" onchange="dashboard.updateWeeklyChart(this.value)">
-                                <option value="both">Both</option>
-                                <option value="sales">Sales</option>
-                                <option value="profit">Profit</option>
-                            </select>
+                            <h3 class="chart-title">Weekly Trend</h3>
                         </div>
-                        <div class="chart-container">
-                            <canvas id="weeklyChart" aria-label="Weekly sales and profit chart"></canvas>
+                        <div class="chart-container slim-locked" style="height: 50px;">
+                            <canvas id="weeklyChart"></canvas>
                         </div>
                     </div>
 
-                    <div class="chart-card">
+                    <div class="chart-card glass-card">
                         <div class="chart-header">
-                            <div>
-                                <h3 class="chart-title">Sales by Category</h3>
-                                <p class="chart-subtitle">Today's sales by category</p>
-                            </div>
+                            <h3 class="chart-title">Categories</h3>
                         </div>
-                        <div class="chart-container">
-                            <canvas id="categoryChart" aria-label="Sales by category donut chart"></canvas>
+                        <div class="chart-container slim-locked" style="height: 50px;">
+                            <canvas id="categoryChart"></canvas>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Additional Stats -->
-                <div class="dashboard-grid">
-                    <div class="card">
-                        <h3>Low Stock Alerts</h3>
-                        <p>12 medicines need restocking</p>
-                    </div>
-                    <div class="card">
-                        <h3>Expiring Soon</h3>
-                        <p>8 medicines expire in 30 days</p>
-                    </div>
-                    <div class="card">
-                        <h3>Pending Orders</h3>
-                        <p>5 supplier orders pending</p>
                     </div>
                 </div>
             </div>
         `;
 
-    // Initialize charts after dashboard is rendered
-    setTimeout(() => {
-      this.initializeCharts();
-    }, 100);
+    setTimeout(() => this.initializeCharts(), 100);
+    window.dashboard = this;
+  }
 
-    // Make dashboard instance globally available
-    setTimeout(() => {
-      window.dashboard = this;
-    }, 200);
+  updateMetricsData() {
+    const rawSales = localStorage.getItem("pharmacy_sales");
+    const sales = rawSales ? JSON.parse(rawSales) : [];
+    const rawInventory = localStorage.getItem("pharmacy_pos_inventory_items");
+    const inventory = rawInventory ? JSON.parse(rawInventory) : [...medicines];
+
+    const today = new Date().toDateString();
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toDateString();
+
+    const getDayMetrics = (dayStr) => {
+      const daySales = sales.filter(
+        (s) => new Date(s.timestamp).toDateString() === dayStr,
+      );
+
+      let dayTotal = 0;
+      let dayProfit = 0;
+      let billCount = 0;
+      let returnCount = 0;
+      let returnTotal = 0;
+
+      daySales.forEach((s) => {
+        if (s.type === "RETURN") {
+          returnCount++;
+          returnTotal += Number(s.total) || 0;
+          return;
+        }
+
+        billCount++;
+        // Calculate total sales and profit from items to ensure consistency
+        (s.items || []).forEach((item) => {
+          const itemTotal = Number(item.total) || 0;
+          const qty = Number(item.quantity) || 1;
+          const price = Number(item.unitPrice || item.price) || 0;
+          const cost =
+            costMap[item.id] !== undefined ? costMap[item.id] : price * 0.7;
+
+          dayTotal += itemTotal;
+          dayProfit += (price - cost) * qty;
+        });
+      });
+
+      return {
+        total: dayTotal,
+        profit: dayProfit,
+        bills: billCount,
+        returns: returnTotal,
+        returnTrx: returnCount,
+      };
+    };
+
+    const costMap = {};
+    inventory.forEach((item) => (costMap[item.id] = Number(item.cost) || 0));
+
+    const todayM = getDayMetrics(today);
+    const yesterdayM = getDayMetrics(yesterday);
+
+    // Calculate growth percentages
+    const calculateGrowth = (current, previous) => {
+      if (previous <= 0) return current > 0 ? "New" : "0%";
+      const growth = ((current - previous) / previous) * 100;
+      return (growth >= 0 ? "+" : "") + growth.toFixed(1) + "%";
+    };
+
+    const formatValue = (num) => {
+      if (num >= 10000) return `LKR ${(num / 1000).toFixed(1)}k`;
+      return `LKR ${num.toLocaleString(undefined, { minimumFractionDigits: 1 })}`;
+    };
+
+    const avgBill = todayM.bills > 0 ? todayM.total / todayM.bills : 0;
+    const margin = todayM.total > 0 ? (todayM.profit / todayM.total) * 100 : 0;
+
+    return {
+      sales: formatValue(todayM.total),
+      salesGrowth: calculateGrowth(todayM.total, yesterdayM.total),
+      invoices: String(todayM.bills),
+      transactions: String(todayM.bills),
+      transactionsGrowth: String(todayM.bills - yesterdayM.bills),
+      avgBill: formatValue(avgBill),
+      profit: formatValue(todayM.profit),
+      profitGrowth: calculateGrowth(todayM.profit, yesterdayM.profit),
+      margin: `${margin.toFixed(1)}% marg`,
+      returns: formatValue(todayM.returns),
+      returnCount: `${todayM.returnTrx} trx`,
+    };
   }
 
   initializeCharts() {
@@ -171,21 +232,134 @@ class PharmacyDashboard extends Component {
 
     const ctx = canvas.getContext("2d");
 
-    // Generate sample data for the last 7 days
+    // Clear previous instance if it exists
+    if (this.charts.weekly) {
+      this.charts.weekly.destroy();
+    }
+
     const labels = [];
     const salesData = [];
     const profitData = [];
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      labels.push(date.toLocaleDateString("en-US", { weekday: "short" }));
-      salesData.push(Math.floor(Math.random() * 20000) + 30000);
-      profitData.push(Math.floor(Math.random() * 10000) + 10000);
+    const savedSales = localStorage.getItem("pharmacy_sales");
+    const sales = savedSales ? JSON.parse(savedSales) : [];
+
+    // Calculate the start of the current week (Monday)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday
+    const diffToMonday =
+      today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const startOfWeek = new Date(today.setDate(diffToMonday));
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      const dateStr = d.toDateString();
+
+      const dayTransactions = sales.filter(
+        (s) => new Date(s.timestamp).toDateString() === dateStr,
+      );
+
+      const dayTotal = dayTransactions.reduce((sum, s) => {
+        const amt = Number(s.total) || 0;
+        return s.type === "RETURN" ? sum - amt : sum + amt;
+      }, 0);
+
+      // Profit estimate: 30% margin for visual trend
+      const dayProfit = dayTransactions.reduce((sum, s) => {
+        if (s.type === "RETURN") return sum;
+        return (
+          sum +
+          (s.items || []).reduce((iSum, item) => {
+            return iSum + (item.total || 0) * 0.3;
+          }, 0)
+        );
+      }, 0);
+
+      labels.push(
+        d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" }),
+      );
+      salesData.push(dayTotal);
+      profitData.push(dayProfit);
     }
 
-    // Simple line chart drawing (without Chart.js library)
-    this.drawSimpleLineChart(ctx, canvas, labels, salesData, profitData);
+    // High-end vertical gradients
+    const salesGradient = ctx.createLinearGradient(0, 0, 0, 100);
+    salesGradient.addColorStop(0, "rgba(34, 197, 94, 0.4)");
+    salesGradient.addColorStop(1, "rgba(34, 197, 94, 0)");
+
+    const profitGradient = ctx.createLinearGradient(0, 0, 0, 100);
+    profitGradient.addColorStop(0, "rgba(59, 130, 246, 0.4)");
+    profitGradient.addColorStop(1, "rgba(59, 130, 246, 0)");
+
+    this.charts.weekly = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "Sales",
+            data: salesData,
+            borderColor: "#22c55e",
+            backgroundColor: salesGradient,
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+            pointBackgroundColor: "#22c55e",
+          },
+          {
+            label: "Profit",
+            data: profitData,
+            borderColor: "#3b82f6",
+            backgroundColor: profitGradient,
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+            pointBackgroundColor: "#3b82f6",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            padding: 8,
+            titleFont: { size: 10, weight: "bold" },
+            bodyFont: { size: 10 },
+            callbacks: {
+              label: (ctx) =>
+                `${ctx.dataset.label}: LKR ${ctx.raw.toLocaleString()}`,
+            },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(148, 163, 184, 0.05)", drawBorder: false },
+            ticks: {
+              font: { size: 8 },
+              color: "#94a3b8",
+              callback: (val) => {
+                if (val >= 1000) return (val / 1000).toFixed(0) + "k";
+                return val;
+              },
+            },
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 8 }, color: "#94a3b8" },
+          },
+        },
+        animation: { duration: 1500, easing: "easeOutQuart" },
+      },
+    });
   }
 
   initializeCategoryChart() {
@@ -194,240 +368,94 @@ class PharmacyDashboard extends Component {
 
     const ctx = canvas.getContext("2d");
 
-    // Category data
-    const data = [
-      { label: "Antibiotics", value: 28, color: "#22c55e" },
-      { label: "Analgesics", value: 22, color: "#3b82f6" },
-      { label: "Vitamins", value: 18, color: "#f59e0b" },
-      { label: "Antidiabetics", value: 15, color: "#8b5cf6" },
-      { label: "Others", value: 17, color: "#ec4899" },
-    ];
-
-    // Simple donut chart drawing
-    this.drawSimpleDonutChart(ctx, canvas, data);
-  }
-
-  drawSimpleLineChart(ctx, canvas, labels, salesData, profitData) {
-    const width = (canvas.width = canvas.offsetWidth * 2);
-    const height = (canvas.height = canvas.offsetHeight * 2);
-    ctx.scale(2, 2);
-
-    const padding = 40;
-    const chartWidth = canvas.offsetWidth - padding * 2;
-    const chartHeight = canvas.offsetHeight - padding * 2;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Draw grid lines
-    ctx.strokeStyle = "#e5e7eb";
-    ctx.lineWidth = 0.5;
-
-    for (let i = 0; i <= 5; i++) {
-      const y = padding + (chartHeight / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(padding, y);
-      ctx.lineTo(padding + chartWidth, y);
-      ctx.stroke();
+    if (this.charts.category) {
+      this.charts.category.destroy();
     }
 
-    // Find max value for scaling
-    const allValues = [...salesData, ...profitData];
-    const maxValue = Math.max(...allValues);
-    const minValue = 0;
+    const savedItems = localStorage.getItem("pharmacy_pos_inventory_items");
+    const items = savedItems ? JSON.parse(savedItems) : [...medicines];
 
-    // Draw sales area (filled area)
-    ctx.fillStyle = "rgba(34, 197, 94, 0.2)";
-    ctx.beginPath();
-    salesData.forEach((value, i) => {
-      const x = padding + (chartWidth / (salesData.length - 1)) * i;
-      const y =
-        padding +
-        chartHeight -
-        ((value - minValue) / (maxValue - minValue)) * chartHeight;
+    const counts = items.reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + 1;
+      return acc;
+    }, {});
 
-      if (i === 0) {
-        ctx.moveTo(x, padding + chartHeight);
-        ctx.lineTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const top4 = sorted.slice(0, 4);
+    const otherCount = sorted.slice(4).reduce((sum, e) => sum + e[1], 0);
+
+    const labels = top4.map((e) => e[0]);
+    const chartData = top4.map((e) => e[1]);
+
+    if (otherCount > 0) {
+      labels.push("Other");
+      chartData.push(otherCount);
+    }
+
+    // Create high-end gradients for each category segment
+    const createGradient = (color1, color2) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, 50);
+      grad.addColorStop(0, color1);
+      grad.addColorStop(1, color2);
+      return grad;
+    };
+
+    const colors = [
+      createGradient("#10b981", "#059669"), // Emerald -> Green
+      createGradient("#3b82f6", "#2563eb"), // Blue -> Indigo
+      createGradient("#f59e0b", "#d97706"), // Amber -> Orange
+      createGradient("#8b5cf6", "#7c3aed"), // Violet -> Purple
+      createGradient("#64748b", "#475569"), // Slate -> Gray
+    ];
+
+    this.charts.category = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            data: chartData,
+            backgroundColor: colors.slice(0, chartData.length),
+            borderWidth: 0,
+            hoverOffset: 15,
+            borderRadius: 4,
+            spacing: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "80%",
+        plugins: {
+          legend: {
+            position: "right",
+            labels: {
+              boxWidth: 6,
+              boxHeight: 6,
+              padding: 6,
+              usePointStyle: true,
+              pointStyle: "circle",
+              font: { size: 8, weight: "600" },
+              color: "#64748b",
+            },
+          },
+          tooltip: {
+            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            titleFont: { size: 10 },
+            bodyFont: { size: 10 },
+            padding: 8,
+            cornerRadius: 4,
+          },
+        },
+        animation: {
+          animateRotate: true,
+          animateScale: true,
+          duration: 2000,
+          easing: "easeOutExpo",
+        },
+      },
     });
-    ctx.lineTo(padding + chartWidth, padding + chartHeight);
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw profit area (filled area)
-    ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
-    ctx.beginPath();
-    profitData.forEach((value, i) => {
-      const x = padding + (chartWidth / (profitData.length - 1)) * i;
-      const y =
-        padding +
-        chartHeight -
-        ((value - minValue) / (maxValue - minValue)) * chartHeight;
-
-      if (i === 0) {
-        ctx.moveTo(x, padding + chartHeight);
-        ctx.lineTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.lineTo(padding + chartWidth, padding + chartHeight);
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw sales line
-    this.drawLine(
-      ctx,
-      labels,
-      salesData,
-      padding,
-      chartWidth,
-      chartHeight,
-      "#22c55e",
-      2,
-      maxValue,
-      minValue,
-    );
-
-    // Draw profit line
-    this.drawLine(
-      ctx,
-      labels,
-      profitData,
-      padding,
-      chartWidth,
-      chartHeight,
-      "#3b82f6",
-      2,
-      maxValue,
-      minValue,
-    );
-
-    // Draw labels
-    ctx.fillStyle = "#64748b";
-    ctx.font = "10px Inter";
-    labels.forEach((label, i) => {
-      const x = padding + (chartWidth / (labels.length - 1)) * i;
-      ctx.fillText(label, x - 15, canvas.offsetHeight - 10);
-    });
-
-    // Draw legend
-    ctx.fillStyle = "#22c55e";
-    ctx.fillRect(padding, 10, 10, 10);
-    ctx.fillStyle = "#64748b";
-    ctx.fillText("Sales", padding + 15, 18);
-
-    ctx.fillStyle = "#3b82f6";
-    ctx.fillRect(padding + 60, 10, 10, 10);
-    ctx.fillStyle = "#64748b";
-    ctx.fillText("Profit", padding + 75, 18);
-  }
-
-  drawLine(
-    ctx,
-    labels,
-    data,
-    padding,
-    chartWidth,
-    chartHeight,
-    color,
-    lineWidth,
-    maxValue,
-    minValue,
-  ) {
-    const range = maxValue - minValue;
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.beginPath();
-
-    data.forEach((value, i) => {
-      const x = padding + (chartWidth / (data.length - 1)) * i;
-      const y =
-        padding + chartHeight - ((value - minValue) / range) * chartHeight;
-
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-
-    ctx.stroke();
-
-    // Draw points
-    ctx.fillStyle = color;
-    data.forEach((value, i) => {
-      const x = padding + (chartWidth / (data.length - 1)) * i;
-      const y =
-        padding + chartHeight - ((value - minValue) / range) * chartHeight;
-
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  drawSimpleDonutChart(ctx, canvas, data) {
-    const width = (canvas.width = canvas.offsetWidth * 2);
-    const height = (canvas.height = canvas.offsetHeight * 2);
-    ctx.scale(2, 2);
-
-    const centerX = canvas.offsetWidth / 2;
-    const centerY = canvas.offsetHeight / 2;
-    const radius = Math.min(centerX, centerY) - 30;
-    const innerRadius = radius * 0.6;
-
-    ctx.clearRect(0, 0, width, height);
-
-    let currentAngle = -Math.PI / 2;
-    const total = data.reduce((sum, item) => sum + item.value, 0);
-
-    data.forEach((segment, i) => {
-      const sliceAngle = (segment.value / total) * Math.PI * 2;
-
-      // Draw segment
-      ctx.fillStyle = segment.color;
-      ctx.beginPath();
-      ctx.arc(
-        centerX,
-        centerY,
-        radius,
-        currentAngle,
-        currentAngle + sliceAngle,
-      );
-      ctx.arc(
-        centerX,
-        centerY,
-        innerRadius,
-        currentAngle + sliceAngle,
-        currentAngle,
-        true,
-      );
-      ctx.closePath();
-      ctx.fill();
-
-      // Draw label
-      const labelAngle = currentAngle + sliceAngle / 2;
-      const labelX = centerX + Math.cos(labelAngle) * (radius + 20);
-      const labelY = centerY + Math.sin(labelAngle) * (radius + 20);
-
-      ctx.fillStyle = "#64748b";
-      ctx.font = "10px Inter";
-      ctx.textAlign = "center";
-      ctx.fillText(`${segment.value}%`, labelX, labelY);
-
-      currentAngle += sliceAngle;
-    });
-
-    // Draw center text
-    ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 14px Inter";
-    ctx.textAlign = "center";
-    ctx.fillText("Categories", centerX, centerY);
   }
 
   updateWeeklyChart(filter) {
@@ -459,7 +487,7 @@ class PharmacyDashboard extends Component {
 
   initializeMenuHandlers() {
     const menuLinks = document.querySelectorAll(".menu-link");
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
 
     menuLinks.forEach((link) => {
       link.addEventListener("click", (e) => {
@@ -519,7 +547,7 @@ class PharmacyDashboard extends Component {
 
   renderSettings() {
     // Update topbar title
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
     if (topbarTitle) {
       topbarTitle.textContent = "Settings";
     }
@@ -564,6 +592,7 @@ class PharmacyDashboard extends Component {
     // Create new reports instance using global class
     if (typeof window.PharmacyReports === "function") {
       this.reportsInstance = new window.PharmacyReports();
+      window.pharmacyReports = this.reportsInstance;
     } else {
       // Fallback: Show error message
       container.innerHTML = `
@@ -578,7 +607,7 @@ class PharmacyDashboard extends Component {
     }
 
     // Update topbar title
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
     if (topbarTitle) {
       topbarTitle.textContent = "Reports";
     }
@@ -616,7 +645,7 @@ class PharmacyDashboard extends Component {
     this.purchasingInstance = new window.PharmacyPurchasing();
 
     // Update topbar title
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
     if (topbarTitle) {
       topbarTitle.textContent = "Purchasing";
     }
@@ -627,7 +656,7 @@ class PharmacyDashboard extends Component {
     const container = document.getElementById("dashboard_container");
 
     // Update the topbar title
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
     if (topbarTitle) {
       topbarTitle.textContent = "Inventory";
     }
@@ -873,11 +902,14 @@ class PharmacyDashboard extends Component {
   }
 
   handleLogout() {
-    // Clear local storage
-    localStorage.removeItem("pharmacy_pos_dark_mode");
-
-    // Redirect to login page or perform logout action
-    window.location.href = "/web/session/logout";
+    // Clear local storage if needed, but keep theme
+    // Call the global logout method from pharmacy_login.js if it exists
+    if (window.pharmacyLogout) {
+      window.pharmacyLogout();
+    } else {
+      // Fallback to reload if for some reason the login component is unavailable
+      window.location.reload();
+    }
   }
 
   renderPharmacyPOS() {
@@ -919,7 +951,7 @@ class PharmacyDashboard extends Component {
 
                         <!-- Sales Table Section (Left - 75%) -->
                     <div class="pos-sales-table-75">
-                        <div class="sales-table-container">
+                        <div class="sales-table-container pos-glass-card">
                             <h3>🛒 Sales Table</h3>
                             <div class="cart-table-container">
                                 <table class="cart-table" id="cartTable">
@@ -952,7 +984,7 @@ class PharmacyDashboard extends Component {
                     <!-- Right Rail (Top Corner): Actions + Search + Cart (35%) -->
                     
                     <div class="pos-cart-35 pos-right-rail">
-                        <div class="cart-container modern-cart-container">
+                        <div class="cart-container modern-cart-container pos-glass-card">
                             <div class="cart-header">
                                 <h2><span class="emoji-icon">🛒</span> Sales Cart</h2>
                                 <span class="cart-badge"><span id="cartItemCount">0</span> items</span>
@@ -975,10 +1007,10 @@ class PharmacyDashboard extends Component {
                                 </div>
                                 <div class="cart-actions cart-actions-modern">
                                     <button class="btn-modern btn-pay" onclick="pharmacyPOS.checkout()">
-                                        🧾 Pay
+                                         Pay
                                     </button>
                                     <button class="btn-modern btn-clear" onclick="pharmacyPOS.clearCart()">
-                                        🧹 Clear
+                                         Clear
                                     </button>
                                 </div>
                             </div>
@@ -1309,46 +1341,38 @@ class PharmacyDashboard extends Component {
     // Add cart items to table
     this.cart.forEach((item, index) => {
       const row = document.createElement("tr");
-      row.style.opacity = "0";
-      row.style.transform = "translateY(20px)";
-      row.style.transition = "all 0.3s ease";
+      row.className = "cart-row";
 
       row.innerHTML = `
                 <td>
                     <div class="product-name">
-                        <span class="product-text">${item.name}</span>
+                        <span class="product-text" style="font-weight: 700; color: var(--text-primary); font-size: 14px;">${item.name}</span>
                     </div>
                 </td>
                 <td>
                     <div class="batch-expiry">
-                        <span class="batch-code">${item.batch}</span>
-                        <span class="expiry-date">${item.expiry}</span>
+                        <span class="batch-pill">${item.batch}</span>
+                        <span class="expiry-pill">${item.expiry}</span>
                     </div>
                 </td>
                 <td class="quantity-cell">
-                    <div class="quantity-controls">
-                        <button class="qty-btn" onclick="pharmacyPOS.updateQuantity(${index}, -1)">−</button>
-                        <span>${item.quantity}</span>
-                        <button class="qty-btn" onclick="pharmacyPOS.updateQuantity(${index}, 1)">+</button>
+                    <div class="modern-qty-controls">
+                        <button class="qty-btn-glass" onclick="pharmacyPOS.updateQuantity(${index}, -1)">−</button>
+                        <span class="qty-value-modern">${item.quantity}</span>
+                        <button class="qty-btn-glass" onclick="pharmacyPOS.updateQuantity(${index}, 1)">+</button>
                     </div>
                 </td>
-                <td class="price-cell">LKR ${Number(item.unitPrice || 0).toFixed(2)}</td>
-                <td class="discount-cell">${Number(item.discount || 0)}%</td>
-                <td class="total-cell">LKR ${Number(item.total || 0).toFixed(2)}</td>
+                <td class="price-cell" style="font-weight: 600;">LKR ${Number(item.unitPrice || 0).toFixed(2)}</td>
+                <td class="discount-cell"><span style="color: #64748b; font-size: 11px;">${Number(item.discount || 0)}%</span></td>
+                <td class="total-cell" style="font-weight: 800; color: #10b981;">LKR ${Number(item.total || 0).toFixed(2)}</td>
                 <td class="actions-cell">
-                    <button class="action-btn delete" onclick="pharmacyPOS.removeItem(${index})" title="Remove item">
+                    <button class="delete-btn-modern" onclick="pharmacyPOS.removeItem(${index})" title="Remove item">
                         🗑️
                     </button>
                 </td>
             `;
 
       tableBody.appendChild(row);
-
-      // Animate row appearance
-      setTimeout(() => {
-        row.style.opacity = "1";
-        row.style.transform = "translateY(0)";
-      }, index * 50);
     });
   }
 
@@ -1649,6 +1673,9 @@ class PharmacyDashboard extends Component {
 
       // Show return receipt
       this.printReturnReceipt(returnTransaction);
+
+      // Update inventory stock (add back items)
+      this.updateInventoryStock(bill.items, true);
 
       // Remove the held bill
       this.heldBills.splice(billIndex, 1);
@@ -1979,9 +2006,9 @@ class PharmacyDashboard extends Component {
                 <div class="product-info">
                     <h3 class="product-name">${product.name}</h3>
                     <p class="product-category">Category: ${this.getCategoryName(product.category)}</p>
-                    <p class="product-price">💰 Price: LKR ${Number(product.price || 0).toFixed(2)}</p>
+                    <p class="product-price"> Price: LKR ${Number(product.price || 0).toFixed(2)}</p>
                     <p class="product-stock ${product.stock < 20 ? "low-stock" : ""}">
-                        📦 Stock: ${product.stock} in stock
+                       Stock: ${product.stock} in stock
                         ${product.stock < 20 ? "⚠️ Low Stock" : ""}
                     </p>
                     ${product.prescription ? '<p class="prescription-required">⚠️ Prescription Required</p>' : ""}
@@ -2021,7 +2048,7 @@ class PharmacyDashboard extends Component {
 
     // Check if there's exactly one suggestion and add it
     const suggestions = suggestionsContainer.querySelectorAll(
-      ".suggestion-item:not(.no-results)",
+      ".premium-suggestion-item:not(.no-results)",
     );
     if (suggestions.length === 1) {
       suggestions[0].click();
@@ -2036,6 +2063,7 @@ class PharmacyDashboard extends Component {
           this.addProductToCart(product);
           event.target.value = "";
           suggestionsContainer.innerHTML = "";
+          suggestionsContainer.classList.remove("glass-dropdown");
           this.showNotification(
             `✅ ${product.name} added via barcode scan`,
             "success",
@@ -2052,6 +2080,11 @@ class PharmacyDashboard extends Component {
 
   searchMedicines(query) {
     const suggestionsContainer = document.getElementById("searchSuggestions");
+    if (!suggestionsContainer) return;
+
+    // Initialize container for fresh results
+    suggestionsContainer.innerHTML = "";
+    suggestionsContainer.classList.remove("glass-dropdown");
 
     if (!query.trim()) {
       suggestionsContainer.innerHTML = "";
@@ -2088,24 +2121,30 @@ class PharmacyDashboard extends Component {
     );
 
     if (filtered.length === 0) {
-      suggestionsContainer.innerHTML =
-        '<div class="suggestion-item no-results">No products found</div>';
+      if (query.trim()) {
+        suggestionsContainer.classList.add("glass-dropdown");
+        suggestionsContainer.innerHTML =
+          '<div class="premium-suggestion-item no-results" style="justify-content: center; opacity: 1;">No products found</div>';
+      }
       return;
     }
 
+    suggestionsContainer.classList.add("glass-dropdown");
     suggestionsContainer.innerHTML = filtered
       .map(
-        (product) => `
-            <div class="suggestion-item" onclick="pharmacyPOS.addToCartFromSearch(${product.id}, '${product.name.replace(/'/g, "\\'")}')">
-                <div class="suggestion-icon">${product.icon}</div>
+        (product, index) => `
+            <div class="premium-suggestion-item" 
+                 style="animation-delay: ${index * 0.05}s"
+                 onclick="pharmacyPOS.addToCartFromSearch(${product.id}, '${product.name.replace(/'/g, "\\'")}')">
+                <div class="suggestion-icon-wrap">${product.icon}</div>
                 <div class="suggestion-info">
                     <div class="suggestion-name">${product.name}</div>
                     <div class="suggestion-details">
-                        💰 LKR ${Number(product.price || 0).toFixed(2)} | 📦 ${product.stock} in stock
-                        ${product.barcode ? ` | 📊 ${product.barcode}` : ""}
+                         LKR ${Number(product.price || 0).toFixed(2)} |  ${product.stock} in stock
+                        ${product.barcode ? ` |  ${product.barcode}` : ""}
                     </div>
                 </div>
-                <div class="suggestion-action">➕</div>
+                <div class="suggestion-action-pill">➕</div>
             </div>
         `,
       )
@@ -2131,10 +2170,14 @@ class PharmacyDashboard extends Component {
 
     this.addToCart(productId);
 
-    // Clear search and show confirmation
+    // Clear search and hide suggestions
     const searchInput = document.getElementById("medicineSearch");
     searchInput.value = "";
-    document.getElementById("searchSuggestions").innerHTML = "";
+    const suggestionsContainer = document.getElementById("searchSuggestions");
+    if (suggestionsContainer) {
+      suggestionsContainer.innerHTML = "";
+      suggestionsContainer.classList.remove("glass-dropdown");
+    }
 
     // Show brief notification
     const notification = document.createElement("div");
@@ -2287,6 +2330,7 @@ class PharmacyDashboard extends Component {
                       Clear Cart
                     </button>
                 </div>
+            </div>
         `;
 
     // Insert dropdown after cart summary
@@ -2316,15 +2360,45 @@ class PharmacyDashboard extends Component {
     const amountPaid = document.getElementById("amountPaid");
     const balanceAmount = document.getElementById("balanceAmount");
     const total = this.calculateGrandTotal();
+    const paymentRadios = document.querySelectorAll('input[name="payment"]');
 
     const updateBalance = () => {
       const paid = parseFloat(amountPaid.value) || 0;
       const balance = total - paid;
-      balanceAmount.textContent =
-        balance > 0
-          ? `LKR ${Number(balance).toFixed(2)} (due)`
-          : `LKR ${Number(Math.abs(balance)).toFixed(2)} (change)`;
+
+      const selectedMethod = document.querySelector(
+        'input[name="payment"]:checked',
+      )?.value;
+      if (selectedMethod === "credit") {
+        balanceAmount.textContent = `LKR ${Number(balance).toFixed(2)} (added to credit)`;
+        balanceAmount.style.color = "#eab308"; // Warning color for credit
+      } else {
+        balanceAmount.textContent =
+          balance > 0
+            ? `LKR ${Number(balance).toFixed(2)} (due)`
+            : `LKR ${Number(Math.abs(balance)).toFixed(2)} (change)`;
+        balanceAmount.style.color = "";
+      }
     };
+
+    // Auto-update amount when method changes
+    paymentRadios.forEach((radio) => {
+      radio.addEventListener("change", (e) => {
+        if (e.target.value === "card") {
+          amountPaid.value = total.toFixed(2);
+          amountPaid.readOnly = true;
+        } else if (e.target.value === "credit") {
+          amountPaid.value = "0.00";
+          amountPaid.readOnly = false; // Allow partial payments
+        } else {
+          // cash
+          amountPaid.readOnly = false;
+          amountPaid.focus();
+          amountPaid.select();
+        }
+        updateBalance();
+      });
+    });
 
     amountPaid.addEventListener("input", updateBalance);
     updateBalance();
@@ -2337,14 +2411,27 @@ class PharmacyDashboard extends Component {
 
   completeSale() {
     const total = this.calculateGrandTotal();
-    const amountPaid =
+    let amountPaid =
       parseFloat(document.getElementById("amountPaid").value) || 0;
     const paymentMethod = document.querySelector(
       'input[name="payment"]:checked',
     ).value;
 
+    // Safety fallback: if card is selected, forcefully assume total is fully paid
+    if (paymentMethod === "card") {
+      amountPaid = total;
+    }
+
     if (amountPaid < total && paymentMethod !== "credit") {
       alert("Insufficient payment amount!");
+      return;
+    }
+
+    if (
+      paymentMethod === "credit" &&
+      (!this.currentCustomer || this.currentCustomer.isWalkIn)
+    ) {
+      alert("Please select a registered customer to process credit payments.");
       return;
     }
 
@@ -2355,6 +2442,9 @@ class PharmacyDashboard extends Component {
     const sale = {
       id: Date.now(),
       receiptNumber: receiptNumber,
+      cashierId:
+        localStorage.getItem("pharmacy_active_cashier_id") || "Unknown",
+      shift: localStorage.getItem("pharmacy_active_shift") || "Morning",
       items: [...this.cart],
       total: total,
       amountPaid: amountPaid,
@@ -2367,6 +2457,17 @@ class PharmacyDashboard extends Component {
     // Store sale (in real implementation, save to database)
     if (!this.salesHistory) this.salesHistory = [];
     this.salesHistory.push(sale);
+
+    // Save to localStorage so reports component can use it
+    try {
+      let storedSales = [];
+      const saved = localStorage.getItem("pharmacy_sales");
+      if (saved) storedSales = JSON.parse(saved);
+      storedSales.push(sale);
+      localStorage.setItem("pharmacy_sales", JSON.stringify(storedSales));
+    } catch (e) {
+      console.error("Error saving sale to localStorage:", e);
+    }
 
     // Update customer's purchase history if customer is selected
     if (this.currentCustomer && !this.currentCustomer.isWalkIn) {
@@ -2382,6 +2483,9 @@ class PharmacyDashboard extends Component {
       `🧾 Sale completed${customerInfo} - LKR ${Number(total).toFixed(2)}`,
       "success",
     );
+    // Update inventory stock levels
+    this.updateInventoryStock(this.cart);
+
     this.clearCart(false);
     this.closePaymentDropdown();
 
@@ -2446,6 +2550,60 @@ class PharmacyDashboard extends Component {
       } catch (error) {
         console.error("Error saving customer purchase history:", error);
       }
+    }
+  }
+
+  updateInventoryStock(cartItems, isReturn = false) {
+    if (!cartItems || cartItems.length === 0) return;
+
+    try {
+      // 1. Get current inventory from localStorage
+      const savedItems = localStorage.getItem("pharmacy_pos_inventory_items");
+      let inventory = savedItems ? JSON.parse(savedItems) : [...medicines];
+
+      // 2. Decrement stock for each item in the cart
+      cartItems.forEach((cartItem) => {
+        const productIndex = inventory.findIndex(
+          (p) => String(p.id) === String(cartItem.id),
+        );
+
+        if (productIndex !== -1) {
+          const currentStock = Number(inventory[productIndex].stock) || 0;
+          const qty = Number(cartItem.quantity) || 0;
+
+          // Update stock: decrement if sale, increment if return
+          if (isReturn) {
+            inventory[productIndex].stock = currentStock + qty;
+          } else {
+            inventory[productIndex].stock = Math.max(0, currentStock - qty);
+          }
+
+          console.log(
+            `Stock updated (${isReturn ? "Return" : "Sale"}) for ${inventory[productIndex].name}: ${currentStock} -> ${inventory[productIndex].stock}`,
+          );
+        } else {
+          console.warn(`Product ID ${cartItem.id} not found in inventory.`);
+        }
+      });
+
+      // 3. Save updated inventory back to localStorage
+      localStorage.setItem(
+        "pharmacy_pos_inventory_items",
+        JSON.stringify(inventory),
+      );
+
+      // 4. Force a refresh of the inventory component if it exists
+      if (window.pharmacyInventory) {
+        window.pharmacyInventory.loadInventoryItems();
+        if (
+          typeof window.pharmacyInventory.updateInventoryStatsAndTable ===
+          "function"
+        ) {
+          window.pharmacyInventory.updateInventoryStatsAndTable();
+        }
+      }
+    } catch (error) {
+      console.error("Error updating inventory stock:", error);
     }
   }
 
@@ -2624,10 +2782,14 @@ class PharmacyDashboard extends Component {
                             <div class="receipt-info-label">Date & Time</div>
                             <div>${sale.timestamp}</div>
                         </div>
+                        <div class="receipt-info-item">
+                            <div class="receipt-info-label">Cashier</div>
+                            <div>${sale.cashierId || localStorage.getItem("pharmacy_active_cashier_id") || "Unknown"}</div>
+                        </div>
                         ${
                           sale.customer && !sale.customer.isWalkIn
                             ? `
-                        <div class="receipt-info-item" style="grid-column: 1 / -1;">
+                        <div class="receipt-info-item" style="grid-column: 1 / -1; margin-top: 5px;">
                             <div class="receipt-info-label">Customer</div>
                             <div>${sale.customer.name}</div>
                         </div>
@@ -3117,7 +3279,7 @@ class PharmacyDashboard extends Component {
     this.customersInstance = new window.PharmacyCustomers();
 
     // Update topbar title
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
     if (topbarTitle) {
       topbarTitle.textContent = "Customers";
     }
@@ -3125,7 +3287,7 @@ class PharmacyDashboard extends Component {
 
   renderEmptyPage() {
     const container = document.getElementById("dashboard_container");
-    const topbarTitle = document.querySelector(".topbar h1");
+    const topbarTitle = document.querySelector(".page-title");
 
     if (topbarTitle) {
       topbarTitle.textContent = "Customers";
@@ -3190,6 +3352,4 @@ class PharmacyDashboard extends Component {
 
 PharmacyDashboard.template = "pharmacy_dashboard_layout";
 
-registry
-  .category("actions")
-  .add("pharmacy_dashboard_action", PharmacyDashboard);
+// Removed registry registration, it is now in pharmacy_login.js

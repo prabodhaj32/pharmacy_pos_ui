@@ -46,13 +46,61 @@ class PharmacySettings extends Component {
       },
       users: {
         roles: [
-          { id: 1, name: "Administrator", permissions: ["all"] },
-          { id: 2, name: "Pharmacist", permissions: ["sales", "inventory"] },
-          { id: 3, name: "Cashier", permissions: ["sales"] },
+          {
+            id: 1,
+            name: "Administrator",
+            permissions: [
+              "All modules",
+              "User management",
+              "System settings",
+              "Reports",
+              "Audit logs",
+              "Price management",
+            ],
+          },
+          {
+            id: 2,
+            name: "Pharmacist",
+            permissions: [
+              "Sales (POS)",
+              "Inventory view",
+              "Medicine safety check",
+              "Prescriptions",
+              "Dispensing",
+            ],
+          },
+          {
+            id: 3,
+            name: "Cashier",
+            permissions: [
+              "Sales (POS)",
+              "Customer lookup",
+              "Hold/resume bills",
+              "End of day report",
+            ],
+          },
           {
             id: 4,
-            name: "Store Keeper",
-            permissions: ["inventory", "purchasing"],
+            name: "Storekeeper",
+            permissions: [
+              "Inventory management",
+              "GRN entry",
+              "Purchase orders",
+              "Stock adjustments",
+              "Supplier management",
+            ],
+          },
+          {
+            id: 5,
+            name: "Manager",
+            permissions: [
+              "All reports",
+              "Sales reports",
+              "Inventory reports",
+              "Staff oversight",
+              "Void approvals",
+              "Refund approval",
+            ],
           },
         ],
       },
@@ -64,6 +112,10 @@ class PharmacySettings extends Component {
         customerDisplay: "none",
       },
       notifications: {
+        whatsappEnabled: true,
+        whatsappNumber: "+94776789117",
+        lowStockThreshold: 10,
+        expiryThreshold: 90,
         lowStockAlert: true,
         expiryAlert: true,
         salesAlert: false,
@@ -145,13 +197,61 @@ class PharmacySettings extends Component {
       },
       users: {
         roles: [
-          { id: 1, name: "Administrator", permissions: ["all"] },
-          { id: 2, name: "Pharmacist", permissions: ["sales", "inventory"] },
-          { id: 3, name: "Cashier", permissions: ["sales"] },
+          {
+            id: 1,
+            name: "Administrator",
+            permissions: [
+              "All modules",
+              "User management",
+              "System settings",
+              "Reports",
+              "Audit logs",
+              "Price management",
+            ],
+          },
+          {
+            id: 2,
+            name: "Pharmacist",
+            permissions: [
+              "Sales (POS)",
+              "Inventory view",
+              "Medicine safety check",
+              "Prescriptions",
+              "Dispensing",
+            ],
+          },
+          {
+            id: 3,
+            name: "Cashier",
+            permissions: [
+              "Sales (POS)",
+              "Customer lookup",
+              "Hold/resume bills",
+              "End of day report",
+            ],
+          },
           {
             id: 4,
-            name: "Store Keeper",
-            permissions: ["inventory", "purchasing"],
+            name: "Storekeeper",
+            permissions: [
+              "Inventory management",
+              "GRN entry",
+              "Purchase orders",
+              "Stock adjustments",
+              "Supplier management",
+            ],
+          },
+          {
+            id: 5,
+            name: "Manager",
+            permissions: [
+              "All reports",
+              "Sales reports",
+              "Inventory reports",
+              "Staff oversight",
+              "Void approvals",
+              "Refund approval",
+            ],
           },
         ],
       },
@@ -163,6 +263,10 @@ class PharmacySettings extends Component {
         customerDisplay: "none",
       },
       notifications: {
+        whatsappEnabled: true,
+        whatsappNumber: "+94776789117",
+        lowStockThreshold: 10,
+        expiryThreshold: 90,
         lowStockAlert: true,
         expiryAlert: true,
         salesAlert: false,
@@ -195,6 +299,10 @@ class PharmacySettings extends Component {
 
   initializeSettings() {
     this.renderSettingsPage();
+    this.attachEventListeners();
+  }
+
+  attachEventListeners() {
     this.setupNavigation();
     this.setupFormHandlers();
   }
@@ -204,6 +312,99 @@ class PharmacySettings extends Component {
     if (!container) return;
 
     container.innerHTML = `
+            <style>
+                /* Apply Add Inventory Item form UI to all settings grids */
+                .settings-content .settings-grid {
+                    padding: 1rem !important; 
+                    background: transparent !important; 
+                    display: grid !important; 
+                    grid-template-columns: 1fr 1fr !important; 
+                    gap: 0.6rem !important;
+                }
+                .settings-content .form-group {
+                    margin-bottom: 0 !important;
+                }
+                .settings-content .form-group.full-width {
+                    grid-column: span 2 !important;
+                }
+                .settings-content .form-label {
+                    display: block !important; 
+                    font-size: 0.65rem !important; 
+                    font-weight: 700 !important; 
+                    color: #475569 !important; 
+                    margin-bottom: 0.2rem !important; 
+                    text-transform: uppercase !important;
+                }
+                .settings-content .form-input, 
+                .settings-content .form-select, 
+                .settings-content .form-textarea {
+                    width: 100% !important; 
+                    padding: 0.35rem 0.6rem !important; 
+                    border: 1px solid rgba(0,0,0,0.1) !important; 
+                    border-radius: 6px !important; 
+                    font-size: 0.75rem !important; 
+                    background: rgba(255,255,255,0.5) !important; 
+                    outline: none !important;
+                    box-sizing: border-box !important;
+                    color: #0f172a !important;
+                    height: auto !important;
+                }
+                .settings-content .checkbox-group label.checkbox-label {
+                    display: flex !important; 
+                    align-items: center !important; 
+                    gap: 0.5rem !important; 
+                    font-size: 0.7rem !important; 
+                    font-weight: 600 !important; 
+                    color: #475569 !important; 
+                    cursor: pointer !important;
+                }
+                .settings-content .checkbox-group input[type="checkbox"] {
+                    display: inline-block !important;
+                    appearance: auto !important;
+                    -webkit-appearance: checkbox !important;
+                    position: static !important;
+                    opacity: 1 !important;
+                    width: auto !important;
+                    height: auto !important;
+                    cursor: pointer !important;
+                    margin: 0 !important;
+                }
+                .settings-content .checkbox-custom {
+                    display: none !important;
+                }
+                .settings-content .section-actions {
+                    grid-column: span 2 !important; 
+                    display: flex !important; 
+                    justify-content: flex-end !important; 
+                    gap: 0.6rem !important; 
+                    margin-top: 0.5rem !important; 
+                    padding-top: 0.75rem !important; 
+                    border-top: 1px solid rgba(0,0,0,0.05) !important;
+                }
+                .settings-content .btn-primary {
+                    padding: 0.4rem 1rem !important; 
+                    font-size: 0.7rem !important; 
+                    border-radius: 6px !important; 
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; 
+                    border: none !important; 
+                    color: white !important; 
+                    font-weight: 700 !important; 
+                    cursor: pointer !important; 
+                    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2) !important; 
+                    transition: all 0.2s !important;
+                }
+                .settings-content .btn-secondary, .settings-content .btn-outline {
+                    padding: 0.4rem 1rem !important; 
+                    font-size: 0.7rem !important; 
+                    border-radius: 6px !important; 
+                    background: white !important; 
+                    color: #475569 !important; 
+                    border: 1px solid #e2e8f0 !important; 
+                    font-weight: 600 !important; 
+                    cursor: pointer !important; 
+                    transition: all 0.2s !important;
+                }
+            </style>
             <div class="settings-container">
                 <!-- Settings Header -->
                
@@ -219,45 +420,45 @@ class PharmacySettings extends Component {
                 </header>
                     <ul class="nav-tabs">
                         <li class="nav-tab active" data-section="pharmacy">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M3 3a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5h18a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0021 3H3zm8.25 4.5a.75.75 0 011.5 0v2.25H15a.75.75 0 010 1.5h-2.25v2.25a.75.75 0 01-1.5 0v-2.25H9a.75.75 0 010-1.5h2.25V7.5z" clip-rule="evenodd"/></svg></span>
-                                <span class="nav-text">Pharmacy</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M3 3a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5h18a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0021 3H3zm8.25 4.5a.75.75 0 011.5 0v2.25H15a.75.75 0 010 1.5h-2.25v2.25a.75.75 0 01-1.5 0v-2.25H9a.75.75 0 010-1.5h2.25V7.5z" clip-rule="evenodd"/></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Pharmacy</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="receipt">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z" clip-rule="evenodd" /><path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" /></svg></span>
-                                <span class="nav-text">Receipt Setup</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z" clip-rule="evenodd" /><path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Receipt Setup</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="tax">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M12 7.5a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" /><path fill-rule="evenodd" d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v14.25c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 011.5 19.125V4.875zm8.25 9.75a3.75 3.75 0 114.5 0 3.75 3.75 0 01-4.5 0z" clip-rule="evenodd" /></svg></span>
-                                <span class="nav-text">Tax & Pricing</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M12 7.5a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" /><path fill-rule="evenodd" d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v14.25c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 011.5 19.125V4.875zm8.25 9.75a3.75 3.75 0 114.5 0 3.75 3.75 0 01-4.5 0z" clip-rule="evenodd" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Tax & Pricing</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="users">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z" /></svg></span>
-                                <span class="nav-text">User Roles</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">User Roles</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="hardware">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 003 3h.27l-.155 1.705A1.875 1.875 0 007.232 22.5h9.536a1.875 1.875 0 001.867-2.045l-.155-1.705h.27a3 3 0 003-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0018 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM16.5 6.205v-2.83A.375.375 0 0016.125 3h-8.25a.375.375 0 00-.375.375v2.83a49.353 49.353 0 019 0zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 01-.373.409H7.232a.375.375 0 01-.373-.409l.526-5.784a.373.373 0 01.333-.337 41.741 41.741 0 018.566 0zm.967-3.97a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75H18a.75.75 0 01-.75-.75V10.5z" clip-rule="evenodd" /></svg></span>
-                                <span class="nav-text">Hardware</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 003 3h.27l-.155 1.705A1.875 1.875 0 007.232 22.5h9.536a1.875 1.875 0 001.867-2.045l-.155-1.705h.27a3 3 0 003-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0018 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM16.5 6.205v-2.83A.375.375 0 0016.125 3h-8.25a.375.375 0 00-.375.375v2.83a49.353 49.353 0 019 0zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 01-.373.409H7.232a.375.375 0 01-.373-.409l.526-5.784a.373.373 0 01.333-.337 41.741 41.741 0 018.566 0zm.967-3.97a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75H18a.75.75 0 01-.75-.75V10.5z" clip-rule="evenodd" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Hardware</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="notifications">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M5.25 9a6.75 6.75 0 0113.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 01-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 11-7.48 0 24.585 24.585 0 01-4.831-1.244.75.75 0 01-.298-1.205A8.217 8.217 0 005.25 9.75V9zm4.502 8.9a2.25 2.25 0 104.496 0 25.057 25.057 0 01-4.496 0z" clip-rule="evenodd" /></svg></span>
-                                <span class="nav-text">Notifications</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M5.25 9a6.75 6.75 0 0113.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 01-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 11-7.48 0 24.585 24.585 0 01-4.831-1.244.75.75 0 01-.298-1.205A8.217 8.217 0 005.25 9.75V9zm4.502 8.9a2.25 2.25 0 104.496 0 25.057 25.057 0 01-4.496 0z" clip-rule="evenodd" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Notifications</span>
                             </button>
                         </li>
                         <li class="nav-tab" data-section="backup">
-                            <button class="nav-btn">
-                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5zM12 15a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 15z" clip-rule="evenodd" /></svg></span>
-                                <span class="nav-text">Backup & Security</span>
+                            <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
+                                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5zM12 15a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 15z" clip-rule="evenodd" /></svg></span>
+                                <span class="nav-text" style="font-size: 0.75rem;">Backup & Security</span>
                             </button>
                         </li>
                     </ul>
@@ -302,9 +503,12 @@ class PharmacySettings extends Component {
     };
     return `
             <section class="settings-section">
-                <div class="section-header">
-                    <h2>🏥 Pharmacy Information</h2>
-                    <p>This information appears on your receipts and reports</p>
+                <div class="section-header" style="margin-bottom: 1rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#3b82f6;"><path fill-rule="evenodd" d="M3 2.25a.75.75 0 000 1.5v16.5h-.75a.75.75 0 000 1.5h19.5a.75.75 0 000-1.5H21V3.75a.75.75 0 000-1.5H3zm9.75 7.5a.75.75 0 000 1.5h2.25a.75.75 0 000-1.5h-2.25zm0 3a.75.75 0 000 1.5h2.25a.75.75 0 000-1.5h-2.25zm0 3a.75.75 0 000 1.5h2.25a.75.75 0 000-1.5h-2.25zM9 7.5a.75.75 0 01.75-.75h.75a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75h-.75A.75.75 0 019 8.25v-.75zM9 11.25a.75.75 0 01.75-.75h.75a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75h-.75a.75.75 0 01-.75-.75v-.75zm.75 3a.75.75 0 00-.75.75v.75c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75v-.75a.75.75 0 00-.75-.75h-.75z" clip-rule="evenodd" /></svg>
+                        Pharmacy Information
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">This information appears on your receipts and reports</p>
                 </div>
                 
                 <div class="settings-grid">
@@ -345,8 +549,8 @@ class PharmacySettings extends Component {
                     </div>
                 </div>
                 
-                <div class="section-actions">
-                    <button class="btn btn-primary" onclick="pharmacySettings.savePharmacySettings()">
+                <div class="section-actions" style="margin-top: 0.5rem;">
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.savePharmacySettings()">
                         Save Pharmacy Settings
                     </button>
                 </div>
@@ -373,8 +577,8 @@ class PharmacySettings extends Component {
             <style>
                 .receipt-setup-layout {
                     display: grid;
-                    grid-template-columns: 1fr 340px;
-                    gap: 2rem;
+                    grid-template-columns: 1fr 300px;
+                    gap: 1rem;
                     align-items: flex-start;
                 }
                 .thermal-receipt-preview {
@@ -420,9 +624,12 @@ class PharmacySettings extends Component {
             </style>
             
             <section class="settings-section">
-                <div class="section-header">
-                    <h2>🧾 Receipt Configuration</h2>
-                    <p>Customize your 80mm thermal printer receipts</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#8b5cf6;"><path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625z" /><path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" /></svg>
+                        Receipt Configuration
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Customize your 80mm thermal printer receipts</p>
                 </div>
                 
                 <div class="receipt-setup-layout">
@@ -431,13 +638,13 @@ class PharmacySettings extends Component {
                         <div class="settings-grid">
                             <div class="form-group full-width">
                                 <label for="receiptHeader" class="form-label">Receipt Header Text</label>
-                                <textarea id="receiptHeader" class="form-textarea" rows="2"
+                                <textarea id="receiptHeader" class="form-textarea" rows="1"
                                           oninput="pharmacySettings.updateSetting('receipt', 'header', this.value); pharmacySettings.updateReceiptPreview()">${data.header}</textarea>
                             </div>
                             
                             <div class="form-group full-width">
                                 <label for="receiptFooter" class="form-label">Receipt Footer Note</label>
-                                <textarea id="receiptFooter" class="form-textarea" rows="2"
+                                <textarea id="receiptFooter" class="form-textarea" rows="1"
                                           oninput="pharmacySettings.updateSetting('receipt', 'footer', this.value); pharmacySettings.updateReceiptPreview()">${data.footer}</textarea>
                             </div>
                             
@@ -453,8 +660,8 @@ class PharmacySettings extends Component {
                                        oninput="pharmacySettings.updateSetting('receipt', 'startingInvoice', this.value); pharmacySettings.updateReceiptPreview()">
                             </div>
 
-                            <div class="form-group full-width" style="margin-top: 1rem;">
-                                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-color);">Receipt Options</h3>
+                            <div class="form-group full-width" style="margin-top: 0.5rem;">
+                                <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-color);">Receipt Options</h3>
                             </div>
                             
                             <div class="form-group">
@@ -524,8 +731,8 @@ class PharmacySettings extends Component {
                             </div>
                         </div>
                         
-                        <div class="section-actions" style="margin-top:2rem;">
-                            <button class="btn btn-primary" onclick="pharmacySettings.saveReceiptSettings()">
+                        <div class="section-actions" style="margin-top:0.75rem;">
+                            <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.saveReceiptSettings()">
                                 Save Receipt Settings
                             </button>
                         </div>
@@ -679,9 +886,12 @@ class PharmacySettings extends Component {
                 }
             </style>
             <section class="settings-section tax-settings compact-tax-settings">
-                <div class="section-header">
-                    <h2>💰 Tax & Pricing Rules</h2>
-                    <p>Configure VAT, margins, and pricing rules</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#f59e0b;"><path d="M12 7.5a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" /><path fill-rule="evenodd" d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v14.25c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 011.5 19.125V4.875zm8.25 9.75a3.75 3.75 0 114.5 0 3.75 3.75 0 01-4.5 0z" clip-rule="evenodd" /></svg>
+                        Tax & Pricing Rules
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Configure VAT, margins, and pricing rules</p>
                 </div>
                 
                 <div class="settings-subsection">
@@ -776,16 +986,71 @@ class PharmacySettings extends Component {
 
   renderUserSettings() {
     const roles = this.settingsData.users?.roles || [
-      { id: 1, name: "Administrator", permissions: ["all"] },
-      { id: 2, name: "Pharmacist", permissions: ["sales", "inventory"] },
-      { id: 3, name: "Cashier", permissions: ["sales"] },
-      { id: 4, name: "Store Keeper", permissions: ["inventory", "purchasing"] },
+      {
+        id: 1,
+        name: "Administrator",
+        permissions: [
+          "All modules",
+          "User management",
+          "System settings",
+          "Reports",
+          "Audit logs",
+          "Price management",
+        ],
+      },
+      {
+        id: 2,
+        name: "Pharmacist",
+        permissions: [
+          "Sales (POS)",
+          "Inventory view",
+          "Medicine safety check",
+          "Prescriptions",
+          "Dispensing",
+        ],
+      },
+      {
+        id: 3,
+        name: "Cashier",
+        permissions: [
+          "Sales (POS)",
+          "Customer lookup",
+          "Hold/resume bills",
+          "End of day report",
+        ],
+      },
+      {
+        id: 4,
+        name: "Storekeeper",
+        permissions: [
+          "Inventory management",
+          "GRN entry",
+          "Purchase orders",
+          "Stock adjustments",
+          "Supplier management",
+        ],
+      },
+      {
+        id: 5,
+        name: "Manager",
+        permissions: [
+          "All reports",
+          "Sales reports",
+          "Inventory reports",
+          "Staff oversight",
+          "Void approvals",
+          "Refund approval",
+        ],
+      },
     ];
     return `
             <section class="settings-section">
-                <div class="section-header">
-                    <h2>👥 User Roles & Permissions</h2>
-                    <p>Manage user roles and their permissions</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#ec4899;"><path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z" /></svg>
+                        User Roles & Permissions
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Manage user roles and their permissions</p>
                 </div>
                 
                 <div class="roles-table-container">
@@ -843,8 +1108,8 @@ class PharmacySettings extends Component {
                     </table>
                 </div>
                 
-                <div class="section-actions">
-                    <button class="btn btn-primary" onclick="pharmacySettings.addNewRole()">
+                <div class="section-actions" style="margin-top: 0.5rem;">
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.addNewRole()">
                         ➕ Add New Role
                     </button>
                 </div>
@@ -862,9 +1127,12 @@ class PharmacySettings extends Component {
     };
     return `
             <section class="settings-section">
-                <div class="section-header">
-                    <h2>🖨️ Hardware Configuration</h2>
-                    <p>Set up your hardware devices</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#6366f1;"><path d="M2.25 5.25a3 3 0 00-3 3v8.25a3 3 0 003 3h19.5a3 3 0 003-3V8.25a3 3 0 00-3-3H2.25z" /><path fill-rule="evenodd" d="M11.25 20.25a.75.75 0 011.5 0h-1.5zm0 0H7.5a.75.75 0 010-1.5H16.5a.75.75 0 010 1.5H11.25z" clip-rule="evenodd" /></svg>
+                        Hardware Configuration
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Set up your hardware devices</p>
                 </div>
                 
                 <div class="settings-grid">
@@ -921,11 +1189,11 @@ class PharmacySettings extends Component {
                     </div>
                 </div>
                 
-                <div class="section-actions">
-                    <button class="btn btn-secondary" onclick="pharmacySettings.testHardware()">
+                <div class="section-actions" style="margin-top: 0.5rem;">
+                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.testHardware()">
                         🧪 Test Hardware
                     </button>
-                    <button class="btn btn-primary" onclick="pharmacySettings.saveHardwareSettings()">
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.saveHardwareSettings()">
                         Save Hardware Settings
                     </button>
                 </div>
@@ -935,89 +1203,226 @@ class PharmacySettings extends Component {
 
   renderNotificationSettings() {
     const notifications = this.settingsData.notifications || {
-      lowStockAlert: true,
-      expiryAlert: true,
-      salesAlert: false,
-      backupReminder: true,
-      emailNotifications: false,
-      emailAddress: "",
+      whatsappEnabled: true,
+      whatsappNumber: "+94776789117",
+      lowStockThreshold: 10,
+      expiryThreshold: 90,
     };
     return `
+            <style>
+                .notifications-layout {
+                    display: grid;
+                    grid-template-columns: 1fr 320px;
+                    gap: 1.25rem;
+                    align-items: flex-start;
+                }
+                .info-box {
+                    background: rgba(59, 130, 246, 0.05);
+                    border: 1px solid rgba(59, 130, 246, 0.2);
+                    border-radius: 12px;
+                    padding: 1.25rem;
+                }
+                .info-box h3 {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    color: #1e40af;
+                    font-size: 0.9rem;
+                    margin-bottom: 0.75rem;
+                    font-weight: 700;
+                }
+                .info-step {
+                    display: flex;
+                    gap: 0.75rem;
+                    margin-bottom: 0.75rem;
+                    font-size: 0.75rem;
+                    color: #475569;
+                    line-height: 1.4;
+                }
+                .step-number {
+                    flex-shrink: 0;
+                    width: 18px;
+                    height: 18px;
+                    background: #1e40af;
+                    color: white;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                }
+                .activation-box {
+                    background: #f8fafc;
+                    border: 1px dashed #cbd5e1;
+                    padding: 0.75rem;
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.75rem;
+                    color: #334155;
+                    margin-top: 0.5rem;
+                }
+                .activation-code {
+                    font-weight: 700;
+                    color: #059669;
+                    background: #ecfdf5;
+                    padding: 0.1rem 0.3rem;
+                    border-radius: 4px;
+                }
+                .threshold-card {
+                    background: rgba(255, 255, 255, 0.5);
+                    border: 1px solid rgba(0,0,0,0.05);
+                    border-radius: 10px;
+                    padding: 0.75rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 1rem;
+                }
+                .threshold-label {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: #1e293b;
+                }
+                .threshold-input-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .threshold-input {
+                    width: 60px !important;
+                    text-align: center;
+                    font-weight: 700;
+                    color: #059669;
+                }
+                @media (max-width: 900px) {
+                    .notifications-layout {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            </style>
+            
             <section class="settings-section">
-                <div class="section-header">
-                    <h2>🔔 Notification Settings</h2>
-                    <p>Configure system notifications and alerts</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#059669;"><path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52a.75.75 0 01.64.712v15.26a.75.75 0 01-1.01.707L12 17.158l-6.782 2.29a.75.75 0 01-1.01-.708V3.483a.75.75 0 01.64-.712z" clip-rule="evenodd" /></svg>
+                       Notifications
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Configure WhatsApp alerts for low stock and expiring items</p>
                 </div>
                 
-                <div class="settings-grid">
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="lowStockAlert" ${notifications.lowStockAlert ? "checked" : ""}
-                                       onchange="pharmacySettings.updateSetting('notifications', 'lowStockAlert', this.checked)">
-                                <span class="checkbox-custom"></span>
-                                Low Stock Alert
-                            </label>
+                <div class="notifications-layout">
+                    <!-- Left Column: Settings -->
+                    <div class="settings-column">
+                        <div class="settings-subsection" style="margin-bottom: 1.5rem;">
+                            <h3 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">WhatsApp Alerts</h3>
+                            <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 1rem;">Receive automated alerts via WhatsApp when stock is low or items are expiring</p>
+                            
+                            <div class="settings-grid">
+                                <div class="form-group full-width">
+                                    <label for="whatsappNumber" class="form-label">WhatsApp Phone Number</label>
+                                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                                        <input type="tel" id="whatsappNumber" class="form-input" 
+                                               value="${notifications.whatsappNumber}" 
+                                               placeholder="+94771234567"
+                                               style="flex: 1;"
+                                               onchange="pharmacySettings.updateSetting('notifications', 'whatsappNumber', this.value)">
+                                    </div>
+                                    <p style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.4rem;">Enter number with country code (e.g. +94771234567)</p>
+                                </div>
+                                
+                                <div class="form-group full-width" style="margin-top: 0.5rem;">
+                                    <div class="checkbox-group">
+                                        <label class="checkbox-label" style="background: rgba(16, 185, 129, 0.05); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                                            <input type="checkbox" id="whatsappEnabled" ${notifications.whatsappEnabled ? "checked" : ""}
+                                                   onchange="pharmacySettings.updateSetting('notifications', 'whatsappEnabled', this.checked)">
+                                            <span class="checkbox-custom"></span>
+                                            <div>
+                                                <span style="display: block;">Enable WhatsApp notifications</span>
+                                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 0.1rem;">Automated messages will be sent to the number above</small>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-subsection">
+                            <h3 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">Alert Thresholds</h3>
+                            
+                            <div style="display: grid; gap: 0.75rem;">
+                                <div class="threshold-card">
+                                    <div class="threshold-label">Low stock alerts</div>
+                                    <div class="threshold-input-wrapper">
+                                        <span style="font-size: 0.75rem; color: #64748b;">Alert when stock falls below</span>
+                                        <input type="number" id="lowStockThreshold" class="form-input threshold-input" 
+                                               value="${notifications.lowStockThreshold}" min="1"
+                                               onchange="pharmacySettings.updateSetting('notifications', 'lowStockThreshold', parseInt(this.value))">
+                                        <span style="font-size: 0.75rem; color: #64748b;">units</span>
+                                    </div>
+                                </div>
+
+                                <div class="threshold-card">
+                                    <div class="threshold-label">Expiry alerts</div>
+                                    <div class="threshold-input-wrapper">
+                                        <span style="font-size: 0.75rem; color: #64748b;">Alert when items expire within</span>
+                                        <input type="number" id="expiryThreshold" class="form-input threshold-input" 
+                                               value="${notifications.expiryThreshold}" min="1"
+                                               onchange="pharmacySettings.updateSetting('notifications', 'expiryThreshold', parseInt(this.value))">
+                                        <span style="font-size: 0.75rem; color: #64748b;">days</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="expiryAlert" ${notifications.expiryAlert ? "checked" : ""}
-                                       onchange="pharmacySettings.updateSetting('notifications', 'expiryAlert', this.checked)">
-                                <span class="checkbox-custom"></span>
-                                Medicine Expiry Alert
-                            </label>
+
+                    <!-- Right Column: Instructions -->
+                    <div class="info-column">
+                        <div class="info-box">
+                            <h3>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836c-.149.598.019 1.225.44 1.645a.75.75 0 01-1.06 1.06 2.25 2.25 0 01-1.321-1.494l.712-2.847c.112-.447-.048-.902-.365-1.219a.75.75 0 011.038-1.087zM12 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                How it works
+                            </h3>
+                            
+                            <div class="info-step">
+                                <div class="step-number">1</div>
+                                <div>The system checks stock levels and expiry dates automatically every hour</div>
+                            </div>
+                            
+                            <div class="info-step">
+                                <div class="step-number">2</div>
+                                <div>When items fall below threshold, a WhatsApp message is sent to your number</div>
+                            </div>
+                            
+                            <div class="info-step">
+                                <div class="step-number">3</div>
+                                <div>Uses free CallMeBot API — you need to activate it once by sending a message to the bot</div>
+                            </div>
+
+                            <div class="activation-box">
+                                <p style="margin-bottom: 0.5rem; font-weight: 600;">Activation Steps:</p>
+                                <p>Send <span class="activation-code">"I allow callmebot to send me messages"</span> to <span style="font-weight:700;">+34 644 71 83 08</span> on WhatsApp to activate</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="salesAlert" ${notifications.salesAlert ? "checked" : ""}
-                                       onchange="pharmacySettings.updateSetting('notifications', 'salesAlert', this.checked)">
-                                <span class="checkbox-custom"></span>
-                                Sales Achievement Alert
-                            </label>
+                        
+                        <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.05); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                             <div style="display: flex; align-items: center; gap: 0.5rem; color: #059669; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.4rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm3 10.5a.75.75 0 000-1.5H9a.75.75 0 000 1.5h6z" clip-rule="evenodd" /></svg>
+                                System Status
+                             </div>
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.7rem; color: #475569;">WhatsApp Service</span>
+                                <span style="font-size: 0.65rem; color: #059669; font-weight: 700; background: #ecfdf5; padding: 0.1rem 0.4rem; border-radius: 20px;">READY</span>
+                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="backupReminder" ${notifications.backupReminder ? "checked" : ""}
-                                       onchange="pharmacySettings.updateSetting('notifications', 'backupReminder', this.checked)">
-                                <span class="checkbox-custom"></span>
-                                Backup Reminder
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="emailNotifications" ${notifications.emailNotifications ? "checked" : ""}
-                                       onchange="pharmacySettings.updateSetting('notifications', 'emailNotifications', this.checked)">
-                                <span class="checkbox-custom"></span>
-                                Email Notifications
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label for="emailAddress" class="form-label">Notification Email Address</label>
-                        <input type="email" id="emailAddress" class="form-input" value="${notifications.emailAddress}"
-                               placeholder="Enter email for notifications"
-                               onchange="pharmacySettings.updateSetting('notifications', 'emailAddress', this.value)">
                     </div>
                 </div>
                 
-                <div class="section-actions">
-                    <button class="btn btn-secondary" onclick="pharmacySettings.testNotification()">
-                        📧 Test Notification
+                <div class="section-actions" style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="pharmacySettings.testNotification()">
+                        🧪 Sending Test Alert
                     </button>
-                    <button class="btn btn-primary" onclick="pharmacySettings.saveNotificationSettings()">
+                    <button class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.8rem; background: linear-gradient(135deg, #059669 0%, #047857 100%);" onclick="pharmacySettings.saveNotificationSettings()">
                         Save Notification Settings
                     </button>
                 </div>
@@ -1042,9 +1447,12 @@ class PharmacySettings extends Component {
     };
     return `
             <section class="settings-section backup-settings">
-                <div class="section-header">
-                    <h2>💾 Backup Settings</h2>
-                    <p>Configure automatic backup and data retention</p>
+                <div class="section-header" style="margin-bottom: 1.25rem;">
+                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#ef4444;"><path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516 11.209 11.209 0 01-7.877-3.08zM15.78 11.28a.75.75 0 00-1.06-1.06l-3.47 3.47-1.47-1.47a.75.75 0 00-1.06 1.06l2 2a.75.75 0 001.06 0l4-4z" clip-rule="evenodd" /></svg>
+                        Backup & Security Settings
+                    </h2>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Configure automatic backup and data retention</p>
                 </div>
                 
                 <div class="settings-subsection">
@@ -1156,11 +1564,11 @@ class PharmacySettings extends Component {
                     </div>
                 </div>
                 
-                <div class="section-actions">
-                    <button class="btn btn-secondary" onclick="pharmacySettings.createBackup()">
+                <div class="section-actions" style="margin-top: 0.5rem;">
+                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.createBackup()">
                         💾 Create Backup Now
                     </button>
-                    <button class="btn btn-primary" onclick="pharmacySettings.saveBackupSettings()">
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.saveBackupSettings()">
                         Save Backup & Security Settings
                     </button>
                 </div>
@@ -1212,7 +1620,7 @@ class PharmacySettings extends Component {
     });
   }
 
-  markAsChanged(element) {
+  markAsChanged() {
     const section = this.currentSection;
     this.unsavedChanges.add(section);
     this.updateUnsavedIndicator();
@@ -1393,7 +1801,7 @@ class PharmacySettings extends Component {
           try {
             const imported = JSON.parse(event.target.result);
             this.settingsData = { ...this.settingsData, ...imported };
-            this.renderSettingsPage();
+            this.initializeSettings(); // Re-render and re-attach listeners
             this.showNotification("Settings imported successfully!", "success");
           } catch (error) {
             this.showNotification("Error importing settings file!", "error");
@@ -1421,8 +1829,10 @@ class PharmacySettings extends Component {
   createBackup() {
     this.showNotification("Backup creation started...", "info");
     setTimeout(() => {
-      this.showNotification("Backup created successfully!", "success");
-    }, 2000);
+      this.saveSection("backup");
+      this.saveSection("security");
+      this.showNotification("Backup created successfully and settings saved!", "success");
+    }, 1500);
   }
 
   editRole(roleId) {
@@ -1435,14 +1845,29 @@ class PharmacySettings extends Component {
       const index = roles.findIndex((r) => r.id === roleId);
       if (index > -1) {
         roles.splice(index, 1);
-        this.renderUserSettings();
+        const panel = document.getElementById("usersPanel");
+        if (panel) panel.innerHTML = this.renderUserSettings();
         this.showNotification("Role deleted successfully!", "success");
+        this.markAsChanged();
       }
     }
   }
 
   addNewRole() {
-    this.showNotification("Add new role feature coming soon!", "info");
+    const roleName = prompt("Enter new role name:");
+    if (roleName) {
+      const roles = this.settingsData.users.roles;
+      const newId = Math.max(...roles.map((r) => r.id), 0) + 1;
+      roles.push({
+        id: newId,
+        name: roleName,
+        permissions: ["sales"],
+      });
+      const panel = document.getElementById("usersPanel");
+      if (panel) panel.innerHTML = this.renderUserSettings();
+      this.showNotification("New role added!", "success");
+      this.markAsChanged();
+    }
   }
 
   setupEventListeners() {
@@ -1457,5 +1882,15 @@ class PharmacySettings extends Component {
 // Make the class globally available
 window.PharmacySettings = PharmacySettings;
 
-// Create global instance
-window.pharmacySettings = new PharmacySettings();
+// Initialize when library is loaded
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!window.pharmacySettings) {
+      window.pharmacySettings = PharmacySettings.createInstance();
+    }
+  });
+} else {
+  if (!window.pharmacySettings) {
+    window.pharmacySettings = PharmacySettings.createInstance();
+  }
+}

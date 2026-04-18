@@ -1,59 +1,59 @@
 {
-    "top_products": [
-        {
-            "rank": 1,
-            "medicine": "Panadol 500mg",
-            "generic_name": "Paracetamol",
-            "qty_sold": 450,
-            "revenue": 29250,
-            "avg_per_day": 64,
-            "growth_rate": 12.5,
-            "category": "Pain Relief"
-        },
-        {
-            "rank": 2,
-            "medicine": "Omeprazole 20mg",
-            "generic_name": "Omeprazole",
-            "qty_sold": 220,
-            "revenue": 9240,
-            "avg_per_day": 31,
-            "growth_rate": 8.3,
-            "category": "GI Medicine"
-        },
-        {
-            "rank": 3,
-            "medicine": "Augmentin 625",
-            "generic_name": "Amoxicillin + Clavulanate",
-            "qty_sold": 85,
-            "revenue": 21250,
-            "avg_per_day": 12,
-            "growth_rate": 15.2,
-            "category": "Antibiotics"
-        },
-        {
-            "rank": 4,
-            "medicine": "Vitamin C 1000",
-            "generic_name": "Ascorbic Acid",
-            "qty_sold": 180,
-            "revenue": 15300,
-            "avg_per_day": 26,
-            "growth_rate": 22.1,
-            "category": "Vitamins"
-        },
-        {
-            "rank": 5,
-            "medicine": "Cetirizine 10mg",
-            "generic_name": "Cetirizine HCl",
-            "qty_sold": 310,
-            "revenue": 6200,
-            "avg_per_day": 44,
-            "growth_rate": 5.7,
-            "category": "Antihistamines"
-        }
-    ],
-    "summary": {
-        "total_products_analyzed": 156,
-        "top_5_percentage": 68.5,
-        "analysis_period": "Last 30 Days"
+  "top_products": [
+    {
+      "rank": 1,
+      "medicine": "Panadol 500mg",
+      "generic_name": "Paracetamol",
+      "qty_sold": 450,
+      "revenue": 29250,
+      "avg_per_day": 64,
+      "growth_rate": 12.5,
+      "category": "Pain Relief"
+    },
+    {
+      "rank": 2,
+      "medicine": "Omeprazole 20mg",
+      "generic_name": "Omeprazole",
+      "qty_sold": 220,
+      "revenue": 9240,
+      "avg_per_day": 31,
+      "growth_rate": 8.3,
+      "category": "GI Medicine"
+    },
+    {
+      "rank": 3,
+      "medicine": "Augmentin 625",
+      "generic_name": "Amoxicillin + Clavulanate",
+      "qty_sold": 85,
+      "revenue": 21250,
+      "avg_per_day": 12,
+      "growth_rate": 15.2,
+      "category": "Antibiotics"
+    },
+    {
+      "rank": 4,
+      "medicine": "Vitamin C 1000",
+      "generic_name": "Ascorbic Acid",
+      "qty_sold": 180,
+      "revenue": 15300,
+      "avg_per_day": 26,
+      "growth_rate": 22.1,
+      "category": "Vitamins"
+    },
+    {
+      "rank": 5,
+      "medicine": "Cetirizine 10mg",
+      "generic_name": "Cetirizine HCl",
+      "qty_sold": 310,
+      "revenue": 6200,
+      "avg_per_day": 44,
+      "growth_rate": 5.7,
+      "category": "Antihistamines"
     }
+  ],
+  "summary": {
+    "total_products_analyzed": 156,
+    "top_5_percentage": 68.5,
+    "analysis_period": "Last 30 Days"
+  }
 }

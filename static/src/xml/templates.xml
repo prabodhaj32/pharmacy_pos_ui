@@ -1,5 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
+    <!-- ROOT LAYOUT WITH LOGIN -->
+    <t t-name="pharmacy_root_layout" owl="1">
+        <t t-if="state.isAuthenticated">
+            <PharmacyDashboard cashierId="state.cashierId" shift="state.shift" role="state.role" cashierName="state.cashierName"/>
+        </t>
+        <t t-else="">
+            <div class="pharmacy-login-wrapper">
+                <!-- Dynamic Background Elements -->
+                <div class="login-bg-shape shape-1"></div>
+                <div class="login-bg-shape shape-2"></div>
+                <div class="login-bg-shape shape-3"></div>
+                
+                <div class="login-container">
+                    <div class="login-header">
+                        <div class="logo">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E" alt="Timolog Pharma Logo" class="logo-icon"/>
+                        </div>
+                        <h2>Welcome Back</h2>
+                        <p>Sign in to your POS terminal</p>
+                    </div>
+
+                    <form class="login-form" t-on-submit="handleLogin">
+                        <div class="form-group">
+                            <label for="cashierId">
+                                <t t-if="isCashierSelected">Cashier ID</t>
+                                <t t-else="">User ID / Role</t>
+                            </label>
+                            <select id="cashierId" class="form-control" t-model="state.cashierId">
+                                <option value="">Select User ID...</option>
+                                <option value="admin">Administrator (admin)</option>
+                                <option value="pharm1">Pharmacist (pharm1)</option>
+                                <option value="cashier1">Cashier (cashier1)</option>
+                                <option value="store1">Storekeeper (store1)</option>
+                                <option value="manager1">Manager (manager1)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" class="form-control" t-model="state.password" placeholder="Enter password" autocomplete="current-password" required="required"/>
+                        </div>
+                        <t t-if="isCashierSelected">
+                            <div class="form-group">
+                                <label for="shift">Shift</label>
+                                <select id="shift" class="form-control" t-model="state.shift">
+                                    <option value="Morning">Morning Shift</option>
+                                    <option value="Evening">Evening Shift</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="openingCash">Opening Cash (LKR)</label>
+                                <input type="number" id="openingCash" class="form-control" t-model="state.openingCash" placeholder="0.00" min="0" step="0.01"/>
+                            </div>
+                        </t>
+
+                        <t t-if="state.error">
+                            <div class="login-error-message">
+                                <span t-esc="state.errorMessage"></span>
+                            </div>
+                        </t>
+
+                        <button type="submit" class="login-btn">
+                            <t t-if="isCashierSelected">Start Shift</t>
+                            <t t-else="">Login to System</t>
+                        </button>
+                    </form>
+                    
+                    <div class="login-footer">
+                        Secure Pharmacy POS System
+                    </div>
+                </div>
+            </div>
+        </t>
+    </t>
 
     <!-- MAIN LAYOUT -->
     <t t-name="pharmacy_dashboard_layout">
@@ -87,19 +160,35 @@
             <main class="main-content">
 
                 <!-- TOP BAR -->
-                <header class="topbar" role="banner">
-                    <h1>Dashboard</h1>
+                <header class="topbar modern-header" role="banner">
+                    <div class="header-left">
+                        <h1 class="page-title">Dashboard</h1>
+                    </div>
 
-                    <div class="top-info">
-                        <span aria-label="Current date">📅 <t t-esc="new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })"/></span>
-                        <span class="status-indicator" aria-label="System status">
-                            <span class="status-dot online" aria-hidden="true"></span>
-                            Online
-                        </span>
-                        <button class="notification-btn" aria-label="View notifications" aria-describedby="notification-count">
-                            <span aria-hidden="true">🔔</span>
-                            <span id="notification-count" class="notification-count">5</span>
-                        </button>
+                    <div class="header-right">
+                        <div class="header-info-group">
+                            <t t-if="props.cashierId">
+                                <div class="info-pill cashier-pill" aria-label="Cashier details">
+                                    <span class="pill-icon">🧑</span>
+                                    <span class="pill-text"><t t-esc="props.cashierName || props.cashierId"/> (<t t-esc="props.role"/>)</span>
+                                </div>
+                            </t>
+                            <div class="info-pill date-pill" aria-label="Current date">
+                                <span class="pill-icon">📅</span>
+                                <span class="pill-text"><t t-esc="new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })"/></span>
+                            </div>
+                            <div class="info-pill status-pill online" aria-label="System status">
+                                <span class="status-dot"></span>
+                                <span class="pill-text">Online</span>
+                            </div>
+                        </div>
+                        
+                        <div class="header-actions">
+                            <button class="notification-trigger" aria-label="View notifications">
+                                <span class="bell-icon">🔔</span>
+                                <span id="notification-count" class="badge">5</span>
+                            </button>
+                        </div>
                     </div>
                 </header>
 
