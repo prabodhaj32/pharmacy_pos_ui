@@ -285,8 +285,8 @@ export class PharmacyDashboard extends Component {
 
     // High-end vertical gradients
     const salesGradient = ctx.createLinearGradient(0, 0, 0, 100);
-    salesGradient.addColorStop(0, "rgba(34, 197, 94, 0.4)");
-    salesGradient.addColorStop(1, "rgba(34, 197, 94, 0)");
+    salesGradient.addColorStop(0, "rgba(0, 117, 19, 0.4)");
+    salesGradient.addColorStop(1, "rgba(0, 117, 19, 0)");
 
     const profitGradient = ctx.createLinearGradient(0, 0, 0, 100);
     profitGradient.addColorStop(0, "rgba(59, 130, 246, 0.4)");
@@ -300,13 +300,13 @@ export class PharmacyDashboard extends Component {
           {
             label: "Sales",
             data: salesData,
-            borderColor: "#22c55e",
+            borderColor: "#007513",
             backgroundColor: salesGradient,
             borderWidth: 1.5,
             fill: true,
             tension: 0.4,
             pointRadius: 2,
-            pointBackgroundColor: "#22c55e",
+            pointBackgroundColor: "#007513",
           },
           {
             label: "Profit",
@@ -401,7 +401,7 @@ export class PharmacyDashboard extends Component {
     };
 
     const colors = [
-      createGradient("#10b981", "#059669"), // Emerald -> Green
+      createGradient("#007513", "#005a0e"), // Brand Green -> Dark Green
       createGradient("#3b82f6", "#2563eb"), // Blue -> Indigo
       createGradient("#f59e0b", "#d97706"), // Amber -> Orange
       createGradient("#8b5cf6", "#7c3aed"), // Violet -> Purple
@@ -487,32 +487,42 @@ export class PharmacyDashboard extends Component {
 
   initializeMenuHandlers() {
     const menuLinks = document.querySelectorAll(".menu-link");
-    const topbarTitle = document.querySelector(".page-title");
 
     menuLinks.forEach((link) => {
       link.addEventListener("click", (e) => {
         e.preventDefault();
+        const page = link.dataset.page;
 
-        // Remove active class from all items and links
-        const menuItems = document.querySelectorAll(".menu-item");
-        menuItems.forEach((mi) => mi.classList.remove("active"));
-
-        // Add active class to parent item
-        const menuItem = link.closest(".menu-item");
-        if (menuItem) {
-          menuItem.classList.add("active");
+        if (this.checkPageAccess(page)) {
+          this.navigateToPage(link);
+        } else {
+          this.promptForAdminAccess(page, link);
         }
-
-        // Update page title
-        const pageName = link.querySelector(".menu-text").textContent;
-        if (topbarTitle) {
-          topbarTitle.textContent = pageName;
-        }
-
-        // Handle page navigation
-        this.handlePageNavigation(link.dataset.page);
       });
     });
+  }
+
+  navigateToPage(link) {
+    const topbarTitle = document.querySelector(".page-title");
+    const menuItems = document.querySelectorAll(".menu-item");
+    
+    // Remove active class from all items and links
+    menuItems.forEach((mi) => mi.classList.remove("active"));
+
+    // Add active class to parent item
+    const menuItem = link.closest(".menu-item");
+    if (menuItem) {
+      menuItem.classList.add("active");
+    }
+
+    // Update page title
+    const pageName = link.querySelector(".menu-text").textContent;
+    if (topbarTitle) {
+      topbarTitle.textContent = pageName;
+    }
+
+    // Handle page navigation
+    this.handlePageNavigation(link.dataset.page);
   }
 
   handlePageNavigation(page) {
@@ -543,6 +553,124 @@ export class PharmacyDashboard extends Component {
       default:
         this.renderDashboard();
     }
+  }
+
+  checkPageAccess(page) {
+    const role = localStorage.getItem("pharmacy_active_role");
+    // Admin has full access
+    if (role === "Administrator") return true;
+
+    const permissionsRaw = localStorage.getItem("pharmacy_active_permissions");
+    let permissions = [];
+    try {
+      permissions = JSON.parse(permissionsRaw || "[]");
+    } catch (e) {
+      console.error("Error parsing permissions", e);
+    }
+
+    if (permissions.includes("all")) return true;
+
+    // Map pages to required permissions
+    const pagePermissions = {
+      dashboard: null, // Public
+      sales: "sales",
+      inventory: "inventory",
+      customers: "sales",
+      purchasing: "purchasing",
+      reports: "reports",
+      settings: "all",
+    };
+
+    const required = pagePermissions[page];
+    if (!required) return true;
+
+    return permissions.includes(required);
+  }
+
+  promptForAdminAccess(page, link) {
+    if (document.getElementById("adminAccessModal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "adminAccessModal";
+    modal.className = "inventory-modal-overlay";
+    modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+    modal.innerHTML = `
+            <div class="inventory-modal glass-card" style="width: 360px; padding: 2rem; border-radius: 16px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <div style="width: 60px; height: 60px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 2rem;">🔒</div>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #0f172a;">Restricted Access</h3>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #64748b;">This module requires admin permission. Please enter password to continue.</p>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <input type="password" id="adminPasswordInput" placeholder="Enter admin password" 
+                           style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;">
+                    <p id="accessErrorMessage" style="color: #ef4444; font-size: 0.75rem; margin-top: 0.5rem; display: none;">Invalid password. Access denied.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <button id="cancelAccessBtn" style="padding: 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; font-weight: 600; color: #64748b; cursor: pointer;">Cancel</button>
+                    <button id="confirmAccessBtn" style="padding: 0.75rem; border-radius: 8px; border: none; background: #007513; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px rgba(0,117,19,0.2);">Verify Access</button>
+                </div>
+            </div>
+        `;
+
+    document.body.appendChild(modal);
+
+    const input = modal.querySelector("#adminPasswordInput");
+    const confirmBtn = modal.querySelector("#confirmAccessBtn");
+    const cancelBtn = modal.querySelector("#cancelAccessBtn");
+    const errorMsg = modal.querySelector("#accessErrorMessage");
+
+    input.focus();
+
+    const verify = () => {
+      const pwd = input.value;
+      // Default admin password is '123' as seen in pharmacy_login.js
+      if (pwd === "123") {
+        this.closeAdminAccessModal();
+        this.navigateToPage(link);
+        this.showNotification("Admin access granted", "success");
+      } else {
+        errorMsg.style.display = "block";
+        input.style.borderColor = "#ef4444";
+        input.value = "";
+        input.focus();
+        setTimeout(() => {
+          errorMsg.style.display = "none";
+          input.style.borderColor = "#e2e8f0";
+        }, 2000);
+      }
+    };
+
+    confirmBtn.onclick = verify;
+    cancelBtn.onclick = () => this.closeAdminAccessModal();
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") verify();
+      if (e.key === "Escape") this.closeAdminAccessModal();
+    };
+
+    modal.onclick = (e) => {
+      if (e.target === modal) this.closeAdminAccessModal();
+    };
+  }
+
+  closeAdminAccessModal() {
+    const modal = document.getElementById("adminAccessModal");
+    if (modal) modal.remove();
   }
 
   renderSettings() {
@@ -859,9 +987,11 @@ export class PharmacyDashboard extends Component {
 
   toggleDarkMode(isDark) {
     const app = document.getElementById("pharmacy_app");
+    const sidebar = document.querySelector(".sidebar");
     if (isDark) {
       if (app) app.classList.add("dark-mode");
       document.body.classList.add("dark-mode");
+      if (sidebar) sidebar.classList.remove("dark-mode");
       document.documentElement.style.setProperty("--bg-main", "#0f172a");
       document.documentElement.style.setProperty("--bg-card", "#1e293b");
       document.documentElement.style.setProperty("--border-color", "#334155");
@@ -869,6 +999,7 @@ export class PharmacyDashboard extends Component {
     } else {
       if (app) app.classList.remove("dark-mode");
       document.body.classList.remove("dark-mode");
+      if (sidebar) sidebar.classList.remove("dark-mode");
       document.documentElement.style.setProperty("--bg-main", "#f8fafc");
       document.documentElement.style.setProperty("--bg-card", "#ffffff");
       document.documentElement.style.setProperty("--border-color", "#e2e8f0");

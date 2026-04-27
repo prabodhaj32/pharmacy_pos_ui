@@ -191,7 +191,7 @@ class PharmacyPurchasing {
                         </div>
                     </div>
                     <div class="stat-card compact success" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #fff; border-radius: 0.5rem; border: 1px solid var(--border-color, #e5e7eb); flex: 1;">
-                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #dcfce7; color: #16a34a; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">✅</div>
+                        <div class="stat-icon" aria-hidden="true" style="font-size: 1.25rem; background: #dcfce7; color: #007513; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">✅</div>
                         <div class="stat-content">
                             <h3 style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">Received</h3>
                             <p class="stat-value" id="receivedOrdersCount" style="margin: 0.1rem 0 0; font-size: 1.25rem; font-weight: 600; color: #1e293b;">0</p>
@@ -224,7 +224,7 @@ class PharmacyPurchasing {
                                 onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.02)'"
                             >
                         </div>
-                        <button id="newPurchaseOrderBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #22c55e, #16a34a); border: 1px solid #14532d; border-top-color: #166534; border-bottom-color: #052e16; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
+                        <button id="newPurchaseOrderBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #007513, #005a0e); border: 1px solid #005a0e; border-top-color: #007513; border-bottom-color: #00420a; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
                             <span style="font-size: 0.6rem;">➕</span> New Purchase Order
                         </button>
                     </div>
@@ -420,7 +420,7 @@ class PharmacyPurchasing {
                         ${
                           order.status === "pending"
                             ? `
-                            <button onclick="pharmacyPurchasing.receivePurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #22c55e; background: #dcfce7; border-radius: 4px; cursor: pointer; color: #16a34a;" title="Receive">✓</button>
+                            <button onclick="pharmacyPurchasing.receivePurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #007513; background: #dcfce7; border-radius: 4px; cursor: pointer; color: #007513;" title="Receive">✓</button>
                         `
                             : ""
                         }
@@ -435,7 +435,7 @@ class PharmacyPurchasing {
       pending:
         '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fef3c7; color: #d97706; border-radius: 12px; font-weight: 500;">⏳ Pending</span>',
       received:
-        '<span style="padding: 2px 8px; font-size: 0.65rem; background: #dcfce7; color: #16a34a; border-radius: 12px; font-weight: 500;">✅ Received</span>',
+        '<span style="padding: 2px 8px; font-size: 0.65rem; background: #dcfce7; color: #007513; border-radius: 12px; font-weight: 500;">✅ Received</span>',
       cancelled:
         '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Cancelled</span>',
     };
@@ -560,7 +560,7 @@ class PharmacyPurchasing {
   renderSupplierRow(supplier) {
     const statusBadge =
       supplier.status === "active"
-        ? '<span style="padding: 2px 8px; font-size: 0.6rem; background: #dcfce7; color: #16a34a; border-radius: 12px; font-weight: 500;">✅ Active</span>'
+        ? '<span style="padding: 2px 8px; font-size: 0.6rem; background: #dcfce7; color: #007513; border-radius: 12px; font-weight: 500;">✅ Active</span>'
         : '<span style="padding: 2px 8px; font-size: 0.6rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Inactive</span>';
 
     return `
@@ -583,7 +583,7 @@ class PharmacyPurchasing {
                     <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
                         <button onclick="pharmacyPurchasing.viewSupplier('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="View Details">👁</button>
                         <button onclick="pharmacyPurchasing.editSupplier('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="Edit Supplier">✏️</button>
-                        <button onclick="pharmacyPurchasing.toggleSupplierStatus('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid ${supplier.status === "active" ? "#fbbf24" : "#22c55e"}; background: ${supplier.status === "active" ? "#fef3c7" : "#dcfce7"}; border-radius: 4px; cursor: pointer; color: ${supplier.status === "active" ? "#d97706" : "#16a34a"}; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'" title="${supplier.status === "active" ? "Deactivate" : "Activate"}">🔄</button>
+                        <button onclick="pharmacyPurchasing.toggleSupplierStatus('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid ${supplier.status === "active" ? "#fbbf24" : "#007513"}; background: ${supplier.status === "active" ? "#fef3c7" : "#dcfce7"}; border-radius: 4px; cursor: pointer; color: ${supplier.status === "active" ? "#d97706" : "#007513"}; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'" title="${supplier.status === "active" ? "Deactivate" : "Activate"}">🔄</button>
                     </div>
                 </td>
             </tr>
@@ -857,7 +857,7 @@ class PharmacyPurchasing {
     );
 
     if (orderTotal) {
-      orderTotal.innerHTML = `Total: <span style="color: #10b981;">${this.formatLKR(total)}</span>`;
+      orderTotal.innerHTML = `Total: <span style="color: #007513;">${this.formatLKR(total)}</span>`;
     }
 
     if (itemCount) {
@@ -1043,7 +1043,7 @@ class PharmacyPurchasing {
     notif.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:6px;color:white;z-index:10000;`;
     notif.style.backgroundColor =
       type === "success"
-        ? "#22c55e"
+        ? "#007513"
         : type === "warning"
           ? "#f59e0b"
           : type === "error"

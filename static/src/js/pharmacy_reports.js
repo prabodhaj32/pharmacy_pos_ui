@@ -1236,7 +1236,10 @@ class PharmacyReports {
     const activeCashier =
       localStorage.getItem("pharmacy_active_cashier_id") || "admin";
     // Filter to only show the active cashier, UNLESS the active cashier is admin
-    let cashiersToDisplay = Object.keys(cashierStats);
+    // Also, explicitly exclude 'admin' from being displayed in the summary
+    let cashiersToDisplay = Object.keys(cashierStats).filter(
+      (id) => id !== "admin" && id !== "Administrator",
+    );
     if (activeCashier !== "admin") {
       cashiersToDisplay = cashiersToDisplay.filter(
         (id) => id === activeCashier,

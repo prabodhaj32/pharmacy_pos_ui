@@ -131,19 +131,21 @@ class PharmacyCustomers {
                             class="search-input"
                         >
                     </div>
-                    <div class="filter-tabs">
-                        <button class="filter-tab active" data-tier="all">All</button>
-                        <button class="filter-tab" data-tier="my_customers">Added By Me</button>
-                        <button class="filter-tab" data-tier="platinum">Platinum</button>
-                        <button class="filter-tab" data-tier="gold">Gold</button>
-                        <button class="filter-tab" data-tier="silver">Silver</button>
-                        <button class="filter-tab" data-tier="bronze">Bronze</button>
-                    </div>
-                    <div class="customers-header-actions">
-                        <button class="btn btn-primary" id="addCustomerBtn">
-                            <span class="btn-icon">➕</span>
-                            Add Customer
-                        </button>
+                    <div class="filter-row">
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-tier="all">All</button>
+                            <button class="filter-tab" data-tier="my_customers">Added By Me</button>
+                            <button class="filter-tab" data-tier="platinum">Platinum</button>
+                            <button class="filter-tab" data-tier="gold">Gold</button>
+                            <button class="filter-tab" data-tier="silver">Silver</button>
+                            <button class="filter-tab" data-tier="bronze">Bronze</button>
+                        </div>
+                        <div class="customers-header-actions">
+                            <button class="btn btn-primary" id="addCustomerBtn">
+                                <span class="btn-icon">➕</span>
+                                Add Customer
+                            </button>
+                        </div>
                     </div>
                 </div>
 

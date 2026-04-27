@@ -385,12 +385,12 @@ class PharmacySettings extends Component {
                     padding: 0.4rem 1rem !important; 
                     font-size: 0.7rem !important; 
                     border-radius: 6px !important; 
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; 
+                    background: #007513 !important; 
                     border: none !important; 
                     color: white !important; 
                     font-weight: 700 !important; 
                     cursor: pointer !important; 
-                    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2) !important; 
+                    box-shadow: 0 4px 6px -1px rgba(0, 117, 19, 0.2) !important; 
                     transition: all 0.2s !important;
                 }
                 .settings-content .btn-secondary, .settings-content .btn-outline {
@@ -1422,7 +1422,7 @@ class PharmacySettings extends Component {
                     <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="pharmacySettings.testNotification()">
                         🧪 Sending Test Alert
                     </button>
-                    <button class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.8rem; background: linear-gradient(135deg, #059669 0%, #047857 100%);" onclick="pharmacySettings.saveNotificationSettings()">
+                    <button class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.8rem; background: #007513;" onclick="pharmacySettings.saveNotificationSettings()">
                         Save Notification Settings
                     </button>
                 </div>
