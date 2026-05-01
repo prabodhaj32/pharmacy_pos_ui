@@ -1,16 +1,27 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
+import { rpc } from "@web/core/network/rpc";
+import { useService } from "@web/core/utils/hooks";
 
 class PharmacyCustomers {
   constructor() {
     this.customers = [];
     this.selectedCustomer = null;
+    this.setup();
     this.init();
   }
 
-  init() {
-    this.loadCustomers();
+  setup() {
+    try {
+      this.rpc = useService("rpc");
+    } catch {
+      this.rpc = rpc;
+    }
+  }
+
+  async init() {
+    await this.loadCustomers();
     this.renderCustomers();
     this.setupEventListeners();
   }
@@ -22,130 +33,53 @@ class PharmacyCustomers {
     console.log("Customer event listeners setup completed");
   }
 
-  loadCustomers() {
-    const savedCustomers = localStorage.getItem("pharmacy_customers");
-    if (savedCustomers) {
-      try {
-        this.customers = JSON.parse(savedCustomers);
-      } catch (error) {
-        console.error("Error loading customers:", error);
-        this.customers = this.getDefaultCustomers();
-      }
-    } else {
-      this.customers = this.getDefaultCustomers();
-    }
-  }
-
-  getDefaultCustomers() {
-    return [
-      {
-        id: 1,
-        name: "Dilani Fernando",
-        phone: "+94774567890",
-        email: "dilani.fernando@email.com",
-        tier: "Bronze",
-        loyaltyPoints: 50,
-        creditUsed: 0,
-        creditLimit: 0,
-        memberSince: "Feb 2026",
-        address: "123 Main St, Colombo",
-        totalPurchases: 12500,
-      },
-      {
-        id: 2,
-        name: "Kumari Jayawardena",
-        phone: "+94771234567",
-        email: "kumari.j@email.com",
-        tier: "Silver",
-        loyaltyPoints: 450,
-        creditUsed: 5000,
-        creditLimit: 15000,
-        memberSince: "Jan 2025",
-        address: "456 Park Ave, Kandy",
-        totalPurchases: 45000,
-      },
-      {
-        id: 3,
-        name: "Mahinda Rajapaksa",
-        phone: "+94772345678",
-        email: "mahinda.r@email.com",
-        tier: "Bronze",
-        loyaltyPoints: 120,
-        creditUsed: 0,
-        creditLimit: 5000,
-        memberSince: "Mar 2026",
-        address: "789 Queen St, Galle",
-        totalPurchases: 18000,
-      },
-      {
-        id: 4,
-        name: "Nishantha Silva",
-        phone: "+94775678901",
-        email: "nishantha.s@email.com",
-        tier: "Platinum",
-        loyaltyPoints: 2500,
-        creditUsed: 12000,
-        creditLimit: 50000,
-        memberSince: "Dec 2024",
-        address: "321 King St, Jaffna",
-        totalPurchases: 125000,
-      },
-      {
-        id: 5,
-        name: "Saman Perera",
-        phone: "+94773456789",
-        email: "saman.p@email.com",
-        tier: "Gold",
-        loyaltyPoints: 1200,
-        creditUsed: 8000,
-        creditLimit: 30000,
-        memberSince: "Nov 2024",
-        address: "654 Beach Rd, Matara",
-        totalPurchases: 85000,
-      },
-    ];
-  }
-
-  saveCustomers() {
+  async loadCustomers() {
     try {
-      localStorage.setItem(
-        "pharmacy_customers",
-        JSON.stringify(this.customers),
-      );
+      const result = await this.rpc("/pharmacy/customers/list");
+      
+      if (result && !Array.isArray(result) && result.error) {
+        console.error("Backend Error:", result.error);
+        this.customers = [];
+        return;
+      }
+
+      // Map Odoo snake_case fields to camelCase for frontend
+      this.customers = (Array.isArray(result) ? result : []).map(c => ({
+        ...c,
+        totalPurchases: c.total_purchases || 0,
+        memberSince: c.member_since || "New Member",
+        creditLimit: c.credit_limit || 0,
+        creditUsed: c.credit_used || 0,
+        loyaltyPoints: c.loyalty_points || 0,
+      }));
     } catch (error) {
-      console.error("Error saving customers:", error);
+      console.error("RPC Error loading customers:", error);
+      this.customers = [];
     }
   }
+
+
 
   renderCustomers() {
     const container = document.getElementById("dashboard_container");
 
     container.innerHTML = `
             <div class="dashboard">
-                <div class="customers-search-section">
-                    <div class="search-bar">
+                <div class="customers-search-section" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-bottom: 1px solid #f1f5f9; gap: 20px;">
+                    <div class="search-bar" style="flex: 1; max-width: 500px; position: relative;">
                         <input
                             type="text"
                             id="customerSearchInput"
-                            placeholder="🔍 Name or phone..."
+                            placeholder="🔍 Search customers by name or phone..."
                             class="search-input"
+                            style="width: 100%; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 15px; outline: none; transition: all 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);"
                         >
                     </div>
-                    <div class="filter-row">
-                        <div class="filter-tabs">
-                            <button class="filter-tab active" data-tier="all">All</button>
-                            <button class="filter-tab" data-tier="my_customers">Added By Me</button>
-                            <button class="filter-tab" data-tier="platinum">Platinum</button>
-                            <button class="filter-tab" data-tier="gold">Gold</button>
-                            <button class="filter-tab" data-tier="silver">Silver</button>
-                            <button class="filter-tab" data-tier="bronze">Bronze</button>
-                        </div>
-                        <div class="customers-header-actions">
-                            <button class="btn btn-primary" id="addCustomerBtn">
-                                <span class="btn-icon">➕</span>
-                                Add Customer
-                            </button>
-                        </div>
+                    <div class="customers-header-actions">
+                        <button class="btn btn-primary" id="addCustomerBtn" style="padding: 12px 24px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
+                            <span class="btn-icon" style="font-size: 18px;">➕</span>
+                            Add Customer
+                        </button>
                     </div>
                 </div>
 
@@ -198,15 +132,8 @@ class PharmacyCustomers {
                     <div class="customer-info">
                         <h4 class="customer-name">${customer.name}</h4>
                         <div class="customer-tier">
-                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">${customer.tier}</span>
                             <span class="customer-phone">${customer.phone}</span>
                         </div>
-                    </div>
-                </div>
-                <div class="customer-stats">
-                    <div class="customer-stat">
-                        <span class="stat-label">Loyalty Points</span>
-                        <span class="stat-value">${customer.loyaltyPoints.toLocaleString()} pts</span>
                     </div>
                 </div>
             </div>
@@ -225,144 +152,108 @@ class PharmacyCustomers {
   }
 
   renderCustomerDetails(customer) {
-    const creditPercentage =
-      customer.creditLimit > 0
-        ? (customer.creditUsed / customer.creditLimit) * 100
-        : 0;
-
     // Get recent purchases
     const recentPurchases = customer.recentPurchases || [];
 
     return `
-            <div class="customer-details-content">
-                <div class="customer-details-header">
-                    <div class="customer-avatar large">
-                        <span class="avatar-text">${this.getInitials(customer.name)}</span>
+            <style>
+                .purchase-history::-webkit-scrollbar { width: 6px; }
+                .purchase-history::-webkit-scrollbar-track { background: #f8fafc; border-radius: 10px; }
+                .purchase-history::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .purchase-history::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            </style>
+            <div class="customer-details-content" style="background: #ffffff; border-radius: 16px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.05), 0 4px 10px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; font-family: 'Inter', system-ui, sans-serif;">
+                
+                <!-- Header Section -->
+                <div class="customer-details-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 2px dashed #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 24px;">
+                        <div class="customer-avatar large" style="width: 90px; height: 90px; border-radius: 24px; background: linear-gradient(135deg, #4f46e5, #818cf8); display: flex; align-items: center; justify-content: center; color: white; font-size: 36px; font-weight: 700; box-shadow: 0 8px 16px rgba(79, 70, 229, 0.25); transform: rotate(-2deg);">
+                            <span class="avatar-text" style="transform: rotate(2deg);">${this.getInitials(customer.name)}</span>
+                        </div>
+                        <div class="customer-details-info">
+                            <h3 class="customer-name" style="margin: 0 0 12px 0; font-size: 28px; color: #0f172a; font-weight: 800; letter-spacing: -0.5px;">${customer.name}</h3>
+                            <div class="customer-contact" style="display: flex; gap: 16px; color: #475569;">
+                                <div class="contact-item" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 8px; font-size: 14px; border: 1px solid #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <span class="contact-label">📱</span>
+                                    <span class="contact-value" style="font-weight: 600;">${customer.phone}</span>
+                                </div>
+                                <div class="contact-item" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 8px; font-size: 14px; border: 1px solid #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <span class="contact-label">✉️</span>
+                                    <span class="contact-value">${customer.email || "Not provided"}</span>
+                                </div>
+                                <div class="contact-item" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 8px; font-size: 14px; border: 1px solid #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <span class="contact-label">📍</span>
+                                    <span class="contact-value">${customer.address || "Not provided"}</span>
+                                </div>
+                            </div>
+                            <div class="customer-stats" style="display: flex; gap: 24px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="background: #eff6ff; color: #3b82f6; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">📅</div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Member Since</div>
+                                        <div style="font-size: 15px; color: #0f172a; font-weight: 700;">${customer.memberSince}</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="background: #dcfce7; color: #16a34a; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🛒</div>
+                                    <div>
+                                        <div style="font-size: 10px; color: #15803d; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Purchases</div>
+                                        <div style="font-size: 15px; color: #166534; font-weight: 700;">LKR ${customer.totalPurchases.toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="customer-details-info">
-                        <h3 class="customer-name">${customer.name}</h3>
-                        <div class="customer-tier">
-                            <span class="tier-badge tier-${customer.tier.toLowerCase()}">⭐ ${customer.tier}</span>
-                        </div>
-                        <div class="customer-contact">
-                            <div class="contact-item">
-                                <span class="contact-label">📱</span>
-                                <span class="contact-value">${customer.phone}</span>
-                            </div>
-                            <div class="contact-item">
-                                <span class="contact-label">✉️</span>
-                                <span class="contact-value">${customer.email || "Not provided"}</span>
-                            </div>
-                            <div class="contact-item">
-                                <span class="contact-label">📍</span>
-                                <span class="contact-value">${customer.address || "Not provided"}</span>
-                            </div>
-                        </div>
+                    
+                    <!-- Actions -->
+                    <div class="customer-actions" style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary compact customer-edit-btn" data-customer-id="${customer.id}" style="padding: 10px 16px; border-radius: 10px; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                            <span class="btn-icon">✏️</span> Edit
+                        </button>
+                        <button class="btn btn-danger compact customer-delete-btn" data-customer-id="${customer.id}" data-customer-name="${customer.name.replace(/'/g, "\\'")}" style="padding: 10px 16px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(220,38,38,0.05);">
+                            <span class="btn-icon">🗑️</span> Delete
+                        </button>
                     </div>
                 </div>
 
-                <div class="customer-metrics">
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">💎</span>
-                            <span class="metric-title">Loyalty Points</span>
-                        </div>
-                        <div class="metric-value">${customer.loyaltyPoints.toLocaleString()}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">💳</span>
-                            <span class="metric-title">Credit Used</span>
-                        </div>
-                        <div class="metric-value">LKR ${customer.creditUsed.toLocaleString()}</div>
-                        <div class="metric-subtitle">of LKR ${customer.creditLimit.toLocaleString()} limit</div>
-                        <div class="credit-progress">
-                            <div class="credit-progress-bar" style="width: ${creditPercentage}%"></div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">📅</span>
-                            <span class="metric-title">Member Since</span>
-                        </div>
-                        <div class="metric-value">${customer.memberSince}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-header">
-                            <span class="metric-icon">🛒</span>
-                            <span class="metric-title">Total Purchases</span>
-                        </div>
-                        <div class="metric-value">LKR ${customer.totalPurchases.toLocaleString()}</div>
-                    </div>
-                </div>
-
-                <div class="customer-actions">
-                    <button class="btn btn-secondary compact customer-edit-btn" data-customer-id="${customer.id}">
-                        <span class="btn-icon">✏️</span> Edit
-                    </button>
-                    <button class="btn btn-danger compact customer-delete-btn" data-customer-id="${customer.id}" data-customer-name="${customer.name.replace(/'/g, "\\'")}">
-                        <span class="btn-icon">🗑️</span> Delete
-                    </button>
-                </div>
-
+                <!-- History Section -->
                 <div class="customer-history">
-                    <h4>Recent Purchases</h4>
-                    <div class="purchase-history">
+                    <h4 style="margin: 0 0 20px 0; font-size: 20px; color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <span style="background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 16px;">📜</span> Recent Purchases
+                    </h4>
+                    <div class="purchase-history" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
                         ${
                           recentPurchases.length > 0
                             ? recentPurchases
                                 .map(
                                   (purchase) => `
-                                <div class="purchase-record compact-layout" data-purchase-id="${purchase.saleId}">
-                                    <!-- Compact 2-Line View (Line 1) -->
-                                    <div class="purchase-line-1">
-                                        <div class="purchase-id-date">
-                                            <span class="receipt-number">${purchase.receiptNumber}</span>
-                                            <span class="purchase-date">${purchase.displayTimestamp || purchase.timestamp}</span>
+                                <div class="purchase-record compact-layout" data-purchase-id="${purchase.saleId}" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <div class="purchase-summary" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; transition: background 0.2s;">
+                                        <div style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+                                            <div style="font-weight: 700; color: #475569; background: #e2e8f0; padding: 4px 8px; border-radius: 6px;">${purchase.receiptNumber}</div>
+                                            <div style="color: #64748b; display: flex; align-items: center; gap: 4px;"><span>🕒</span> ${purchase.displayTimestamp || purchase.timestamp}</div>
+                                            <div style="color: #cbd5e1;">|</div>
+                                            <div style="color: #64748b;">Method: <span style="font-weight: 600; text-transform: uppercase;">${purchase.paymentMethod}</span></div>
                                         </div>
-                                        <span class="line-separator">|</span>
-                                        <div class="purchase-amount">
-                                            LKR ${Number(purchase.totalAmount).toFixed(2)}
-                                        </div>
-                                        <button class="toggle-details-btn">
-                                            <span class="toggle-icon">▼</span>
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Compact 2-Line View (Line 2) -->
-                                    <div class="purchase-line-2">
-                                        <div class="items-summary">
-                                            ${purchase.items
-                                              .map(
-                                                (item) => `
-                                                <span class="item-pill">
-                                                    ${item.name} ${item.quantity} × LKR ${Number(item.unitPrice).toFixed(2)} = LKR ${Number(item.total).toFixed(2)}
-                                                </span>
-                                            `,
-                                              )
-                                              .join("")}
-                                        </div>
-                                        <span class="line-separator">|</span>
-                                        <div class="payment-summary">
-                                            Payment: <span class="method">${purchase.paymentMethod}</span>
+                                        <div style="display: flex; align-items: center; gap: 16px;">
+                                            <div style="font-weight: 700; color: #0f172a; font-size: 15px;">LKR ${Number(purchase.totalAmount).toFixed(2)}</div>
+                                            <div style="color: #64748b; font-size: 12px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: #e2e8f0; border-radius: 50%;"><span class="toggle-icon">▼</span></div>
                                         </div>
                                     </div>
                                     
-                                    <!-- Full Details View (Hidden by default) -->
-                                    <div class="purchase-full-details" style="display: none;">
-                                        <div class="details-divider"></div>
-                                        <div class="items-list-detailed">
+                                    <div class="purchase-full-details" style="display: none; padding: 16px; border-top: 1px solid #e2e8f0; background: #ffffff;">
+                                        <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Purchased Items</div>
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
                                             ${purchase.items
                                               .map(
-                                                (item) => `
-                                                <div class="item-row-detailed">
-                                                    <span class="item-name">${item.name}</span>
-                                                    <div class="item-math">
-                                                        <span class="item-qty">${item.quantity}</span>
-                                                        <span class="math-symbol">×</span>
-                                                        <span class="item-uprice">LKR ${Number(item.unitPrice).toFixed(2)}</span>
-                                                        <span class="math-symbol">=</span>
-                                                        <span class="item-total">LKR ${Number(item.total).toFixed(2)}</span>
+                                                (item, idx) => `
+                                                <div style="display: flex; justify-content: space-between; align-items: center; ${idx !== purchase.items.length - 1 ? 'padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;' : ''}">
+                                                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                                                        <span style="font-weight: 600; color: #334155; font-size: 13px;">${item.name}</span>
+                                                        <span style="color: #64748b; font-size: 12px;">${item.quantity} × LKR ${Number(item.unitPrice).toFixed(2)}</span>
+                                                    </div>
+                                                    <div style="font-weight: 700; color: #0f172a; font-size: 13px;">
+                                                        LKR ${Number(item.total).toFixed(2)}
                                                     </div>
                                                 </div>
                                             `,
@@ -374,7 +265,7 @@ class PharmacyCustomers {
                             `,
                                 )
                                 .join("")
-                            : `<div class="no-purchases" style="text-align: center; padding: 20px; color: var(--text-muted, #64748b);"><p>No recent purchases found</p></div>`
+                            : `<div class="no-purchases" style="text-align: center; padding: 48px; background: #f8fafc; border-radius: 16px; border: 2px dashed #cbd5e1;"><div style="font-size: 48px; margin-bottom: 16px;">🛍️</div><div style="color: #334155; font-weight: 700; font-size: 18px; margin-bottom: 8px;">No recent purchases found</div><div style="color: #64748b; font-size: 15px;">This customer hasn't made any purchases yet.</div></div>`
                         }
                     </div>
                 </div>
@@ -387,15 +278,7 @@ class PharmacyCustomers {
     const searchInput = document.getElementById("customerSearchInput");
     searchInput?.addEventListener("input", () => this.filterCustomers());
 
-    // Filter tabs
-    const filterTabs = document.querySelectorAll(".filter-tab");
-    filterTabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        filterTabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        this.filterCustomers();
-      });
-    });
+
 
     // Add Customer button
     const addCustomerBtn = document.getElementById("addCustomerBtn");
@@ -471,28 +354,14 @@ class PharmacyCustomers {
     )
       .toLowerCase()
       .trim();
-    const activeTier =
-      document.querySelector(".filter-tab.active")?.dataset.tier || "all";
-
-    // Apply basic filtering
-    const currentCashier =
-      localStorage.getItem("pharmacy_active_cashier_id") || "Unknown";
 
     let filtered = this.customers.filter((customer) => {
-      const matchesSearch =
+      return (
         !searchTerm ||
         customer.name.toLowerCase().includes(searchTerm) ||
         customer.phone.includes(searchTerm) ||
-        (customer.email && customer.email.toLowerCase().includes(searchTerm));
-
-      let matchesTier = true;
-      if (activeTier === "my_customers") {
-        matchesTier = customer.addedBy === currentCashier;
-      } else if (activeTier !== "all") {
-        matchesTier = customer.tier.toLowerCase() === activeTier;
-      }
-
-      return matchesSearch && matchesTier;
+        (customer.email && customer.email.toLowerCase().includes(searchTerm))
+      );
     });
 
     this.updateCustomerList(filtered);
@@ -557,15 +426,16 @@ class PharmacyCustomers {
     }
   }
 
-  deleteCustomer(customerId) {
-    const index = this.customers.findIndex((c) => c.id === customerId);
-    if (index === -1) return;
-
-    const name = this.customers[index].name;
-    this.customers.splice(index, 1);
-    this.saveCustomers();
-    this.showNotification(`Customer "${name}" deleted successfully`, "success");
-    this.renderCustomers(); // Refresh whole page
+  async deleteCustomer(customerId) {
+    try {
+      await this.rpc("/pharmacy/customers/delete", { id: customerId });
+      await this.loadCustomers();
+      this.renderCustomers();
+      this.showNotification("Customer deleted!", "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("Error deleting customer", "error");
+    }
   }
 
   showAddCustomerModal(customer = null) {
@@ -655,147 +525,57 @@ class PharmacyCustomers {
     if (modal) modal.remove();
   }
 
-  createCustomerFromForm(form) {
+  async createCustomerFromForm(form) {
     const formData = new FormData(form);
-    const name = String(formData.get("name") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const address = String(formData.get("address") || "").trim();
-    const tier = String(formData.get("tier")) || "Bronze";
-    const creditLimit = Number(formData.get("creditLimit") || 0);
 
-    if (!name || !phone) {
-      this.showNotification(
-        "Please fill required fields (Name and Phone).",
-        "warning",
-      );
-      return;
-    }
-
-    // Validate phone number format (basic validation)
-    if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
-      this.showNotification("Please enter a valid phone number.", "warning");
-      return;
-    }
-
-    // Check for duplicate phone
-    const existingCustomer = this.customers.find((c) => c.phone === phone);
-    if (existingCustomer) {
-      this.showNotification(
-        "A customer with this phone number already exists",
-        "error",
-      );
-      return;
-    }
-
-    const cashierId =
-      localStorage.getItem("pharmacy_active_cashier_id") || "Unknown";
-
-    // Create new customer
-    const newCustomer = {
-      id: Math.max(...this.customers.map((c) => c.id)) + 1,
-      name: name,
-      phone: phone,
-      email: email || "",
-      address: address || "",
-      tier: tier,
-      loyaltyPoints: 0,
-      creditUsed: 0,
-      creditLimit: creditLimit,
-      addedBy: cashierId,
+    const payload = {
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      email: formData.get("email"),
+      address: formData.get("address"),
+      tier: formData.get("tier"),
+      creditLimit: Number(formData.get("creditLimit") || 0),
       memberSince: new Date().toLocaleDateString("en-US", {
         month: "short",
         year: "numeric",
       }),
-      totalPurchases: 0,
-      recentPurchases: [],
     };
 
-    // Add to customers array
-    this.customers.push(newCustomer);
-
-    // Save to localStorage
-    this.saveCustomers();
-
-    // Close modal
-    this.closeAddCustomerModal();
-
-    // Show success notification
-    this.showNotification(`Customer "${name}" added successfully!`, "success");
-
-    // Refresh the customers page to show the new customer
-    this.renderCustomers();
+    try {
+      await this.rpc("/pharmacy/customers/create", payload);
+      await this.loadCustomers();
+      this.renderCustomers();
+      this.closeAddCustomerModal();
+      this.showNotification("Customer added!", "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("Error adding customer", "error");
+    }
   }
 
-  updateCustomerFromForm(form, customerId) {
+  async updateCustomerFromForm(form, customerId) {
     const formData = new FormData(form);
-    const name = String(formData.get("name") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const address = String(formData.get("address") || "").trim();
-    const tier = String(formData.get("tier")) || "Bronze";
-    const creditLimit = Number(formData.get("creditLimit")) || 0;
 
-    if (!name || !phone) {
-      this.showNotification(
-        "Please fill required fields (Name and Phone).",
-        "warning",
-      );
-      return;
-    }
-
-    // Validate phone number format (basic validation)
-    if (!phone.match(/^\+?[0-9\s\-\(\)]+$/)) {
-      this.showNotification("Please enter a valid phone number.", "warning");
-      return;
-    }
-
-    // Find the customer to update
-    const customerIndex = this.customers.findIndex((c) => c.id === customerId);
-    if (customerIndex === -1) {
-      this.showNotification("Customer not found", "error");
-      return;
-    }
-
-    // Check for duplicate phone (exclude current customer)
-    const existingCustomer = this.customers.find(
-      (c) => c.phone === phone && c.id !== customerId,
-    );
-    if (existingCustomer) {
-      this.showNotification(
-        "A customer with this phone number already exists",
-        "error",
-      );
-      return;
-    }
-
-    // Update customer data
-    const updatedCustomer = {
-      ...this.customers[customerIndex],
-      name: name,
-      phone: phone,
-      email: email || "",
-      address: address || "",
-      tier: tier,
-      creditLimit: creditLimit,
+    const payload = {
+      id: customerId,
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      email: formData.get("email"),
+      address: formData.get("address"),
+      tier: formData.get("tier"),
+      creditLimit: Number(formData.get("creditLimit") || 0),
     };
 
-    this.customers[customerIndex] = updatedCustomer;
-
-    // Save to localStorage
-    this.saveCustomers();
-
-    // Close modal
-    this.closeAddCustomerModal();
-
-    // Show success notification
-    this.showNotification(
-      `Customer "${name}" updated successfully!`,
-      "success",
-    );
-
-    // Refresh the customers page to show updated customer
-    this.renderCustomers();
+    try {
+      await this.rpc("/pharmacy/customers/update", payload);
+      await this.loadCustomers();
+      this.renderCustomers();
+      this.closeAddCustomerModal();
+      this.showNotification("Customer updated!", "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("Error updating customer", "error");
+    }
   }
 
   showNotification(message, type = "info") {

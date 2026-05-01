@@ -3,13 +3,14 @@
     'version': '1.0',
     'summary': 'Frontend UI for Pharmacy POS',
     'category': 'Point of Sale',
-    'depends': ['web'],
+    'depends': ['base', 'web'],
 
     'data': [
-        'views/menu.xml',
-        'views/customers.xml',
         'views/pos_views.xml',
-        'controllers/',
+        'views/customers.xml',
+        'views/menu.xml',
+        'security/ir.model.access.csv',
+        # 'controllers/',
     ],
 
     'assets': {

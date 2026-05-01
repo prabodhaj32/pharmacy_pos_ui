@@ -7347,6 +7347,30 @@ body.dark-mode select {
   vertical-align: middle;
 }
 
+/* Inventory table column alignment */
+.inventory-table-container .cart-table.compact th,
+.inventory-table-container .cart-table.compact td {
+  text-align: left;
+}
+
+.inventory-table-container .cart-table.compact th:nth-child(4),
+.inventory-table-container .cart-table.compact th:nth-child(5),
+.inventory-table-container .cart-table.compact th:nth-child(6),
+.inventory-table-container .cart-table.compact th:nth-child(7),
+.inventory-table-container .cart-table.compact td:nth-child(4),
+.inventory-table-container .cart-table.compact td:nth-child(5),
+.inventory-table-container .cart-table.compact td:nth-child(6),
+.inventory-table-container .cart-table.compact td:nth-child(7) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.inventory-table-container .cart-table.compact th:nth-child(8),
+.inventory-table-container .cart-table.compact td:nth-child(8) {
+  text-align: center;
+  white-space: nowrap;
+}
+
 .cart-table.compact tr:hover td {
   background: var(--bg-secondary);
 }
@@ -7380,7 +7404,7 @@ body.dark-mode select {
 
   gap: var(--space-1);
 
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 
   margin-bottom: var(--space-1);
 }

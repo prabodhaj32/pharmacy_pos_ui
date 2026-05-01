@@ -505,7 +505,7 @@ export class PharmacyDashboard extends Component {
   navigateToPage(link) {
     const topbarTitle = document.querySelector(".page-title");
     const menuItems = document.querySelectorAll(".menu-item");
-    
+
     // Remove active class from all items and links
     menuItems.forEach((mi) => mi.classList.remove("active"));
 
@@ -1204,10 +1204,6 @@ export class PharmacyDashboard extends Component {
     // Update held bills count display
     this.updateHeldBillsCount();
 
-    // Barcode reader state
-    this.isScanning = false;
-    this.barcodeBuffer = "";
-
     // Render products grid
     this.renderProducts(this.products);
   }
@@ -1242,153 +1238,10 @@ export class PharmacyDashboard extends Component {
   }
 
   openCamera() {
-    this.startBarcodeScanner();
-  }
-
-  startBarcodeScanner() {
-    if (this.isScanning) {
-      this.stopBarcodeScanner();
-      return;
-    }
-
-    this.isScanning = true;
-    this.barcodeBuffer = "";
-
-    // Update button to show scanning state
-    const cameraBtn = document.querySelector(".camera-btn");
-    if (cameraBtn) {
-      cameraBtn.textContent = "⏹ Stop Scanner";
-      cameraBtn.style.background = "#fee2e2";
-      cameraBtn.style.borderColor = "#dc2626";
-      cameraBtn.style.color = "#dc2626";
-    }
-
-    // Show scanning interface
-    this.showBarcodeScannerInterface();
-
-    // Simulate barcode input (in real implementation, this would connect to actual barcode scanner)
-    this.simulateBarcodeScanning();
-  }
-
-  stopBarcodeScanner() {
-    this.isScanning = false;
-    this.barcodeBuffer = "";
-
-    // Reset button
-    const cameraBtn = document.querySelector(".camera-btn");
-    if (cameraBtn) {
-      cameraBtn.textContent = "📷 Barcode Scanner";
-      cameraBtn.style.background = "";
-      cameraBtn.style.borderColor = "";
-      cameraBtn.style.color = "";
-    }
-
-    // Hide scanning interface
-    this.hideBarcodeScannerInterface();
-  }
-
-  showBarcodeScannerInterface() {
-    const container = document.getElementById("dashboard_container");
-    const scannerOverlay = document.createElement("div");
-    scannerOverlay.id = "barcodeScannerOverlay";
-    scannerOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s ease;
-        `;
-
-    scannerOverlay.innerHTML = `
-            <div style="background: white; padding: 40px; border-radius: 16px; text-align: center; max-width: 400px;">
-                <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
-                <h2 style="margin: 0 0 10px 0; color: #1f2937;">Barcode Scanner Active</h2>
-                <p style="margin: 0 0 20px 0; color: #6b7280;">Scan barcode to add product to cart</p>
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 10px;">Barcode:</div>
-                    <div id="barcodeDisplay" style="font-size: 18px; font-weight: 600; color: #059669; min-height: 24px;">Waiting for scan...</div>
-                </div>
-                <button onclick="pharmacyPOS.stopBarcodeScanner()" style="background: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                    Stop Scanner
-                </button>
-            </div>
-        `;
-
-    container.appendChild(scannerOverlay);
-  }
-
-  hideBarcodeScannerInterface() {
-    const overlay = document.getElementById("barcodeScannerOverlay");
-    if (overlay) {
-      overlay.remove();
-    }
-  }
-
-  simulateBarcodeScanning() {
-    // Simulate barcode scanning with actual barcodes from medicine data
-    const sampleBarcodes = [
-      "8901234567002", // Amoxicillin 500
-      "8901234557003", // Augmentin 625
-      "8901234557004", // Cetirizine 10
-      "8901234557005", // Diazepam 5
-      "8901234557006", // Losartan 50
-      "8901234557007", // Metformin 500
-      "8901234557008", // Omeprazole 20
-      "8901234557011", // Vitamin C 500
-    ];
-
-    if (this.isScanning) {
-      // Simulate a barcode scan after 2-4 seconds
-      const scanDelay = Math.random() * 2000 + 2000;
-      setTimeout(() => {
-        if (this.isScanning) {
-          const randomBarcode =
-            sampleBarcodes[Math.floor(Math.random() * sampleBarcodes.length)];
-          this.processBarcode(randomBarcode);
-        }
-      }, scanDelay);
-    }
-  }
-
-  processBarcode(barcode) {
-    // Update display
-    const barcodeDisplay = document.getElementById("barcodeDisplay");
-    if (barcodeDisplay) {
-      barcodeDisplay.textContent = barcode;
-    }
-
-    // Find product by barcode (mock implementation)
-    const product = this.findProductByBarcode(barcode);
-
-    if (product) {
-      this.addProductToCart(product);
-      this.showNotification(`✅ ${product.name} added to cart`, "success");
-
-      // Continue scanning
-      setTimeout(() => {
-        if (this.isScanning) {
-          this.simulateBarcodeScanning();
-        }
-      }, 1000);
-    } else {
-      this.showNotification(
-        `❌ Product not found for barcode: ${barcode}`,
-        "error",
-      );
-
-      // Continue scanning
-      setTimeout(() => {
-        if (this.isScanning) {
-          this.simulateBarcodeScanning();
-        }
-      }, 1500);
-    }
+    this.showNotification(
+      "Barcode scanner functionality has been removed.",
+      "info",
+    );
   }
   // barcode search (supports base medicines data + localStorage items)
   findProductByBarcode(barcode) {

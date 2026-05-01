@@ -1,15 +1,23 @@
 import { registry } from "@web/core/registry";
 import { Component, onMounted, onWillUnmount } from "@odoo/owl";
+import { rpc } from "@web/core/network/rpc";
+import { useService } from "@web/core/utils/hooks";
 import { medicines } from "./data/medicine_data.js";
 
 class PharmacyInventory extends Component {
   setup() {
+    try {
+      this.rpc = useService("rpc");
+    } catch {
+      this.rpc = rpc;
+    }
+    this.inventoryItems = [];
     this.inventoryItems = [];
     this.inventoryActiveFilter = "all";
     this.inventoryLowStockThreshold = 20;
 
-    onMounted(() => {
-      this.renderInventory();
+    onMounted(async () => {
+      await this.renderInventory();
     });
 
     onWillUnmount(() => {
@@ -18,21 +26,55 @@ class PharmacyInventory extends Component {
   }
 
   // ====================== DATA MANAGEMENT ======================
-  ensureInventoryData() {
+  async ensureInventoryData() {
     if (this.inventoryItems?.length) return;
-    this.loadInventoryItems();
+    await this.loadInventoryItems();
   }
 
-  loadInventoryItems() {
-    const savedItems = localStorage.getItem("pharmacy_pos_inventory_items");
-    this.inventoryItems = savedItems ? JSON.parse(savedItems) : [...medicines];
-  }
+  async loadInventoryItems() {
+    try {
+      const rpcService = this.rpc || rpc;
+      const result = await rpcService("/pharmacy/inventory/list");
+      if (result && !Array.isArray(result) && result.error) {
+        throw new Error(result.error);
+      }
+      const rows = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.result)
+          ? result.result
+          : Array.isArray(result?.data)
+            ? result.data
+            : [];
 
-  saveInventoryItems() {
-    localStorage.setItem(
-      "pharmacy_pos_inventory_items",
-      JSON.stringify(this.inventoryItems),
-    );
+      this.inventoryItems = rows.map((item) => {
+        const expiryDate = item.expiry_date || item.expiryDate;
+        let expiryLabel = item.expiryLabel;
+        if (!expiryLabel && expiryDate) {
+          const parsed = this.parseISODate(expiryDate);
+          if (parsed) {
+            expiryLabel = parsed.toLocaleDateString("en-US", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          }
+        }
+        return {
+          ...item,
+          expiryDate,
+          expiryLabel,
+          rxOnly: item.rx_only !== undefined ? item.rx_only : item.rxOnly,
+          controlled: !!item.controlled,
+        };
+      });
+    } catch (error) {
+      console.error("Failed to load inventory:", error);
+      this.inventoryItems = [];
+      this.showNotification(
+        `⚠️ Failed to load inventory: ${error?.message || "Server error"}`,
+        "error",
+      );
+    }
   }
 
   parseISODate(dateString) {
@@ -72,8 +114,8 @@ class PharmacyInventory extends Component {
   }
 
   // ====================== RENDER INVENTORY ======================
-  renderInventory() {
-    this.ensureInventoryData();
+  async renderInventory() {
+    await this.ensureInventoryData();
     const container = document.getElementById("dashboard_container");
 
     const categories = [
@@ -302,6 +344,7 @@ class PharmacyInventory extends Component {
     }
 
     items.forEach((item) => {
+      const viewItem = this.toInventoryViewItem(item);
       const lowStock = this.isLowStock(item);
       const expiring = this.isExpiringWithinDays(item);
       const marginPct = this.getMarginPct(item);
@@ -312,10 +355,10 @@ class PharmacyInventory extends Component {
           ? `<span class="meta-pill neutral">Low Stock</span>`
           : `<span class="meta-pill sales">In Stock</span>`;
 
-      const rxPill = item.rxOnly
+      const rxPill = viewItem.rxOnly
         ? `<span class="meta-pill rx-only">Rx</span>`
         : "";
-      const controlledPill = item.controlled
+      const controlledPill = viewItem.controlled
         ? `<span class="meta-pill controlled">Controlled</span>`
         : "";
 
@@ -324,31 +367,47 @@ class PharmacyInventory extends Component {
       row.innerHTML = `
                 <td>
                     <div class="product-info">
-                        <span class="icon">${item.icon || "💊"}</span>
+                        <span class="icon">${viewItem.icon}</span>
                         <div class="inventory-medicine-text">
                             <div class="inventory-medicine-title">
-                                <span class="name">${item.name}</span>
+                                <span class="name">${viewItem.name}</span>
                                 ${rxPill} ${controlledPill}
                             </div>
-                            <div class="inventory-medicine-generic">${item.generic || ""}</div>
+                            <div class="inventory-medicine-generic">${viewItem.generic}</div>
                         </div>
                     </div>
                 </td>
-                <td>${item.category}</td>
+                <td>${viewItem.category}</td>
                 <td>
                     <div class="batch-info">
-                        <span class="batch">${item.batch || ""}</span>
-                        <span class="expiry">${item.expiryLabel || item.expiryDate || ""}</span>
+                        <span class="batch">${viewItem.batch}</span>
+                        <span class="expiry">${viewItem.expiry}</span>
                     </div>
                 </td>
-                <td>${item.stock}</td>
-                <td class="unit-price">${Number(item.cost || 0).toFixed(2)}</td>
-                <td class="unit-price">${Number(item.price || 0).toFixed(2)}</td>
+                <td>${viewItem.stock}</td>
+                <td class="unit-price">${viewItem.cost}</td>
+                <td class="unit-price">${viewItem.price}</td>
                 <td class="unit-price">${marginPct.toFixed(0)}%</td>
                 <td>${statusPill}</td>
             `;
       tbody.appendChild(row);
     });
+  }
+
+  toInventoryViewItem(item) {
+    return {
+      icon: item.icon || "💊",
+      name: item.name || "Unnamed Item",
+      generic: item.generic || "",
+      category: item.category || "Uncategorized",
+      batch: item.batch || "-",
+      expiry: item.expiryLabel || item.expiryDate || "-",
+      stock: Number(item.stock || 0),
+      cost: Number(item.cost || 0).toFixed(2),
+      price: Number(item.price || 0).toFixed(2),
+      rxOnly: !!item.rxOnly,
+      controlled: !!item.controlled,
+    };
   }
 
   // ====================== ADD ITEM MODAL ======================
@@ -435,9 +494,9 @@ class PharmacyInventory extends Component {
     });
 
     const form = modal.querySelector("#inventoryAddItemForm");
-    form?.addEventListener("submit", (ev) => {
+    form?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      this.createInventoryItemFromForm(form);
+      await this.createInventoryItemFromForm(form);
     });
 
     // Set today's date as min expiry date
@@ -453,108 +512,37 @@ class PharmacyInventory extends Component {
     if (modal) modal.remove();
   }
 
-  createInventoryItemFromForm(form) {
+  // ====================== CREATE ITEM ======================
+  async createInventoryItemFromForm(form) {
     const formData = new FormData(form);
-
-    // Get and validate form data
-    const name = String(formData.get("name") || "").trim();
-    const category = String(formData.get("category") || "").trim();
-    const batch = String(formData.get("batch") || "").trim();
-    const expiryDate = String(formData.get("expiryDate") || "").trim();
-    const stock = Number(formData.get("stock") || 0);
-    const cost = Number(formData.get("cost") || 0);
-    const price = Number(formData.get("price") || 0);
-    const reorderLevel = Number(formData.get("reorderLevel")) || 20;
-
-    // Validation
-    if (!name || !category || !batch || !expiryDate) {
-      this.showNotification("⚠️ Please fill all required fields", "warning");
-      return;
-    }
-
-    if (isNaN(stock) || stock < 0) {
-      this.showNotification(
-        "⚠️ Please enter a valid stock quantity",
-        "warning",
-      );
-      return;
-    }
-
-    if (isNaN(cost) || cost < 0 || isNaN(price) || price < 0) {
-      this.showNotification("⚠️ Please enter valid prices", "warning");
-      return;
-    }
-
-    if (price < cost) {
-      this.showNotification(
-        "⚠️ Selling price should be greater than cost price",
-        "warning",
-      );
-      return;
-    }
-
-    // Parse expiry date and create label
-    const parsedExpiry = this.parseISODate(expiryDate);
-    if (!parsedExpiry) {
-      this.showNotification("⚠️ Invalid expiry date", "warning");
-      return;
-    }
-
-    const expiryLabel = parsedExpiry.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-    // Generate new ID
-    const nextId =
-      (this.inventoryItems || []).reduce(
-        (max, i) => Math.max(max, Number(i.id) || 0),
-        0,
-      ) + 1;
-
-    // Generate barcode if not provided
-    const barcode =
-      String(formData.get("barcode") || "").trim() || `AUTO-${Date.now()}`;
-
-    // Create new item
-    const newItem = {
-      id: nextId,
-      icon: "💊",
-      name,
-      generic: String(formData.get("generic") || "").trim(),
-      barcode,
-      category,
-      batch,
-      expiryDate,
-      expiryLabel,
-      stock: Number(stock),
-      reorderLevel: Number(reorderLevel),
-      cost: Number(cost),
-      price: Number(price),
-      rxOnly: formData.get("rxOnly") === "on",
+  
+    const payload = {
+      name: formData.get("name"),
+      generic: formData.get("generic"),
+      barcode: formData.get("barcode"),
+      category: formData.get("category"),
+      batch: formData.get("batch"),
+      expiry_date: formData.get("expiryDate"),
+      stock: Number(formData.get("stock")),
+      cost: Number(formData.get("cost")),
+      price: Number(formData.get("price")),
+      rx_only: formData.get("rxOnly") === "on",
       controlled: formData.get("controlled") === "on",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
-
-    // Add to inventory
-    if (!this.inventoryItems) this.inventoryItems = [];
-    this.inventoryItems.unshift(newItem);
-
-    // Save to localStorage
-    this.saveInventoryItems();
-
-    // Refresh UI
-    this.refreshInventoryCategoryOptions();
-    this.updateInventoryStatsAndTable();
-    this.closeInventoryAddItemModal();
-
-    // Show success notification
-    this.showNotification(
-      `✅ "${name}" added successfully to inventory!`,
-      "success",
-    );
+  
+    try {
+      const rpcService = this.rpc || rpc;
+      await rpcService("/pharmacy/inventory/create", { data: payload });
+  
+      await this.loadInventoryItems();
+      this.updateInventoryStatsAndTable();
+      this.closeInventoryAddItemModal();
+  
+      this.showNotification("✅ Item added!", "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("❌ Error creating item", "error");
+    }
   }
 
   refreshInventoryCategoryOptions() {
@@ -645,13 +633,13 @@ class PharmacyInventory extends Component {
     });
 
     const form = modal.querySelector("#stockAdjustmentForm");
-    form?.addEventListener("submit", (ev) => {
+    form?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      this.updateStockFromForm(form);
+      await this.updateStockFromForm(form);
     });
   }
 
-  updateStockFromForm(form) {
+  async updateStockFromForm(form) {
     const formData = new FormData(form);
     const itemId = Number(formData.get("item_id"));
     const type = formData.get("adjustment_type");
@@ -667,31 +655,23 @@ class PharmacyInventory extends Component {
       return;
     }
 
-    const itemIndex = this.inventoryItems.findIndex((i) => i.id === itemId);
-    if (itemIndex === -1) return;
+    try {
+      const rpcService = this.rpc || rpc;
+      await rpcService("/pharmacy/inventory/update_stock", {
+        item_id: itemId,
+        quantity: quantity,
+        operation: type,
+      });
 
-    const item = this.inventoryItems[itemIndex];
-    const oldStock = item.stock;
+      await this.loadInventoryItems();
+      this.updateInventoryStatsAndTable();
+      document.getElementById("stockAdjustmentModal")?.remove();
 
-    if (type === "set") {
-      item.stock = quantity;
-    } else if (type === "add") {
-      item.stock += quantity;
-    } else if (type === "subtract") {
-      item.stock = Math.max(0, item.stock - quantity);
+      this.showNotification(`✅ Stock updated successfully`, "success");
+    } catch (error) {
+      console.error(error);
+      this.showNotification("⚠️ Error updating stock", "error");
     }
-
-    item.updatedAt = new Date().toISOString();
-
-    // Save and Refresh
-    this.saveInventoryItems();
-    this.updateInventoryStatsAndTable();
-    document.getElementById("stockAdjustmentModal")?.remove();
-
-    this.showNotification(
-      `✅ Stock updated for ${item.name}: ${oldStock} → ${item.stock}`,
-      "success",
-    );
   }
 
   showNotification(message, type = "info") {
