@@ -292,14 +292,17 @@ class PharmacyInventory extends Component {
       0,
     );
 
-    document.getElementById("inventoryTotalItemsValue").textContent =
-      totalItems;
-    document.getElementById("inventoryLowStockValue").textContent =
-      lowStockCount;
-    document.getElementById("inventoryExpiringValue").textContent =
-      expiringCount;
-    document.getElementById("inventoryStockValueValue").textContent =
-      this.formatLKRCompact(stockValue);
+    const totalItemsEl = document.getElementById("inventoryTotalItemsValue");
+    const lowStockEl = document.getElementById("inventoryLowStockValue");
+    const expiringEl = document.getElementById("inventoryExpiringValue");
+    const stockValueEl = document.getElementById("inventoryStockValueValue");
+
+    // This method can be called from other pages (e.g., POS),
+    // so safely skip DOM updates when inventory widgets are not mounted.
+    if (totalItemsEl) totalItemsEl.textContent = totalItems;
+    if (lowStockEl) lowStockEl.textContent = lowStockCount;
+    if (expiringEl) expiringEl.textContent = expiringCount;
+    if (stockValueEl) stockValueEl.textContent = this.formatLKRCompact(stockValue);
 
     const filtered = this.applyInventoryFilters();
     this.renderInventoryTable(filtered);

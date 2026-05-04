@@ -36,7 +36,7 @@ class PharmacyCustomers {
   async loadCustomers() {
     try {
       const result = await this.rpc("/pharmacy/customers/list");
-      
+
       if (result && !Array.isArray(result) && result.error) {
         console.error("Backend Error:", result.error);
         this.customers = [];
@@ -44,21 +44,40 @@ class PharmacyCustomers {
       }
 
       // Map Odoo snake_case fields to camelCase for frontend
-      this.customers = (Array.isArray(result) ? result : []).map(c => ({
+      this.customers = (Array.isArray(result) ? result : []).map((c) => ({
         ...c,
         totalPurchases: c.total_purchases || 0,
         memberSince: c.member_since || "New Member",
         creditLimit: c.credit_limit || 0,
         creditUsed: c.credit_used || 0,
         loyaltyPoints: c.loyalty_points || 0,
+        recentPurchases: Array.isArray(c.recent_purchases)
+          ? c.recent_purchases.map((p) => ({
+              saleId: p.saleId ?? p.sale_id ?? p.id ?? null,
+              receiptNumber: p.receiptNumber ?? p.receipt_number ?? "N/A",
+              paymentMethod: p.paymentMethod ?? p.payment_method ?? "cash",
+              totalAmount: Number(p.totalAmount ?? p.total_amount ?? 0),
+              timestamp: p.timestamp || "",
+              displayTimestamp:
+                p.displayTimestamp ?? p.display_timestamp ?? p.timestamp ?? "",
+              items: Array.isArray(p.items)
+                ? p.items.map((item) => ({
+                    name: item.name || "Item",
+                    quantity: Number(item.quantity || 0),
+                    unitPrice: Number(item.unitPrice ?? item.unit_price ?? 0),
+                    total: Number(item.total || 0),
+                    batch: item.batch || "",
+                    expiry: item.expiry || "",
+                  }))
+                : [],
+            }))
+          : [],
       }));
     } catch (error) {
       console.error("RPC Error loading customers:", error);
       this.customers = [];
     }
   }
-
-
 
   renderCustomers() {
     const container = document.getElementById("dashboard_container");
@@ -76,7 +95,7 @@ class PharmacyCustomers {
                         >
                     </div>
                     <div class="customers-header-actions">
-                        <button class="btn btn-primary" id="addCustomerBtn" style="padding: 12px 24px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
+                        <button class="action-btn-glass add-btn" id="addCustomerBtn" style="padding: 12px 24px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
                             <span class="btn-icon" style="font-size: 18px;">➕</span>
                             Add Customer
                         </button>
@@ -247,7 +266,7 @@ class PharmacyCustomers {
                                             ${purchase.items
                                               .map(
                                                 (item, idx) => `
-                                                <div style="display: flex; justify-content: space-between; align-items: center; ${idx !== purchase.items.length - 1 ? 'padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;' : ''}">
+                                                <div style="display: flex; justify-content: space-between; align-items: center; ${idx !== purchase.items.length - 1 ? "padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;" : ""}">
                                                     <div style="display: flex; flex-direction: column; gap: 2px;">
                                                         <span style="font-weight: 600; color: #334155; font-size: 13px;">${item.name}</span>
                                                         <span style="color: #64748b; font-size: 12px;">${item.quantity} × LKR ${Number(item.unitPrice).toFixed(2)}</span>
@@ -277,8 +296,6 @@ class PharmacyCustomers {
     // Search input
     const searchInput = document.getElementById("customerSearchInput");
     searchInput?.addEventListener("input", () => this.filterCustomers());
-
-
 
     // Add Customer button
     const addCustomerBtn = document.getElementById("addCustomerBtn");

@@ -1,6 +1,6 @@
-/** @odoo-module **/
+import { rpc } from "@web/core/network/rpc";
 
-class PharmacyPurchasing {
+export class PharmacyPurchasing {
   constructor() {
     this.charts = {};
     this.refreshInterval = null;
@@ -10,153 +10,156 @@ class PharmacyPurchasing {
     this.purchaseOrdersSearchQuery = "";
     this.dashboardData = {};
     this.ordersData = {};
-    this.grnData = {};
-    this.suppliersData = {};
+    this.grnData = { grn_records: [] };
+    this.rpc = rpc;
+    window.pharmacyPurchasing = this;
 
-    // Initialize data
-    this.loadPurchasingData().then(() => {
-      this.renderPurchasingPage();
-      this.initializePurchasingHandlers();
-      this.updatePurchasingStats();
-      this.startAutoRefresh();
-    });
+    // Initialize
+    this.init();
   }
 
+  async init() {
+    await this.loadPurchasingData();
+    this.renderPurchasingPage();
+    this.initializePurchasingHandlers();
+    this.updatePurchasingStats();
+    this.startAutoRefresh();
+  }
+
+  // --- Data Helpers ---
+
   async loadPurchasingData() {
-    const basePath = "/pharmacy_pos_ui/static/src/js/data/purchasing/";
-
     try {
-      this.dashboardData = await this.fetchJSON(basePath + "dashboard.json");
-      this.ordersData = await this.fetchJSON(basePath + "purchase_orders.json");
-      this.grnData = await this.fetchJSON(basePath + "grn.json");
-      this.suppliersData = await this.fetchJSON(basePath + "suppliers.json");
-
-      // Use this data instead of hardcoded arrays
-      this.purchaseOrders = this.ordersData.orders || [];
-      this.suppliers = this.suppliersData.suppliers || [];
-
-      console.log("Purchasing data loaded successfully:", {
-        dashboard: this.dashboardData,
-        orders: this.ordersData,
-        grn: this.grnData,
-        suppliers: this.suppliersData,
-      });
+      const result = await this.rpc("/pharmacy_pos/get_purchasing_data");
+      if (result && !result.error) {
+        this.suppliers = result.suppliers || [];
+        this.purchaseOrders = result.orders || [];
+        this.grnData = { grn_records: result.grns || [] };
+      }
     } catch (error) {
       console.error("Error loading purchasing data:", error);
-      // Fallback to default data if JSON files fail to load
-      this.loadDefaultPurchasingData();
     }
+  }
+
+  _saveLocal(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  _loadLocal(key, defaultValue) {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  }
+
+  savePurchaseOrders() {
+    // Persisted in backend on creation
+  }
+  saveSuppliers() {
+    // Persisted in backend on creation/update
+  }
+  saveGRNRecords() {
+    // Persisted in backend on processing
   }
 
   async fetchJSON(url) {
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`Error fetching JSON from ${url}:`, error);
-      throw error;
+      return response.ok ? await response.json() : null;
+    } catch (e) {
+      return null;
     }
   }
 
-  loadDefaultPurchasingData() {
-    // Fallback data when JSON files are not available
-    this.purchaseOrders = [
-      {
-        id: "1",
-        orderNumber: "PO-001234",
-        supplierId: "1",
-        supplierName: "MediSupply Ltd",
-        orderDate: new Date().toISOString(),
-        items: [
-          {
-            name: "Paracetamol 500mg",
-            quantity: 100,
-            unitCost: 5.5,
-            batch: "B001",
-            total: 550.0,
-          },
-          {
-            name: "Amoxicillin 250mg",
-            quantity: 50,
-            unitCost: 8.75,
-            batch: "B002",
-            total: 437.5,
-          },
-        ],
-        totalAmount: 987.5,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "2",
-        orderNumber: "PO-001235",
-        supplierId: "2",
-        supplierName: "PharmaDistributors",
-        orderDate: new Date(Date.now() - 86400000).toISOString(),
-        items: [
-          {
-            name: "Ibuprofen 400mg",
-            quantity: 75,
-            unitCost: 6.25,
-            batch: "B003",
-            total: 468.75,
-          },
-        ],
-        totalAmount: 468.75,
-        status: "received",
-        receivedDate: new Date(Date.now() - 43200000).toISOString(),
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-    ];
+  // --- UI Helpers ---
+
+  _renderModal({ id, title, subtitle, contentHtml, maxWidth = "560px" }) {
+    if (document.getElementById(id)) return;
+    const modal = document.createElement("div");
+    modal.id = id;
+    modal.className = "inventory-modal-overlay";
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    `;
+
+    modal.innerHTML = `
+      <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .premium-input {
+          width: 100%; padding: 0.5rem 0.75rem; border: 1px solid rgba(0,0,0,0.1); 
+          border-radius: 8px; font-size: 0.75rem; background: rgba(255,255,255,0.6);
+          transition: all 0.2s ease; outline: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .premium-input:focus {
+          border-color: #006c11; background: #fff; box-shadow: 0 0 0 3px rgba(0, 108, 17, 0.1);
+        }
+        .premium-label {
+          display: block; font-size: 0.65rem; font-weight: 700; color: #475569; 
+          margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.025em;
+        }
+        .premium-card {
+          padding: 1rem; background: #fff; border: 1px solid rgba(0,0,0,0.05); 
+          border-radius: 12px; cursor: pointer; display: flex; 
+          justify-content: space-between; align-items: center; transition: all 0.2s;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .premium-card:hover {
+          border-color: #006c11; transform: translateY(-2px); 
+          box-shadow: 0 4px 12px rgba(0, 108, 17, 0.08);
+        }
+      </style>
+      <div class="inventory-modal" style="
+        width: 100%; max-width: ${maxWidth}; max-height: 85vh; overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 16px;
+        background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(25px) saturate(200%);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+        animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative;
+      " role="dialog">
+        <div class="inventory-modal-header" style="
+          background: linear-gradient(to right, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05); padding: 1rem 1.25rem;
+          display: flex; justify-content: space-between; align-items: center;
+          position: sticky; top: 0; z-index: 10;
+        ">
+          <div>
+            <h3 style="margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.01em;">${title}</h3>
+            ${subtitle ? `<p style="margin: 0.15rem 0 0; font-size: 0.7rem; color: #64748b; font-weight: 500;">${subtitle}</p>` : ""}
+          </div>
+          <button type="button" onclick="document.getElementById('${id}').remove()" style="
+            background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05);
+            color: #64748b; width: 28px; height: 28px; border-radius: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; font-size: 1.25rem; font-weight: 300;
+          " onmouseover="this.style.background='#fee2e2'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(255,255,255,0.5)'; this.style.color='#64748b'">×</button>
+        </div>
+        <div class="inventory-modal-body">${contentHtml}</div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.remove();
+    });
+    return modal;
   }
 
-  savePurchaseOrders() {
-    localStorage.setItem(
-      "pharmacy_pos_purchase_orders",
-      JSON.stringify(this.purchaseOrders),
-    );
+  _getBadge(text, type = "info") {
+    const styles = {
+      success: "background: #dcfce7; color: #007513;",
+      warning: "background: #fef3c7; color: #d97706;",
+      error: "background: #fee2e2; color: #dc2626;",
+      info: "background: #e0f2fe; color: #0284c7;",
+    };
+    return `<span style="padding: 2px 8px; font-size: 0.65rem; border-radius: 12px; font-weight: 500; ${styles[type] || styles.info}">${text}</span>`;
   }
 
-  loadSuppliers() {
-    const savedSuppliers = localStorage.getItem("pharmacy_pos_suppliers");
-    this.suppliers = savedSuppliers
-      ? JSON.parse(savedSuppliers)
-      : [
-          {
-            id: "1",
-            name: "MediSupply Ltd",
-            email: "info@medisupply.lk",
-            phone: "0112-345678",
-            address: "Colombo 01",
-            status: "active",
-          },
-          {
-            id: "2",
-            name: "PharmaDistributors",
-            email: "orders@pharmadist.lk",
-            phone: "0112-987654",
-            address: "Kandy",
-            status: "active",
-          },
-          {
-            id: "3",
-            name: "GlobalHealth Supplies",
-            email: "contact@globalhealth.lk",
-            phone: "0112-456789",
-            address: "Galle",
-            status: "active",
-          },
-        ];
-  }
-
-  saveSuppliers() {
-    localStorage.setItem(
-      "pharmacy_pos_suppliers",
-      JSON.stringify(this.suppliers),
-    );
+  _getActionButton(icon, title, onClick, colorType = "default") {
+    const isSuccess = colorType === "success";
+    const border = isSuccess ? "#007513" : "#e2e8f0";
+    const bg = isSuccess ? "#dcfce7" : "#f8fafc";
+    const color = isSuccess ? "#007513" : "#475569";
+    return `<button onclick="${onClick}" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid ${border}; background: ${bg}; border-radius: 4px; cursor: pointer; color: ${color};" title="${title}">${icon}</button>`;
   }
 
   renderPurchasingPage() {
@@ -211,9 +214,9 @@ class PharmacyPurchasing {
                         </div>
                     </div>
                     
-                    <!-- Search & Action -->
+                    <!-- Search Only -->
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="position: relative; width: 160px;">
+                        <div style="position: relative; width: 180px;">
                             <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.65rem; color: #94a3b8; pointer-events: none;">🔍</span>
                             <input
                                 id="purchaseOrdersSearchInput"
@@ -224,9 +227,6 @@ class PharmacyPurchasing {
                                 onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.02)'"
                             >
                         </div>
-                        <button id="newPurchaseOrderBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #007513, #005a0e); border: 1px solid #005a0e; border-top-color: #007513; border-bottom-color: #00420a; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
-                            <span style="font-size: 0.6rem;">➕</span> New Purchase Order
-                        </button>
                     </div>
                 </div>
                 
@@ -261,9 +261,6 @@ class PharmacyPurchasing {
     grnTabBtn?.addEventListener("click", () => this.switchPurchasingTab("grn"));
     suppliersTabBtn?.addEventListener("click", () =>
       this.switchPurchasingTab("suppliers"),
-    );
-    newPurchaseOrderBtn?.addEventListener("click", () =>
-      this.openNewPurchaseOrderModal(),
     );
 
     // Add search input event listener
@@ -361,6 +358,12 @@ class PharmacyPurchasing {
     const filteredOrders = this.getFilteredPurchaseOrders();
 
     container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <h3 style="margin: 0; font-size: 0.875rem; color: #1e293b; font-weight: 600;">📦 Purchase Orders</h3>
+                <button onclick="pharmacyPurchasing.openNewPurchaseOrderModal()" style="padding: 6px 14px; font-size: 0.7rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); border: none; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">
+                    <span style="font-size: 0.8rem;">+</span> New Purchase Order
+                </button>
+            </div>
             <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
                 <table class="cart-table compact" style="width: 100%; text-align: left; border-collapse: collapse;">
                     <thead style="background: #f8fafc; border-bottom: 1px solid var(--border-color, #e5e7eb);">
@@ -369,8 +372,8 @@ class PharmacyPurchasing {
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 150px;">Supplier</th>
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Date</th>
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px; text-align: right;">Total (LKR)</th>
-                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px;">Status</th>
-                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Actions</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px; text-align: center;">Status</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 120px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -399,12 +402,17 @@ class PharmacyPurchasing {
   }
 
   renderPurchaseOrderRow(order) {
-    const statusBadge = this.getStatusBadge(order.status);
     const orderDate = new Date(order.orderDate).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
+    const statusType =
+      order.status === "received"
+        ? "success"
+        : order.status === "cancelled"
+          ? "error"
+          : "warning";
 
     return `
             <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9;">
@@ -412,40 +420,129 @@ class PharmacyPurchasing {
                 <td style="padding: 0.75rem; font-size: 0.75rem; color: #475569;">${order.supplierName}</td>
                 <td style="padding: 0.75rem; font-size: 0.75rem; color: #64748b;">${orderDate}</td>
                 <td style="padding: 0.75rem; font-size: 0.75rem; text-align: right; font-weight: 600; color: #0f172a;">${this.formatLKR(order.totalAmount)}</td>
-                <td style="padding: 0.75rem;">${statusBadge}</td>
-                <td style="padding: 0.75rem;">
-                    <div style="display: flex; gap: 0.25rem;">
-                        <button onclick="pharmacyPurchasing.viewPurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569;" title="View">👁</button>
-                        <button onclick="pharmacyPurchasing.editPurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569;" title="Edit">✏️</button>
-                        ${
-                          order.status === "pending"
-                            ? `
-                            <button onclick="pharmacyPurchasing.receivePurchaseOrder('${order.id}')" style="padding: 2px 6px; font-size: 0.65rem; border: 1px solid #007513; background: #dcfce7; border-radius: 4px; cursor: pointer; color: #007513;" title="Receive">✓</button>
-                        `
-                            : ""
-                        }
+                <td style="padding: 0.75rem; text-align: center;">${this._getBadge(order.status.charAt(0).toUpperCase() + order.status.slice(1), statusType)}</td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: nowrap;">
+                        ${this._getActionButton("👁", "View", `pharmacyPurchasing.viewPurchaseOrder('${order.id}')`)}
+                        ${this._getActionButton("✏️", "Edit", `pharmacyPurchasing.editPurchaseOrder('${order.id}')`)}
+                        ${order.status === "pending" ? this._getActionButton("✓", "Receive", `pharmacyPurchasing.receivePurchaseOrder('${order.id}')`, "success") : ""}
+                        ${this._getActionButton("🗑️", "Delete", `pharmacyPurchasing.deletePurchaseOrder('${order.id}')`, "error")}
                     </div>
                 </td>
             </tr>
         `;
   }
 
-  getStatusBadge(status) {
-    const badges = {
-      pending:
-        '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fef3c7; color: #d97706; border-radius: 12px; font-weight: 500;">⏳ Pending</span>',
-      received:
-        '<span style="padding: 2px 8px; font-size: 0.65rem; background: #dcfce7; color: #007513; border-radius: 12px; font-weight: 500;">✅ Received</span>',
-      cancelled:
-        '<span style="padding: 2px 8px; font-size: 0.65rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Cancelled</span>',
-    };
-    return badges[status] || badges.pending;
+  viewPurchaseOrder(id) {
+    const order = this.purchaseOrders.find((o) => String(o.id) === String(id));
+    if (!order) return;
+    this._renderModal({
+      id: "viewPOModal",
+      title: `Order Details: ${order.orderNumber}`,
+      subtitle: `Supplier: ${order.supplierName}`,
+      contentHtml: `
+        <div style="padding: 1rem;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(255,255,255,0.4); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); margin-bottom: 1rem;">
+            <div><div class="premium-label">Status</div><div>${this._getBadge(order.status, order.status === "received" ? "success" : "warning")}</div></div>
+            <div><div class="premium-label">Total Amount</div><div style="font-weight: 700; color: #006c11;">${this.formatLKR(order.totalAmount)}</div></div>
+            <div><div class="premium-label">Order Date</div><div style="font-size: 0.75rem; color: #1e293b;">${new Date(order.orderDate).toLocaleDateString()}</div></div>
+            <div><div class="premium-label">Expected Delivery</div><div style="font-size: 0.75rem; color: #1e293b;">${order.expectedDeliveryDate || "N/A"}</div></div>
+          </div>
+          <div class="premium-label">Order Items</div>
+          <div style="border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.5);">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
+              <thead style="background: rgba(0,0,0,0.02);">
+                <tr>
+                  <th style="padding: 0.5rem; text-align: left;">Item Name</th>
+                  <th style="padding: 0.5rem; text-align: center;">Qty</th>
+                  <th style="padding: 0.5rem; text-align: right;">Unit Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(order.items || [])
+                  .map(
+                    (i) => `
+                  <tr style="border-top: 1px solid rgba(0,0,0,0.03);">
+                    <td style="padding: 0.5rem;">${i.name}</td>
+                    <td style="padding: 0.5rem; text-align: center;">${i.quantity}</td>
+                    <td style="padding: 0.5rem; text-align: right;">${this.formatLKR(i.unitCost)}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; justify-content: flex-end; padding-top: 1.5rem;">
+            <button onclick="document.getElementById('viewPOModal').remove()" style="padding: 0.4rem 1.5rem; font-size: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-weight: 600;">Close</button>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  editPurchaseOrder(id) {
+    this.showNotification(
+      "Edit functionality is currently being implemented.",
+      "info",
+    );
+  }
+
+  async deletePurchaseOrder(id) {
+    if (!confirm("Are you sure you want to delete this purchase order?"))
+      return;
+    try {
+      const result = await this.rpc("/pharmacy_pos/delete_purchase_order", {
+        id,
+      });
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        this.showNotification(
+          "Purchase order deleted successfully.",
+          "success",
+        );
+      } else {
+        this.showNotification(
+          result.error || "Failed to delete order",
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      this.showNotification("Error connecting to server", "error");
+    }
+  }
+
+  async receivePurchaseOrder(orderId) {
+    try {
+      const result = await this.rpc("/pharmacy_pos/process_grn", { orderId });
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        this.showNotification(
+          "Inventory received and GRN recorded!",
+          "success",
+        );
+      } else {
+        this.showNotification(result.error || "Failed to process GRN", "error");
+      }
+    } catch (error) {
+      console.error("Error processing GRN:", error);
+      this.showNotification("Error processing GRN", "error");
+    }
   }
 
   renderGRNTab(container) {
     const grnRecords = this.grnData?.grn_records || [];
 
     container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <h3 style="margin: 0; font-size: 0.875rem; color: #1e293b; font-weight: 600;">📋 Goods Received Notes</h3>
+                <button onclick="pharmacyPurchasing.openNewGRNModal()" style="padding: 6px 14px; font-size: 0.7rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); border: none; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">
+                    <span style="font-size: 0.8rem;">+</span> Create New GRN
+                </button>
+            </div>
             <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
                 <table class="cart-table compact" style="width: 100%; text-align: left; border-collapse: collapse;">
                     <thead style="background: #f8fafc; border-bottom: 1px solid var(--border-color, #e5e7eb);">
@@ -508,8 +605,8 @@ class PharmacyPurchasing {
     container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                 <h3 style="margin: 0; font-size: 0.875rem; color: #1e293b; font-weight: 600;">🏢 Supplier Management</h3>
-                <button id="addSupplierBtn" style="padding: 4px 10px; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(to bottom, #3b82f6, #2563eb); border: 1px solid #1e40af; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'">
-                    <span>➕</span> Add Supplier
+                <button onclick="pharmacyPurchasing.openAddSupplierModal()" style="padding: 6px 14px; font-size: 0.7rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); border: none; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">
+                    <span style="font-size: 0.8rem;">+</span> Add Supplier
                 </button>
             </div>
             <div class="cart-table-container inventory-table-container compact" style="background: #ffffff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.375rem; overflow: hidden;">
@@ -519,8 +616,8 @@ class PharmacyPurchasing {
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 180px;">Supplier Details</th>
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 150px;">Contact Information</th>
                             <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 120px;">Location</th>
-                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Status</th>
-                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 80px;">Actions</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 100px; text-align: center;">Status</th>
+                            <th style="padding: 0.5rem 0.75rem; font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; min-width: 120px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -547,492 +644,502 @@ class PharmacyPurchasing {
                 </table>
             </div>
         `;
-
-    // Add event listener for the Add Supplier button
-    const addSupplierBtn = container.querySelector("#addSupplierBtn");
-    if (addSupplierBtn) {
-      addSupplierBtn.addEventListener("click", () =>
-        this.openAddSupplierModal(),
-      );
-    }
   }
 
   renderSupplierRow(supplier) {
-    const statusBadge =
-      supplier.status === "active"
-        ? '<span style="padding: 2px 8px; font-size: 0.6rem; background: #dcfce7; color: #007513; border-radius: 12px; font-weight: 500;">✅ Active</span>'
-        : '<span style="padding: 2px 8px; font-size: 0.6rem; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: 500;">❌ Inactive</span>';
+    const statusType = supplier.status === "active" ? "success" : "error";
 
     return `
             <tr class="cart-row" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='transparent'">
                 <td style="padding: 0.75rem;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="font-weight: 600; color: #1e293b; font-size: 0.75rem;">${supplier.name}</div>
-                        <div style="font-size: 0.65rem; color: #64748b;">📧 ${supplier.email}</div>
-                        <div style="font-size: 0.65rem; color: #64748b;">📱 ${supplier.phone}</div>
+                    <div style="font-weight: 600; color: #1e293b; font-size: 0.75rem;">${supplier.name}</div>
+                </td>
+                <td style="padding: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                        <div style="font-size: 0.65rem; color: #64748b;">📧 ${supplier.email || "N/A"}</div>
+                        <div style="font-size: 0.65rem; color: #64748b;">📱 ${supplier.phone || "N/A"}</div>
                     </div>
                 </td>
                 <td style="padding: 0.75rem;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="font-size: 0.7rem; color: #475569; font-weight: 500;">📍 ${supplier.address}</div>
-                        <div style="font-size: 0.65rem; color: #64748b;">${supplier.city}</div>
-                    </div>
+                    <div style="font-size: 0.7rem; color: #475569; font-weight: 500;">📍 ${supplier.address || "N/A"}</div>
                 </td>
-                <td style="padding: 0.75rem;">${statusBadge}</td>
-                <td style="padding: 0.75rem;">
-                    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                        <button onclick="pharmacyPurchasing.viewSupplier('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="View Details">👁</button>
-                        <button onclick="pharmacyPurchasing.editSupplier('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; cursor: pointer; color: #475569; transition: all 0.2s ease;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'" title="Edit Supplier">✏️</button>
-                        <button onclick="pharmacyPurchasing.toggleSupplierStatus('${supplier.id}')" style="padding: 3px 6px; font-size: 0.6rem; border: 1px solid ${supplier.status === "active" ? "#fbbf24" : "#007513"}; background: ${supplier.status === "active" ? "#fef3c7" : "#dcfce7"}; border-radius: 4px; cursor: pointer; color: ${supplier.status === "active" ? "#d97706" : "#007513"}; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(1)'" title="${supplier.status === "active" ? "Deactivate" : "Activate"}">🔄</button>
+                <td style="padding: 0.75rem; text-align: center;">${this._getBadge(supplier.status.charAt(0).toUpperCase() + supplier.status.slice(1), statusType)}</td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: nowrap;">
+                        ${this._getActionButton("👁", "View", `pharmacyPurchasing.viewSupplier('${supplier.id}')`)}
+                        ${this._getActionButton("✏️", "Edit", `pharmacyPurchasing.editSupplier('${supplier.id}')`)}
+                        ${this._getActionButton("🔄", supplier.status === "active" ? "Deactivate" : "Activate", `pharmacyPurchasing.toggleSupplierStatus('${supplier.id}')`, supplier.status === "active" ? "warning" : "success")}
+                        ${this._getActionButton("🗑️", "Delete", `pharmacyPurchasing.deleteSupplier('${supplier.id}')`, "error")}
                     </div>
                 </td>
             </tr>
         `;
   }
 
-  getFilteredPurchaseOrders() {
+  async deleteSupplier(id) {
     if (
-      !this.purchaseOrdersSearchQuery ||
-      this.purchaseOrdersSearchQuery.trim() === ""
-    ) {
-      return this.purchaseOrders;
+      !confirm(
+        "Are you sure you want to delete this supplier? This will also affect linked orders.",
+      )
+    )
+      return;
+    try {
+      const result = await this.rpc("/pharmacy_pos/delete_supplier", { id });
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        this.showNotification("Supplier deleted successfully.", "success");
+      } else {
+        this.showNotification(
+          result.error || "Failed to delete supplier",
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting supplier:", error);
+      this.showNotification("Error connecting to server", "error");
     }
+  }
 
-    const query = this.purchaseOrdersSearchQuery.toLowerCase().trim();
+  getFilteredPurchaseOrders() {
+    const query = (this.purchaseOrdersSearchQuery || "").toLowerCase().trim();
+    if (!query) return this.purchaseOrders;
     return this.purchaseOrders.filter(
-      (order) =>
-        (order.orderNumber &&
-          order.orderNumber.toLowerCase().includes(query)) ||
-        (order.supplierName &&
-          order.supplierName.toLowerCase().includes(query)) ||
-        (order.status && order.status.toLowerCase().includes(query)),
+      (o) =>
+        (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
+        (o.supplierName && o.supplierName.toLowerCase().includes(query)) ||
+        (o.status && o.status.toLowerCase().includes(query)),
     );
   }
 
   getFilteredSuppliers() {
-    if (
-      !this.purchaseOrdersSearchQuery ||
-      this.purchaseOrdersSearchQuery.trim() === ""
-    ) {
-      return this.suppliers;
-    }
-
-    const query = this.purchaseOrdersSearchQuery.toLowerCase().trim();
+    const query = (this.purchaseOrdersSearchQuery || "").toLowerCase().trim();
+    if (!query) return this.suppliers;
     return this.suppliers.filter(
-      (supplier) =>
-        (supplier.name && supplier.name.toLowerCase().includes(query)) ||
-        (supplier.email && supplier.email.toLowerCase().includes(query)) ||
-        (supplier.phone && supplier.phone.includes(query)) ||
-        (supplier.address && supplier.address.toLowerCase().includes(query)) ||
-        (supplier.city && supplier.city.toLowerCase().includes(query)),
+      (s) =>
+        (s.name && s.name.toLowerCase().includes(query)) ||
+        (s.email && s.email.toLowerCase().includes(query)) ||
+        (s.phone && s.phone.includes(query)) ||
+        (s.address && s.address.toLowerCase().includes(query)) ||
+        (s.city && s.city.toLowerCase().includes(query)),
     );
   }
 
-  // Placeholder methods for modals and actions
+  // --- Modals ---
+
   openNewPurchaseOrderModal() {
-    if (document.getElementById("purchaseOrderModal")) return;
-
-    const modal = document.createElement("div");
-    modal.id = "purchaseOrderModal";
-    modal.className = "inventory-modal-overlay";
-    modal.innerHTML = `
-            <div class="inventory-modal" style="max-width: 520px; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);" role="dialog" aria-modal="true" aria-labelledby="purchaseOrderTitle">
-                <div class="inventory-modal-header" style="background: rgba(255, 255, 255, 0.2); border-bottom: 1px solid rgba(0, 0, 0, 0.05); padding: 0.75rem 1rem; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h3 id="purchaseOrderTitle" style="margin: 0; font-size: 0.9rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">
-                            Create New Purchase Order
-                        </h3>
-                        <p style="margin: 0; font-size: 0.65rem; color: #64748b;">Configure supplier and order items</p>
-                    </div>
-                    <button type="button" class="inventory-modal-close" aria-label="Close" style="background: transparent; border: 1px solid rgba(0,0,0,0.1); color: #64748b; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">×</button>
-                </div>
-                
-                <form id="purchaseOrderForm" style="padding: 1rem; background: transparent;">
-                    <!-- Order Information -->
-                    <div style="margin-bottom: 0.75rem;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.6rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-                            Basic Information
-                        </h4>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                            <div style="grid-column: span 2;">
-                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #475569; margin-bottom: 0.2rem;">Supplier *</label>
-                                <select name="supplierId" required style="width: 100%; padding: 0.35rem 0.6rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: rgba(255,255,255,0.5); outline: none;">
-                                    <option value="">Select Supplier...</option>
-                                    ${this.suppliers
-                                      .filter((s) => s.status === "active")
-                                      .map(
-                                        (supplier) =>
-                                          `<option value="${supplier.id}">${supplier.name}</option>`,
-                                      )
-                                      .join("")}
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #475569; margin-bottom: 0.2rem;">Order Date *</label>
-                                <input type="date" name="orderDate" required style="width: 100%; padding: 0.35rem 0.6rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: rgba(255,255,255,0.5); outline: none;">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #475569; margin-bottom: 0.2rem;">Expected Delivery</label>
-                                <input type="date" name="expectedDeliveryDate" style="width: 100%; padding: 0.35rem 0.6rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: rgba(255,255,255,0.5); outline: none;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Order Items -->
-                    <div style="margin-bottom: 0.75rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <h4 style="margin: 0; font-size: 0.6rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-                                Order Items
-                            </h4>
-                            <div style="display: flex; gap: 0.35rem;">
-                                <button type="button" id="addItemBtn" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
-                                    + Add Item
-                                </button>
-                                <button type="button" id="clearItemsBtn" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; font-weight: 700; cursor: pointer;">
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div id="itemsContainer" style="border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; padding: 0.5rem; background: rgba(0,0,0,0.02); min-height: 80px; max-height: 240px; overflow-y: auto;">
-                            <!-- Items will be injected here -->
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.4); border-radius: 8px; border: 1px solid rgba(0,0,0,0.05);">
-                            <div style="font-size: 0.65rem; color: #64748b; font-weight: 600;">
-                                <span id="itemCount">0 items</span> • Qty: <span id="totalQuantity">0</span>
-                            </div>
-                            <div id="orderTotal" style="font-size: 0.85rem; font-weight: 800; color: #0f172a;">
-                                Total: <span style="color: #10b981;">LKR 0.00</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Form Actions -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.6rem; color: #94a3b8; font-style: italic;">
-                            * Required fields
-                        </div>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button type="button" class="btn btn-secondary" id="cancelPurchaseOrderBtn" style="padding: 0.4rem 1rem; font-size: 0.7rem; border-radius: 6px; background: white; color: #475569; border: 1px solid #e2e8f0; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                Cancel
-                            </button>
-                            <button type="submit" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.7rem; border-radius: 6px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
-                                Create Order
-                            </button>
-                        </div>
-                    </div>
-                </form>
+    this._renderModal({
+      id: "purchaseOrderModal",
+      title: "New Purchase Order",
+      subtitle: "Select supplier and add items to your order",
+      contentHtml: `
+        <form id="purchaseOrderForm" style="padding: 1.25rem;">
+          <div style="margin-bottom: 1rem;">
+            <label class="premium-label">Supplier *</label>
+            <select name="supplierId" required class="premium-input" style="appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem;">
+              <option value="">Select a supplier...</option>
+              ${this.suppliers
+                .filter((s) => s.status === "active")
+                .map((s) => `<option value="${s.id}">${s.name}</option>`)
+                .join("")}
+            </select>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label class="premium-label">Order Date *</label>
+              <input type="date" name="orderDate" required value="${new Date().toISOString().split("T")[0]}" class="premium-input">
             </div>
-        `;
+            <div>
+              <label class="premium-label">Expected Delivery</label>
+              <input type="date" name="expectedDeliveryDate" class="premium-input">
+            </div>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 0.7rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Order Items</h4>
+              <button type="button" onclick="pharmacyPurchasing.addPurchaseOrderItem()" style="padding: 4px 12px; font-size: 0.65rem; border-radius: 6px; background: #3b82f6; color: white; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                <span style="font-size: 0.8rem;">+</span> Add Item
+              </button>
+            </div>
+            <div id="itemsContainer" style="border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 0.75rem; background: rgba(0,0,0,0.02); max-height: 220px; overflow-y: auto;"></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 0.75rem; padding: 0.75rem 1rem; background: #fff; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+              <span id="itemCount" style="font-size: 0.7rem; color: #64748b; font-weight: 500;">0 items</span>
+              <span id="orderTotal" style="font-size: 0.85rem; font-weight: 800; color: #0f172a;">Total: <span style="color: #007513;">LKR 0.00</span></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05);">
+            <button type="button" onclick="document.getElementById('purchaseOrderModal').remove()" style="padding: 0.5rem 1.25rem; font-size: 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #475569; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Cancel</button>
+            <button type="submit" style="padding: 0.5rem 1.75rem; font-size: 0.75rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); color: white; border: none; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">Create Purchase Order</button>
+          </div>
+        </form>
+      `,
+    });
 
-    document.body.appendChild(modal);
-
-    // Set default order date to today
-    const orderDateInput = modal.querySelector('input[name="orderDate"]');
-    if (orderDateInput) {
-      orderDateInput.value = new Date().toISOString().split("T")[0];
-    }
-
-    // Initialize items array
     this.currentOrderItems = [];
     this.updateItemsDisplay();
 
-    // Event listeners
-    const close = () => this.closePurchaseOrderModal();
-    modal
-      .querySelector(".inventory-modal-close")
-      ?.addEventListener("click", close);
-    modal
-      .querySelector("#cancelPurchaseOrderBtn")
-      ?.addEventListener("click", close);
-    modal.addEventListener("click", (ev) => {
-      if (ev.target === modal) close();
-    });
-
-    // Add item button
-    modal.querySelector("#addItemBtn")?.addEventListener("click", () => {
-      this.addPurchaseOrderItem();
-    });
-
-    // Clear items button
-    modal.querySelector("#clearItemsBtn")?.addEventListener("click", () => {
-      this.clearAllItems();
-    });
-
-    // Form submission
-    const form = modal.querySelector("#purchaseOrderForm");
-    form?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
+    const form = document.getElementById("purchaseOrderForm");
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
       this.createPurchaseOrderFromForm(form);
     });
   }
 
+  openNewGRNModal() {
+    const pendingOrders = this.purchaseOrders.filter(
+      (o) => o.status === "pending",
+    );
+    this._renderModal({
+      id: "grnModal",
+      title: "Receive Inventory (GRN)",
+      subtitle:
+        "Select a pending purchase order to process the Goods Received Note",
+      contentHtml: `
+        <div style="padding: 1.25rem;">
+          ${
+            pendingOrders.length === 0
+              ? `
+            <div style="text-align: center; padding: 2rem 1rem; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px dashed rgba(0,0,0,0.1);">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">📋</div>
+              <p style="color: #64748b; font-size: 0.8rem; font-weight: 500; margin: 0;">No pending purchase orders found.</p>
+              <p style="color: #94a3b8; font-size: 0.7rem; margin-top: 0.25rem;">Create a new order before processing a GRN.</p>
+            </div>
+          `
+              : `
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <p class="premium-label">Select Pending Order</p>
+              ${pendingOrders
+                .map(
+                  (o) => `
+                <div onclick="pharmacyPurchasing.receivePurchaseOrder('${o.id}'); document.getElementById('grnModal').remove();" 
+                     class="premium-card">
+                  <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: #dcfce7; color: #006c11; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">📦</div>
+                    <div>
+                      <div style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">${o.orderNumber}</div>
+                      <div style="font-size: 0.7rem; color: #64748b; font-weight: 500;">${o.supplierName} • ${new Date(o.orderDate).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="font-size: 0.85rem; font-weight: 800; color: #007513;">${this.formatLKR(o.totalAmount)}</div>
+                    <div style="font-size: 0.65rem; color: #006c11; font-weight: 600;">Process Receipt →</div>
+                  </div>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          `
+          }
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05);">
+            <button onclick="document.getElementById('grnModal').remove()" style="padding: 0.5rem 1.25rem; font-size: 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #475569; font-weight: 600; cursor: pointer;">Close</button>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  openAddSupplierModal() {
+    this._renderModal({
+      id: "addSupplierModal",
+      title: "Add New Supplier",
+      subtitle: "Enter supplier contact and location details",
+      contentHtml: this._getSupplierFormHtml(),
+    });
+
+    const form = document.getElementById("supplierForm");
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.createSupplier(form);
+    });
+  }
+
+  editSupplier(id) {
+    const supplier = this.suppliers.find((s) => s.id === id);
+    if (!supplier) return;
+
+    this._renderModal({
+      id: "editSupplierModal",
+      title: `Edit Supplier: ${supplier.name}`,
+      subtitle: "Update supplier details",
+      contentHtml: this._getSupplierFormHtml(supplier),
+    });
+
+    const form = document.getElementById("supplierForm");
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.updateSupplierFromForm(form);
+    });
+  }
+
+  viewSupplier(id) {
+    const s = this.suppliers.find((s) => s.id === id);
+    if (!s) return;
+    this._renderModal({
+      id: "viewSupplierModal",
+      title: `Supplier Details: ${s.name}`,
+      subtitle: "Detailed information for this supplier",
+      contentHtml: `
+        <div style="padding: 1rem;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(255,255,255,0.4); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); margin-bottom: 1rem;">
+            <div><div style="font-size: 0.6rem; color: #64748b;">Full Name</div><div style="font-size: 0.8rem; font-weight: 600; color: #1e293b;">${s.name}</div></div>
+            <div><div style="font-size: 0.6rem; color: #64748b;">Status</div><div>${this._getBadge(s.status, s.status === "active" ? "success" : "error")}</div></div>
+            <div><div style="font-size: 0.6rem; color: #64748b;">Email</div><div style="font-size: 0.8rem; color: #1e293b;">${s.email || "N/A"}</div></div>
+            <div><div style="font-size: 0.6rem; color: #64748b;">Phone</div><div style="font-size: 0.8rem; color: #1e293b;">${s.phone}</div></div>
+          </div>
+          <div style="background: rgba(255,255,255,0.4); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05);">
+            <div style="font-size: 0.6rem; color: #64748b;">Address</div><div style="font-size: 0.8rem; color: #1e293b;">${s.address || "N/A"}</div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05); margin-top: 1rem;">
+            <button onclick="document.getElementById('viewSupplierModal').remove()" style="padding: 0.4rem 1rem; font-size: 0.7rem; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Close</button>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  _getSupplierFormHtml(s = {}) {
+    return `
+      <form id="supplierForm" style="padding: 1.25rem;">
+        <input type="hidden" name="id" value="${s.id || ""}">
+        <div style="margin-bottom: 1rem;">
+          <label class="premium-label">Supplier Name *</label>
+          <input type="text" name="name" required placeholder="e.g. MediSupply Ltd" value="${s.name || ""}" class="premium-input">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label class="premium-label">Email Address</label>
+            <input type="email" name="email" placeholder="contact@example.com" value="${s.email || ""}" class="premium-input">
+          </div>
+          <div>
+            <label class="premium-label">Phone Number *</label>
+            <input type="text" name="phone" required placeholder="+94 XX XXX XXXX" value="${s.phone || ""}" class="premium-input">
+          </div>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label class="premium-label">Business Address</label>
+          <textarea name="address" rows="3" placeholder="Enter full business address..." class="premium-input" style="resize: none; font-family: inherit;">${s.address || ""}</textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05);">
+          <button type="button" onclick="this.closest('.inventory-modal-overlay').remove()" style="padding: 0.5rem 1.25rem; font-size: 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #475569; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Cancel</button>
+          <button type="submit" style="padding: 0.5rem 1.75rem; font-size: 0.75rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); color: white; border: none; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">Save Supplier</button>
+        </div>
+      </form>
+    `;
+  }
+
+  // --- Logic Methods ---
+
   addPurchaseOrderItem() {
-    const itemId = Date.now().toString();
-    const newItem = {
-      id: itemId,
+    this.currentOrderItems.push({
+      id: Date.now().toString(),
       name: "",
       quantity: 1,
       unitCost: 0,
       batch: "",
       total: 0,
-    };
-
-    this.currentOrderItems.push(newItem);
+    });
     this.updateItemsDisplay();
-  }
-
-  clearAllItems() {
-    if (this.currentOrderItems.length === 0) {
-      this.showNotification("No items to clear", "info");
-      return;
-    }
-
-    if (
-      confirm(
-        "Are you sure you want to clear all items? This action cannot be undone.",
-      )
-    ) {
-      this.currentOrderItems = [];
-      this.updateItemsDisplay();
-      this.showNotification("All items cleared", "success");
-    }
-  }
-
-  updateItemsDisplay() {
-    const container = document.getElementById("itemsContainer");
-    const orderTotal = document.getElementById("orderTotal");
-    const itemCount = document.getElementById("itemCount");
-    const totalQuantity = document.getElementById("totalQuantity");
-
-    if (!container) return;
-
-    if (this.currentOrderItems.length === 0) {
-      container.innerHTML = `
-                <div id="noItemsMessage" style="text-align: center; padding: 1.5rem; color: #94a3b8; background: rgba(255,255,255,0.3); border-radius: 8px; border: 1px dashed rgba(0,0,0,0.1);">
-                    <p style="font-size: 0.7rem; margin: 0;">No items added yet.<br/>Click "+ Add Item" to start.</p>
-                </div>
-            `;
-    } else {
-      const itemsHtml = this.currentOrderItems
-        .map(
-          (item, index) => `
-                <div style="display: grid; grid-template-columns: 1fr 60px 80px 80px 32px; gap: 0.35rem; margin-bottom: 0.35rem; padding: 0.4rem; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; align-items: center;">
-                    <div style="position: relative;">
-                        <input type="text" placeholder="Item Name" value="${item.name}" 
-                               onchange="pharmacyPurchasing.updateItemField('${item.id}', 'name', this.value)"
-                               style="width: 100%; padding: 0.25rem 0.5rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: white; outline: none;">
-                    </div>
-                    <input type="number" placeholder="Qty" value="${item.quantity}" min="1" 
-                           onchange="pharmacyPurchasing.updateItemField('${item.id}', 'quantity', parseFloat(this.value) || 1)"
-                           style="padding: 0.25rem 0.4rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: white; outline: none; text-align: center;">
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 0.6rem; color: #94a3b8;">Rs.</span>
-                        <input type="number" placeholder="Cost" value="${item.unitCost}" min="0" step="0.01"
-                               onchange="pharmacyPurchasing.updateItemField('${item.id}', 'unitCost', parseFloat(this.value) || 0)"
-                               style="width: 100%; padding: 0.25rem 0.4rem 0.25rem 1.2rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: white; outline: none; text-align: right;">
-                    </div>
-                    <input type="text" placeholder="Batch" value="${item.batch}"
-                           onchange="pharmacyPurchasing.updateItemField('${item.id}', 'batch', this.value)"
-                           style="padding: 0.25rem 0.4rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.75rem; background: white; outline: none;">
-                    <button type="button" onclick="pharmacyPurchasing.removeItem('${item.id}')" 
-                            style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s;" onmouseover="this.style.background='#ef4444'; this.style.color='white'" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'; this.style.color='#ef4444'">🗑</button>
-                </div>
-            `,
-        )
-        .join("");
-
-      container.innerHTML = itemsHtml;
-    }
-
-    // Update statistics
-    const total = this.currentOrderItems.reduce(
-      (sum, item) => sum + item.total,
-      0,
-    );
-    const quantity = this.currentOrderItems.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
-    );
-
-    if (orderTotal) {
-      orderTotal.innerHTML = `Total: <span style="color: #007513;">${this.formatLKR(total)}</span>`;
-    }
-
-    if (itemCount) {
-      itemCount.textContent = `${this.currentOrderItems.length} items`;
-    }
-
-    if (totalQuantity) {
-      totalQuantity.textContent = quantity.toString();
-    }
   }
 
   updateItemField(itemId, field, value) {
     const item = this.currentOrderItems.find((i) => i.id === itemId);
-    if (!item) return;
-
-    item[field] = value;
-
-    // Recalculate total
-    if (field === "quantity" || field === "unitCost") {
-      item.total = item.quantity * item.unitCost;
+    if (item) {
+      item[field] = value;
+      if (field === "quantity" || field === "unitCost")
+        item.total =
+          (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+      this.updateItemsDisplay();
     }
+  }
 
-    this.updateItemsDisplay();
+  updateItemFieldLive(itemId, field, value) {
+    const item = this.currentOrderItems.find((i) => i.id === itemId);
+    if (item) {
+      item[field] = value;
+      if (field === "quantity" || field === "unitCost")
+        item.total =
+          (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+      this.updateTotalsLive();
+    }
+  }
+
+  updateTotalsLive() {
+    const total = this.currentOrderItems.reduce(
+      (sum, i) => sum + (parseFloat(i.total) || 0),
+      0,
+    );
+    const totalQty = this.currentOrderItems.reduce(
+      (sum, i) => sum + (parseFloat(i.quantity) || 0),
+      0,
+    );
+
+    const totalEl = document.getElementById("orderTotal");
+    const countEl = document.getElementById("itemCount");
+    if (totalEl)
+      totalEl.innerHTML = `Total: <span style="color: #007513;">${this.formatLKR(total)}</span>`;
+    if (countEl)
+      countEl.textContent = `${this.currentOrderItems.length} items • Qty: ${totalQty}`;
   }
 
   removeItem(itemId) {
     this.currentOrderItems = this.currentOrderItems.filter(
-      (item) => item.id !== itemId,
+      (i) => i.id !== itemId,
     );
     this.updateItemsDisplay();
   }
 
-  closePurchaseOrderModal() {
-    const modal = document.getElementById("purchaseOrderModal");
-    if (modal) modal.remove();
-    this.currentOrderItems = [];
-  }
-
-  createPurchaseOrderFromForm(form) {
-    const formData = new FormData(form);
-    const supplierId = formData.get("supplierId");
-    const orderDate = formData.get("orderDate");
-    const notes = formData.get("notes") || "";
-    const expectedDeliveryDate = formData.get("expectedDeliveryDate") || "";
-
-    if (!supplierId || !orderDate) {
-      this.showNotification("Please fill all required fields", "warning");
-      return;
-    }
+  updateItemsDisplay() {
+    const container = document.getElementById("itemsContainer");
+    if (!container) return;
 
     if (this.currentOrderItems.length === 0) {
-      this.showNotification("Please add at least one item", "warning");
-      return;
+      container.innerHTML =
+        '<p style="text-align: center; color: #94a3b8; font-size: 0.7rem; padding: 1rem;">No items added yet.</p>';
+    } else {
+      let html = `
+        <div style="display: grid; grid-template-columns: 1fr 60px 80px 32px; gap: 0.35rem; margin-bottom: 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+          <div style="font-size: 0.6rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Item Name</div>
+          <div style="font-size: 0.6rem; font-weight: 800; color: #64748b; text-transform: uppercase; text-align: center;">Qty</div>
+          <div style="font-size: 0.6rem; font-weight: 800; color: #64748b; text-transform: uppercase; text-align: right;">Price</div>
+          <div></div>
+        </div>
+      `;
+
+      html += this.currentOrderItems
+        .map(
+          (item) => `
+        <div style="display: grid; grid-template-columns: 1fr 60px 80px 32px; gap: 0.35rem; margin-bottom: 0.35rem; align-items: center;">
+          <input type="text" placeholder="e.g. Paracetamol" value="${item.name}" oninput="pharmacyPurchasing.updateItemFieldLive('${item.id}', 'name', this.value)" style="width: 100%; padding: 0.35rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.7rem; background: #fff;">
+          <input type="number" placeholder="0" value="${item.quantity}" min="1" oninput="pharmacyPurchasing.updateItemFieldLive('${item.id}', 'quantity', parseFloat(this.value) || 0)" style="width: 100%; padding: 0.35rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.7rem; text-align: center; background: #fff;">
+          <input type="number" placeholder="0.00" value="${item.unitCost}" min="0" step="0.01" oninput="pharmacyPurchasing.updateItemFieldLive('${item.id}', 'unitCost', parseFloat(this.value) || 0)" style="width: 100%; padding: 0.35rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 0.7rem; text-align: right; background: #fff;">
+          <button type="button" onclick="pharmacyPurchasing.removeItem('${item.id}')" style="width: 28px; height: 28px; background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">🗑</button>
+        </div>
+      `,
+        )
+        .join("");
+
+      container.innerHTML = html;
     }
 
-    // Validate items
-    const invalidItems = this.currentOrderItems.filter(
-      (item) => !item.name || item.quantity <= 0 || item.unitCost <= 0,
+    const total = this.currentOrderItems.reduce((sum, i) => sum + i.total, 0);
+    const totalQty = this.currentOrderItems.reduce(
+      (sum, i) => sum + i.quantity,
+      0,
     );
 
-    if (invalidItems.length > 0) {
+    const totalEl = document.getElementById("orderTotal");
+    const countEl = document.getElementById("itemCount");
+    if (totalEl)
+      totalEl.innerHTML = `Total: <span style="color: #007513;">${this.formatLKR(total)}</span>`;
+    if (countEl)
+      countEl.textContent = `${this.currentOrderItems.length} items • Qty: ${totalQty}`;
+  }
+
+  async createPurchaseOrderFromForm(form) {
+    const data = Object.fromEntries(new FormData(form));
+    if (!data.supplierId || this.currentOrderItems.length === 0) {
       this.showNotification(
-        "Please fill in all item details correctly",
+        "Please select a supplier and add items.",
         "warning",
       );
       return;
     }
 
-    const supplier = this.suppliers.find((s) => s.id == supplierId);
-    if (!supplier) {
-      this.showNotification("Invalid supplier selected", "warning");
-      return;
-    }
-
-    // Calculate total
-    const totalAmount = this.currentOrderItems.reduce(
-      (sum, item) => sum + item.total,
-      0,
-    );
-
-    // Generate order number
-    const orderNumber = `PO-${Date.now().toString().slice(-6)}`;
-
-    // Create purchase order
-    const newOrder = {
-      id: Date.now().toString(),
-      orderNumber,
-      supplierId: supplier.id,
-      supplierName: supplier.name,
-      orderDate,
-      items: [...this.currentOrderItems],
-      totalAmount,
-      status: "pending",
-      notes,
-      expectedDeliveryDate,
-      createdAt: new Date().toISOString(),
+    const poData = {
+      orderNumber: `PO-${Date.now().toString().slice(-6)}`,
+      supplierId: data.supplierId,
+      expectedDeliveryDate: data.expectedDeliveryDate,
+      orderDate: data.orderDate,
+      totalAmount: this.currentOrderItems.reduce((sum, i) => sum + i.total, 0),
+      items: this.currentOrderItems,
     };
 
-    // Add to purchase orders
-    this.purchaseOrders.unshift(newOrder);
-    this.savePurchaseOrders();
-
-    // Update UI
-    this.updatePurchasingStats();
-    this.renderPurchasingContent();
-    this.closePurchaseOrderModal();
-
-    this.showNotification(
-      `Purchase Order ${orderNumber} created successfully!`,
-      "success",
-    );
-  }
-
-  viewPurchaseOrder(orderId) {
-    const order = this.purchaseOrders.find((o) => o.id === orderId);
-    if (order) {
-      this.showNotification(`Viewing order ${order.orderNumber}`, "info");
-    }
-  }
-
-  editPurchaseOrder(orderId) {
-    const order = this.purchaseOrders.find((o) => o.id === orderId);
-    if (order) {
-      this.showNotification(`Editing order ${order.orderNumber}`, "info");
-    }
-  }
-
-  receivePurchaseOrder(orderId) {
-    const order = this.purchaseOrders.find((o) => o.id === orderId);
-    if (order && order.status === "pending") {
-      order.status = "received";
-      order.receivedDate = new Date().toISOString();
-      this.savePurchaseOrders();
-      this.updatePurchasingStats();
-      this.renderPurchasingContent();
-      this.showNotification(
-        `Order ${order.orderNumber} received successfully!`,
-        "success",
+    try {
+      const result = await this.rpc(
+        "/pharmacy_pos/create_purchase_order",
+        poData,
       );
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        form.closest(".inventory-modal-overlay").remove();
+        this.showNotification(
+          "Purchase order created successfully!",
+          "success",
+        );
+      } else {
+        this.showNotification(result.error || "Failed to create PO", "error");
+      }
+    } catch (error) {
+      console.error("Error creating PO:", error);
+      this.showNotification("Error connecting to server", "error");
     }
   }
 
-  openAddSupplierModal() {
-    this.showNotification("Add Supplier modal would open here", "info");
-  }
-
-  viewSupplier(supplierId) {
-    const supplier = this.suppliers.find((s) => s.id === supplierId);
-    if (supplier) {
-      this.showNotification(`Viewing supplier ${supplier.name}`, "info");
+  async createSupplier(form) {
+    const data = Object.fromEntries(new FormData(form));
+    try {
+      const result = await this.rpc("/pharmacy_pos/save_supplier", data);
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        form.closest(".inventory-modal-overlay").remove();
+        this.showNotification("Supplier added successfully!", "success");
+      } else {
+        this.showNotification(
+          result.error || "Failed to add supplier",
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error("Error saving supplier:", error);
+      this.showNotification("Error connecting to server", "error");
     }
   }
 
-  editSupplier(supplierId) {
-    const supplier = this.suppliers.find((s) => s.id === supplierId);
-    if (supplier) {
-      this.showNotification(`Editing supplier ${supplier.name}`, "info");
+  async updateSupplierFromForm(form) {
+    const data = Object.fromEntries(new FormData(form));
+    try {
+      const result = await this.rpc("/pharmacy_pos/save_supplier", data);
+      if (result && result.success) {
+        await this.loadPurchasingData();
+        this.renderPurchasingContent();
+        form.closest(".inventory-modal-overlay").remove();
+        this.showNotification("Supplier updated!", "success");
+      } else {
+        this.showNotification(
+          result.error || "Failed to update supplier",
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error("Error updating supplier:", error);
+      this.showNotification("Error connecting to server", "error");
     }
   }
 
-  toggleSupplierStatus(supplierId) {
-    const supplier = this.suppliers.find((s) => s.id === supplierId);
-    if (supplier) {
-      supplier.status = supplier.status === "active" ? "inactive" : "active";
-      this.saveSuppliers();
-      this.updatePurchasingStats();
-      this.renderPurchasingContent();
-      const statusText =
-        supplier.status === "active" ? "activated" : "deactivated";
-      this.showNotification(
-        `Supplier "${supplier.name}" ${statusText}`,
-        "success",
-      );
+  async toggleSupplierStatus(id) {
+    const s = this.suppliers.find((s) => s.id === id);
+    if (s) {
+      const newStatus = s.status === "active" ? "inactive" : "active";
+      try {
+        const result = await this.rpc("/pharmacy_pos/save_supplier", {
+          id,
+          status: newStatus,
+        });
+        if (result && result.success) {
+          await this.loadPurchasingData();
+          this.renderPurchasingContent();
+          this.showNotification(`Supplier ${newStatus}!`, "success");
+        }
+      } catch (error) {
+        console.error("Error toggling status:", error);
+      }
     }
   }
+
+  // --- Common Helpers ---
 
   formatLKR(amount) {
     return `LKR ${Number(amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -1040,7 +1147,7 @@ class PharmacyPurchasing {
 
   showNotification(message, type = "info") {
     const notif = document.createElement("div");
-    notif.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:6px;color:white;z-index:10000;`;
+    notif.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:6px;color:white;z-index:10000; transition: all 0.3s ease;`;
     notif.style.backgroundColor =
       type === "success"
         ? "#007513"
@@ -1051,28 +1158,23 @@ class PharmacyPurchasing {
             : "#3b82f6";
     notif.textContent = message;
     document.body.appendChild(notif);
-    setTimeout(() => notif.remove(), 3000);
+    setTimeout(() => {
+      notif.style.opacity = "0";
+      setTimeout(() => notif.remove(), 300);
+    }, 3000);
   }
 
   startAutoRefresh() {
-    // Auto-refresh data every 30 seconds
-    this.refreshInterval = setInterval(() => {
-      this.updatePurchasingStats();
-    }, 30000);
+    this.refreshInterval = setInterval(
+      () => this.updatePurchasingStats(),
+      30000,
+    );
   }
 
   cleanup() {
-    // Clear auto-refresh interval
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-    }
-
-    // Clean up global reference
-    if (window.pharmacyPurchasing === this) {
-      delete window.pharmacyPurchasing;
-    }
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+    if (window.pharmacyPurchasing === this) delete window.pharmacyPurchasing;
   }
 }
 
-// Export for use in dashboard
 window.PharmacyPurchasing = PharmacyPurchasing;

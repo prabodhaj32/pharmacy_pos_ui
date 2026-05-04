@@ -1,3 +1,9 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_pharmacy_inventory,access_pharmacy_inventory,model_pharmacy_inventory,,1,1,1,1
 access_pharmacy_customer,access_pharmacy_customer,model_pharmacy_customer,base.group_user,1,1,1,1
+access_pharmacy_sale_user,pharmacy.sale.user,model_pharmacy_sale,base.group_user,1,1,1,1
+access_pharmacy_sale_line_user,pharmacy.sale.line.user,model_pharmacy_sale_line,base.group_user,1,1,1,1
+access_pharmacy_supplier,pharmacy.supplier,model_pharmacy_supplier,base.group_user,1,1,1,1
+access_pharmacy_purchase_order,pharmacy.purchase.order,model_pharmacy_purchase_order,base.group_user,1,1,1,1
+access_pharmacy_purchase_order_line,pharmacy.purchase.order.line,model_pharmacy_purchase_order_line,base.group_user,1,1,1,1
+access_pharmacy_grn,pharmacy.grn,model_pharmacy_grn,base.group_user,1,1,1,1

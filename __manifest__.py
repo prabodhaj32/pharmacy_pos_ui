@@ -21,7 +21,9 @@
             'pharmacy_pos_ui/static/src/js/pharmacy_login.js',
             'pharmacy_pos_ui/static/src/js/pharmacy_customers.js',
             'pharmacy_pos_ui/static/src/js/inventory.js',
+            'pharmacy_pos_ui/static/src/js/pharmacy_salespos.js',
             'pharmacy_pos_ui/static/src/js/pos.js',
+
             'pharmacy_pos_ui/static/src/js/pharmacy_purchasing.js',
             'pharmacy_pos_ui/static/src/js/pharmacy_reports.js',
             'pharmacy_pos_ui/static/src/js/pharmacy_settings.js',

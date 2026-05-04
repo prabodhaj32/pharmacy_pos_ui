@@ -3,6 +3,9 @@ from odoo import http
 from odoo.http import request
 
 class PharmacyCustomerController(http.Controller):
+    def _sales_table_exists(self):
+        request.env.cr.execute("SELECT to_regclass('public.pharmacy_sale')")
+        return bool(request.env.cr.fetchone()[0])
 
     # ======================
     # LIST CUSTOMERS
@@ -11,7 +14,7 @@ class PharmacyCustomerController(http.Controller):
     def list_customers(self):
         try:
             records = request.env['pharmacy.customer'].sudo().search([])
-            return records.read([
+            customers_data = records.read([
                 'id',
                 'name',
                 'phone',
@@ -24,6 +27,34 @@ class PharmacyCustomerController(http.Controller):
                 'member_since',
                 'total_purchases'
             ])
+            if self._sales_table_exists():
+                sale_model = request.env['pharmacy.sale'].sudo()
+                for customer_data in customers_data:
+                    recent_sales = sale_model.search(
+                        [('customer_id', '=', customer_data['id']), ('state', '=', 'done')],
+                        order='sale_date desc',
+                        limit=10
+                    )
+                    customer_data['recent_purchases'] = [{
+                        'saleId': sale.id,
+                        'receiptNumber': sale.name,
+                        'items': [{
+                            'name': line.product_name,
+                            'quantity': line.quantity,
+                            'unitPrice': line.unit_price,
+                            'total': line.total,
+                            'batch': line.batch,
+                            'expiry': line.expiry,
+                        } for line in sale.sale_line_ids],
+                        'totalAmount': sale.total_amount,
+                        'paymentMethod': sale.payment_method,
+                        'timestamp': sale.sale_date,
+                        'displayTimestamp': sale.sale_date and sale.sale_date.strftime('%Y-%m-%d %H:%M:%S') or '',
+                    } for sale in recent_sales]
+            else:
+                for customer_data in customers_data:
+                    customer_data['recent_purchases'] = []
+            return customers_data
         except Exception as e:
             return {'error': str(e)}
 

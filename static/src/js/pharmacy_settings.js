@@ -1831,7 +1831,10 @@ class PharmacySettings extends Component {
     setTimeout(() => {
       this.saveSection("backup");
       this.saveSection("security");
-      this.showNotification("Backup created successfully and settings saved!", "success");
+      this.showNotification(
+        "Backup created successfully and settings saved!",
+        "success",
+      );
     }, 1500);
   }
 

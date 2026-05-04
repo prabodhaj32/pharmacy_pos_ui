@@ -266,10 +266,10 @@ class PharmacyReports {
                             <input type="date" value="${this.toDate}" class="date-input compact" id="reportToDate" />
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-secondary compact" id="btnExportCSV">
+                            <button class="action-btn-glass add-btn" id="btnExportCSV">
                                 <span class="btn-icon">📄</span> Export CSV
                             </button>
-                            <button class="btn btn-secondary compact" id="btnPrintReport">
+                            <button class="action-btn-glass add-btn" id="btnPrintReport">
                                 <span class="btn-icon">🖨️</span> Print
                             </button>
                         </div>
@@ -1061,7 +1061,9 @@ class PharmacyReports {
     // Get tax settings for fallback calculation
     let vatRate = 0.15; // Default 15%
     try {
-      const settings = JSON.parse(localStorage.getItem("pharmacy_pos_settings") || "{}");
+      const settings = JSON.parse(
+        localStorage.getItem("pharmacy_pos_settings") || "{}",
+      );
       if (settings.tax && settings.tax.vatRate) {
         vatRate = settings.tax.vatRate / 100;
       }
@@ -1093,18 +1095,22 @@ class PharmacyReports {
           // Regular sale
           metrics.gross_sales += total + discount;
           metrics.total_discount += discount;
-          
+
           // Logic for tax: if sale record has taxField, use it
-          const tax = sale.taxAmount !== undefined ? Number(sale.taxAmount) : (total * vatRate);
+          const tax =
+            sale.taxAmount !== undefined
+              ? Number(sale.taxAmount)
+              : total * vatRate;
           metrics.tax_collected += tax;
         }
       }
     });
 
     // Net Sales = Gross - Discount - Returns
-    // However, in many contexts, Gross already has discount subtracted. 
+    // However, in many contexts, Gross already has discount subtracted.
     // Here we define Gross as 'Pre-discount' so:
-    metrics.net_sales = metrics.gross_sales - metrics.total_discount - metrics.total_returns;
+    metrics.net_sales =
+      metrics.gross_sales - metrics.total_discount - metrics.total_returns;
 
     return metrics;
   }
@@ -1128,23 +1134,28 @@ class PharmacyReports {
     if (cards.length >= 5) {
       // Gross Sales
       const grossEl = cards[0].querySelector(".metric-value");
-      if (grossEl) grossEl.textContent = `LKR ${metrics.gross_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-      
+      if (grossEl)
+        grossEl.textContent = `LKR ${metrics.gross_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
       // Net Sales
       const netEl = cards[1].querySelector(".metric-value");
-      if (netEl) netEl.textContent = `LKR ${metrics.net_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-      
+      if (netEl)
+        netEl.textContent = `LKR ${metrics.net_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
       // Total Discount
       const discEl = cards[2].querySelector(".metric-value");
-      if (discEl) discEl.textContent = `LKR ${metrics.total_discount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-      
+      if (discEl)
+        discEl.textContent = `LKR ${metrics.total_discount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
       // Total Returns
       const retEl = cards[3].querySelector(".metric-value");
-      if (retEl) retEl.textContent = `LKR ${metrics.total_returns.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-      
+      if (retEl)
+        retEl.textContent = `LKR ${metrics.total_returns.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
       // Tax Collected
       const taxEl = cards[4].querySelector(".metric-value");
-      if (taxEl) taxEl.textContent = `LKR ${metrics.tax_collected.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+      if (taxEl)
+        taxEl.textContent = `LKR ${metrics.tax_collected.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
   }
 
