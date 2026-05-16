@@ -105,16 +105,16 @@ export class PharmacyPOS {
                                 <div class="cart-totals">
                                     <div class="summary-row">
                                         <span class="summary-label">Subtotal</span>
-                                        <span class="summary-value" id="cartSubtotal">$0.00</span>
+                                        <span class="summary-value" id="cartSubtotal">LKR 0.00</span>
                                     </div>
                                     <div class="summary-row">
                                         <span class="summary-label">Discount</span>
-                                        <span class="summary-value discount-value" id="cartDiscount">$0.00</span>
+                                        <span class="summary-value discount-value" id="cartDiscount">LKR 0.00</span>
                                     </div>
                                     <div class="summary-divider"></div>
                                     <div class="summary-row grand-total-row">
                                         <span class="summary-label">Grand Total</span>
-                                        <span class="summary-value total-value" id="cartTotal">$0.00</span>
+                                        <span class="summary-value total-value" id="cartTotal">LKR 0.00</span>
                                     </div>
                                 </div>
                                 <div class="cart-actions cart-actions-modern">
@@ -224,7 +224,9 @@ export class PharmacyPOS {
 
   async deleteHeldBillFromBackend(billId) {
     try {
-      const result = await this.rpc("/pharmacy/sales/held/delete", { id: billId });
+      const result = await this.rpc("/pharmacy/sales/held/delete", {
+        id: billId,
+      });
       return !!(result && result.success);
     } catch (error) {
       console.error("Error deleting held bill:", error);
@@ -490,37 +492,79 @@ export class PharmacyPOS {
   }
 
   showNotification(message, type = "info") {
+    // Premium standard notification implementation
     const notification = document.createElement("div");
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 6px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-        `;
+    notification.className = `glass-notification notification-${type}`;
+    
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
 
-    // Set background color based on type
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.25rem;">${icons[type] || icons.info}</span>
+        <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px; font-size:18px;">×</button>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      min-width: 320px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 99999;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+    `;
+
+    // Type-specific left border accent
     const colors = {
-      success: "#22c55e",
+      success: "#10b981",
       error: "#ef4444",
       warning: "#f59e0b",
-      info: "#3b82f6",
+      info: "#3b82f6"
     };
-    notification.style.backgroundColor = colors[type] || colors.info;
+    notification.style.borderLeft = `5px solid ${colors[type] || colors.info}`;
+
+    // Add animation styles if not present
+    if (!document.getElementById("notif-styles")) {
+      const style = document.createElement("style");
+      style.id = "notif-styles";
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     document.body.appendChild(notification);
 
-    // Auto remove after 3 seconds
     setTimeout(() => {
-      notification.style.animation = "slideOut 0.3s ease";
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
+      if (notification.parentElement) {
+        notification.style.animation = "slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+        setTimeout(() => notification.remove(), 400);
+      }
+    }, 4000);
   }
 
   showReturnsModal() {
@@ -644,7 +688,10 @@ export class PharmacyPOS {
     // Remove the held bill from backend + memory
     const removed = await this.deleteHeldBillFromBackend(bill.id);
     if (!removed) {
-      this.showNotification("Failed to retrieve held bill from database.", "error");
+      this.showNotification(
+        "Failed to retrieve held bill from database.",
+        "error",
+      );
       return;
     }
     this.heldBills.splice(billIndex, 1);
@@ -696,7 +743,10 @@ export class PharmacyPOS {
       // Remove the held bill from backend + memory
       const removed = await this.deleteHeldBillFromBackend(bill.id);
       if (!removed) {
-        this.showNotification("Failed to remove held bill from database.", "error");
+        this.showNotification(
+          "Failed to remove held bill from database.",
+          "error",
+        );
         return;
       }
       this.heldBills.splice(billIndex, 1);
@@ -719,7 +769,10 @@ export class PharmacyPOS {
     ) {
       const removed = await this.deleteHeldBillFromBackend(bill.id);
       if (!removed) {
-        this.showNotification("Failed to delete held bill from database.", "error");
+        this.showNotification(
+          "Failed to delete held bill from database.",
+          "error",
+        );
         return;
       }
       this.heldBills.splice(billIndex, 1);
@@ -744,247 +797,302 @@ export class PharmacyPOS {
     }
   }
 
-  printReturnReceipt(returnTransaction) {
-    const receiptContent = `
+  getSavedSetting(section, fallback = {}) {
+    try {
+      const raw = localStorage.getItem(`pharmacy_settings_${section}`);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : fallback;
+    } catch (error) {
+      console.warn(`Failed to load settings for ${section}:`, error);
+      return fallback;
+    }
+  }
+
+  escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  getReceiptContext() {
+    const pharmacy = this.getSavedSetting("pharmacy", {});
+    const receipt = this.getSavedSetting("receipt", {});
+    const tax = this.getSavedSetting("tax", {});
+    return {
+      pharmacy: {
+        name: pharmacy.name || "Timolog Pharma",
+        registrationNo: pharmacy.registrationNo || "PHM-LK-2020-001",
+        addressLine1: pharmacy.addressLine1 || "123, Main Street, Colombo 07",
+        hotline: pharmacy.hotline || "0112 345 678",
+      },
+      receipt: {
+        header: receipt.header || "✚ TIMOLOG PHARMA ✚",
+        footer:
+          receipt.footer ||
+          "Medicines are not returnable after purchase. Please check items before leaving.",
+        invoicePrefix: receipt.invoicePrefix || "TMP",
+        startingInvoice: receipt.startingInvoice || "2025-0001",
+        showLogo: receipt.showLogo !== false,
+        showCashier: receipt.showCashier !== false,
+        showBatch: receipt.showBatch !== false,
+        showExpiry: receipt.showExpiry !== false,
+        showVat: receipt.showVat !== false,
+      },
+      tax: {
+        currency: tax.currency || "LKR",
+        vatRate:
+          typeof tax.vatRate === "number" && !Number.isNaN(tax.vatRate)
+            ? tax.vatRate
+            : 15,
+      },
+    };
+  }
+
+  buildReceiptHTML({
+    docTitle,
+    invoiceLabel,
+    invoiceNumber,
+    timestamp,
+    cashier,
+    customer,
+    items,
+    subtotal,
+    vatAmount,
+    total,
+    paidLabel,
+    paidAmount,
+    balanceLabel,
+    balanceAmount,
+    statusLine,
+  }) {
+    const { pharmacy, receipt, tax } = this.getReceiptContext();
+    const safeItems = Array.isArray(items) ? items : [];
+    const rows = safeItems
+      .map((item) => {
+        const lineTotal = Number(item.lineTotal || 0).toFixed(2);
+        const qty = Number(item.quantity || 0);
+        const unitPrice = qty > 0 ? Number(item.lineTotal || 0) / qty : 0;
+        const batchLine =
+          receipt.showBatch && item.batch
+            ? `<div class="item-meta-line">Batch: ${this.escapeHtml(item.batch)}</div>`
+            : "";
+        const expiryLine =
+          receipt.showExpiry && item.expiry
+            ? `<div class="item-meta-line">Exp: ${this.escapeHtml(item.expiry)}</div>`
+            : "";
+
+        return `
+                    <tr class="item-row">
+                        <td class="item-left">
+                            <div class="item-name">${this.escapeHtml(item.name)}</div>
+                            <div class="item-qty">${qty} x ${this.escapeHtml(tax.currency)} ${unitPrice.toFixed(2)}</div>
+                            <div class="item-meta">${batchLine}${expiryLine}</div>
+                        </td>
+                        <td class="item-right">${this.escapeHtml(tax.currency)} ${lineTotal}</td>
+                    </tr>
+                `;
+      })
+      .join("");
+
+    return `
             <!DOCTYPE html>
             <html>
             <head>
-                <title>RETURN Receipt - ${returnTransaction.id}</title>
+                <title>${this.escapeHtml(docTitle)}</title>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
-                        font-family: 'Courier New', monospace;
-                        background: white;
-                        margin: 0;
-                        padding: 20px;
-                        max-width: 400px;
+                        font-family: 'Courier New', Courier, monospace;
+                        background: #fff;
+                        padding: 0;
+                        width: 80mm;
+                        color: #000;
+                        font-size: 12px;
+                        line-height: 1.2;
                     }
-                    .receipt-container {
-                        background: white;
-                        padding: 30px;
-                        border: 1px solid #333;
+                    .thermal-receipt {
+                        width: 100%;
+                        background: #ffffff;
+                        padding: 10px;
                     }
-                    .receipt-header {
+                    .receipt-top {
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 8px;
+                        margin-bottom: 10px;
                         text-align: center;
-                        border-bottom: 3px double #333;
-                        padding-bottom: 15px;
-                        margin-bottom: 20px;
                     }
                     .receipt-title {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #dc2626;
-                        margin: 10px 0;
-                    }
-                    .receipt-subtitle {
-                        font-size: 14px;
-                        color: #6c757d;
-                        margin: 5px 0;
-                        font-weight: 600;
-                    }
-                    .receipt-info {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 10px;
-                        margin: 15px 0;
-                        font-size: 13px;
-                        color: #495057;
-                    }
-                    .receipt-info-item {
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .receipt-info-label {
-                        font-weight: 600;
-                        color: #6c757d;
-                        margin-bottom: 3px;
-                    }
-                    .receipt-items {
-                        margin: 25px 0;
-                        border-top: 2px solid #e9ecef;
-                        padding-top: 15px;
-                    }
-                    .receipt-item {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        margin: 8px 0;
-                        padding: 10px 0;
-                        border-bottom: 1px dashed #e9ecef;
-                    }
-                    .receipt-item:last-child {
-                        border-bottom: none;
-                    }
-                    .receipt-item-name {
-                        flex: 1;
-                        font-weight: 600;
-                        color: #2c3e50;
-                        line-height: 1.4;
-                    }
-                    .receipt-batch {
-                        font-size: 10px;
-                        color: #6c757d;
-                        margin-top: 2px;
-                    }
-                    .receipt-item-details {
-                        text-align: right;
-                        min-width: 120px;
-                        font-size: 12px;
-                        color: #495057;
-                    }
-                    .receipt-totals {
-                        background: #fef2f2;
-                        border: 2px solid #dc2626;
-                        border-radius: 8px;
-                        padding: 20px;
-                        margin: 20px 0;
-                    }
-                    .receipt-total-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 8px 0;
-                        font-size: 14px;
-                    }
-                    .receipt-grand-total {
-                        font-size: 18px;
-                        font-weight: bold;
-                        color: #dc2626;
-                        border-top: 2px solid #e9ecef;
-                        padding-top: 10px;
-                        margin-top: 10px;
-                    }
-                    .receipt-payment {
-                        background: #dc2626;
-                        color: white;
-                        padding: 15px;
-                        margin: 20px 0;
-                        border-radius: 8px;
-                        text-align: center;
-                    }
-                    .receipt-payment-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 5px 0;
-                        font-size: 13px;
-                    }
-                    .receipt-footer {
-                        text-align: center;
-                        margin-top: 30px;
-                        padding: 20px;
-                        background: #f8f9fa;
-                        border-radius: 8px;
-                        border: 1px solid #e9ecef;
-                    }
-                    .receipt-thank {
                         font-size: 16px;
                         font-weight: bold;
-                        color: #dc2626;
+                        text-transform: uppercase;
+                    }
+                    .receipt-subtitle {
+                        font-size: 10px;
+                        font-weight: normal;
+                    }
+                    .receipt-content {
+                        padding: 0;
+                    }
+                    .thermal-header, .thermal-footer {
+                        text-align: center;
                         margin-bottom: 10px;
                     }
-                    .receipt-contact {
+                    .pharmacy-header {
+                        font-weight: bold;
+                        font-size: 15px;
+                        margin-bottom: 4px;
+                    }
+                    .meta-text {
+                        font-size: 11px;
+                        margin-bottom: 2px;
+                    }
+                    .info-card {
+                        border-top: 1px solid #000;
+                        border-bottom: 1px solid #000;
+                        padding: 6px 0;
+                        margin-bottom: 10px;
+                    }
+                    .thermal-info-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 3px;
+                    }
+                    .label { font-weight: normal; }
+                    .value { font-weight: bold; text-align: right; }
+                    .section-title {
                         font-size: 12px;
-                        color: #6c757d;
-                        margin: 5px 0;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 2px;
+                        margin: 10px 0 5px;
                     }
-                    .receipt-barcode {
-                        text-align: center;
-                        margin: 20px 0;
-                        font-family: 'Code 128', monospace;
-                        font-size: 14px;
-                        letter-spacing: 2px;
+                    .thermal-table { width: 100%; border-collapse: collapse; }
+                    .item-row td {
+                        padding: 5px 0;
+                        border-bottom: 1px dashed #ccc;
+                        vertical-align: top;
                     }
+                    .item-row:last-child td { border-bottom: none; }
+                    .item-name { font-weight: bold; margin-bottom: 2px; }
+                    .item-qty { font-size: 11px; margin-bottom: 2px; }
+                    .item-meta-line { font-size: 10px; font-style: italic; }
+                    .item-right { text-align: right; font-weight: bold; }
+                    .totals-card {
+                        border-top: 2px solid #000;
+                        margin-top: 10px;
+                        padding-top: 8px;
+                    }
+                    .grand-total {
+                        font-size: 15px;
+                        font-weight: bold;
+                        margin-top: 5px;
+                        padding-top: 5px;
+                        border-top: 1px solid #000;
+                    }
+                    .payment-card {
+                        margin-top: 10px;
+                        padding-top: 5px;
+                        border-top: 1px dashed #000;
+                    }
+                    .thermal-divider { border-top: 1px dashed #000; margin: 10px 0; }
                     @media print {
-                        body { margin: 0; padding: 10px; }
-                        .receipt-container { 
-                            border: 1px solid #333; 
-                            margin: 0; 
-                            max-width: 100%; 
-                        }
+                        body { width: 80mm; background: #fff; }
+                        .thermal-receipt { padding: 0; }
                     }
                 </style>
             </head>
             <body>
-                <div class="receipt-container">
-                    <div class="receipt-header">
-                        <div class="receipt-title">🏥 PHARMACY</div>
-                        <div class="receipt-subtitle">RETURN RECEIPT</div>
+                <div class="thermal-receipt">
+                    <div class="receipt-top">
+                        <div class="receipt-title">${invoiceLabel === "Return" ? "RETURN RECEIPT" : "SALES RECEIPT"}</div>
+                        <div class="receipt-subtitle">Modern Thermal Print</div>
                     </div>
-                    
-                    <div class="receipt-info">
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Return #</div>
-                            <div>RET${returnTransaction.id}</div>
-                        </div>
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Date & Time</div>
-                            <div>${returnTransaction.timestamp}</div>
-                        </div>
+                    <div class="receipt-content">
+                    <div class="thermal-header">
+                        ${receipt.showLogo ? '<div style="margin-bottom:6px;">🏥</div>' : ""}
+                        <div class="pharmacy-header">${this.escapeHtml(receipt.header)}</div>
+                        <div class="meta-text">${this.escapeHtml(pharmacy.addressLine1)}</div>
+                        <div class="meta-text">Tel: ${this.escapeHtml(pharmacy.hotline)}</div>
+                        <div class="meta-text">${this.escapeHtml(pharmacy.registrationNo)}</div>
                     </div>
-                    
-                    <div class="receipt-info">
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Original Bill</div>
-                            <div>${returnTransaction.originalBillName}</div>
-                        </div>
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Customer</div>
-                            <div>Walk-in Customer</div>
-                        </div>
+
+                    <div class="info-card">
+                    <div class="thermal-info-row">
+                        <span class="label">${this.escapeHtml(invoiceLabel)} #</span>
+                        <span class="value">${this.escapeHtml(invoiceNumber)}</span>
                     </div>
-                    
-                    <div class="receipt-items">
-                        ${returnTransaction.items
-                          .map(
-                            (item) => `
-                            <div class="receipt-item">
-                                <div class="receipt-item-name">
-                                    ${item.name}
-                                    <div class="receipt-batch">Batch: ${item.batch || "N/A"} | Exp: ${item.expiry || "N/A"}</div>
-                                </div>
-                                <div class="receipt-item-details">
-                                    ${item.quantity} × LKR ${Number(item.unitPrice || 0).toFixed(2)}<br>
-                                    <strong>LKR ${Number((item.unitPrice || 0) * item.quantity).toFixed(2)}</strong>
-                                </div>
-                            </div>
-                        `,
-                          )
-                          .join("")}
+                    <div class="thermal-info-row">
+                        <span class="label">Date & Time</span>
+                        <span class="value">${this.escapeHtml(timestamp)}</span>
                     </div>
-                    
-                    <div class="receipt-totals">
-                        <div class="receipt-total-row">
-                            <span>Items Returned (${returnTransaction.items.length}):</span>
-                            <span>${returnTransaction.items.length}</span>
-                        </div>
-                        <div class="receipt-total-row">
-                            <span>Original Total:</span>
-                            <span>LKR ${Number(returnTransaction.totalAmount).toFixed(2)}</span>
-                        </div>
-                        <div class="receipt-grand-total">
-                            <span>REFUND AMOUNT:</span>
-                            <span>LKR ${Number(returnTransaction.refundAmount).toFixed(2)}</span>
-                        </div>
+                    ${receipt.showCashier && cashier ? `<div class="thermal-info-row"><span class="label">Cashier</span><span class="value">${this.escapeHtml(cashier)}</span></div>` : ""}
+                    ${customer ? `<div class="thermal-info-row"><span class="label">Customer</span><span class="value">${this.escapeHtml(customer)}</span></div>` : ""}
                     </div>
-                    
-                    <div class="receipt-payment">
-                        <div class="receipt-payment-row">
-                            <span>Refund Processed</span>
-                            <span>✓ COMPLETED</span>
-                        </div>
+
+                    <div class="section-title">Items</div>
+                    <div class="item-table-wrap">
+                    <table class="thermal-table">
+                        ${rows}
+                    </table>
                     </div>
-                    
-                    <div class="receipt-footer">
-                        <div class="receipt-thank">Return Processed Successfully!</div>
-                        <div class="receipt-contact"> +94 123 456 7890</div>
-                        <div class="receipt-contact"> 123 Pharmacy Street, Colombo</div>
-                        <div class="receipt-contact">📞 +94 123 456 7890</div>
-                        <div class="receipt-contact">📍 123 Pharmacy Street, Colombo</div>
-                        <div class="receipt-barcode">|||RET${returnTransaction.id}|||</div>
+
+                    <div class="totals-card">
+                    <div class="thermal-info-row"><span class="label">Subtotal</span><span class="value">${this.escapeHtml(tax.currency)} ${Number(subtotal || 0).toFixed(2)}</span></div>
+                    ${receipt.showVat ? `<div class="thermal-info-row"><span class="label">VAT (${Number(tax.vatRate).toFixed(0)}%)</span><span class="value">${this.escapeHtml(tax.currency)} ${Number(vatAmount || 0).toFixed(2)}</span></div>` : ""}
+                    <div class="thermal-info-row grand-total">
+                        <span>TOTAL</span>
+                        <span>${this.escapeHtml(tax.currency)} ${Number(total || 0).toFixed(2)}</span>
+                    </div>
+                    </div>
+
+                    <div class="payment-card">
+                    <div class="thermal-info-row"><span class="label">${this.escapeHtml(paidLabel)}</span><span class="value">${this.escapeHtml(tax.currency)} ${Number(paidAmount || 0).toFixed(2)}</span></div>
+                    <div class="thermal-info-row"><span class="label">${this.escapeHtml(balanceLabel)}</span><span class="value">${this.escapeHtml(tax.currency)} ${Number(balanceAmount || 0).toFixed(2)}</span></div>
+                    ${statusLine ? `<div class="thermal-info-row"><span class="label">Status</span><span class="value">${this.escapeHtml(statusLine)}</span></div>` : ""}
+                    </div>
+
+                    <div class="thermal-divider"></div>
+
+                    <div class="thermal-footer">
+                        ${this.escapeHtml(receipt.footer)}
+                    </div>
                     </div>
                 </div>
             </body>
             </html>
         `;
+  }
+
+  printReturnReceipt(returnTransaction) {
+    const { receipt } = this.getReceiptContext();
+    const receiptContent = this.buildReceiptHTML({
+      docTitle: `Return Receipt - RET${returnTransaction.id}`,
+      invoiceLabel: "Return",
+      invoiceNumber: `${receipt.invoicePrefix}-RET${returnTransaction.id}`,
+      timestamp: returnTransaction.timestamp,
+      cashier: "System",
+      customer: "Walk-in Customer",
+      items: (returnTransaction.items || []).map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        batch: item.batch || "N/A",
+        expiry: item.expiry || "N/A",
+        lineTotal: Number(item.unitPrice || 0) * Number(item.quantity || 0),
+      })),
+      subtotal: returnTransaction.totalAmount,
+      vatAmount: 0,
+      total: returnTransaction.refundAmount,
+      paidLabel: "Refund",
+      paidAmount: returnTransaction.refundAmount,
+      balanceLabel: "Balance",
+      balanceAmount: 0,
+      statusLine: "Refund Completed",
+    });
 
     // Auto-download return receipt
     const blob = new Blob([receiptContent], { type: "text/html" });
@@ -1627,257 +1735,41 @@ export class PharmacyPOS {
   }
 
   printReceipt(sale) {
-    // Create enhanced receipt content for auto-download and print
-    const receiptContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Receipt - ${sale.receiptNumber}</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body {
-                        font-family: 'Courier New', monospace;
-                        background: white;
-                        margin: 0;
-                        padding: 20px;
-                        max-width: 400px;
-                    }
-                    .receipt-container {
-                        background: white;
-                        padding: 30px;
-                        border: 1px solid #333;
-                    }
-                    .receipt-header {
-                        text-align: center;
-                        border-bottom: 3px double #333;
-                        padding-bottom: 15px;
-                        margin-bottom: 20px;
-                    }
-                    .receipt-title {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #2c3e50;
-                        margin: 10px 0;
-                    }
-                    .receipt-subtitle {
-                        font-size: 14px;
-                        color: #6c757d;
-                        margin: 5px 0;
-                        font-weight: 600;
-                    }
-                    .receipt-info {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 10px;
-                        margin: 15px 0;
-                        font-size: 13px;
-                        color: #495057;
-                    }
-                    .receipt-info-item {
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .receipt-info-label {
-                        font-weight: 600;
-                        color: #6c757d;
-                        margin-bottom: 3px;
-                    }
-                    .receipt-items {
-                        margin: 25px 0;
-                        border-top: 2px solid #e9ecef;
-                        padding-top: 15px;
-                    }
-                    .receipt-item {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        margin: 8px 0;
-                        padding: 10px 0;
-                        border-bottom: 1px dashed #e9ecef;
-                    }
-                    .receipt-item:last-child {
-                        border-bottom: none;
-                    }
-                    .receipt-item-name {
-                        flex: 1;
-                        font-weight: 600;
-                        color: #2c3e50;
-                        line-height: 1.4;
-                    }
-                    .receipt-batch {
-                        font-size: 10px;
-                        color: #6c757d;
-                        margin-top: 2px;
-                    }
-                    .receipt-item-details {
-                        text-align: right;
-                        min-width: 120px;
-                        font-size: 12px;
-                        color: #495057;
-                    }
-                    .receipt-totals {
-                        background: #f8f9fa;
-                        border: 2px solid #e9ecef;
-                        border-radius: 8px;
-                        padding: 20px;
-                        margin: 20px 0;
-                    }
-                    .receipt-total-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 8px 0;
-                        font-size: 14px;
-                    }
-                    .receipt-grand-total {
-                        font-size: 18px;
-                        font-weight: bold;
-                        color: #2c3e50;
-                        border-top: 2px solid #e9ecef;
-                        padding-top: 10px;
-                        margin-top: 10px;
-                    }
-                    .receipt-payment {
-                        background: #e8f5e8;
-                        border-left: 4px solid #28a745;
-                        padding: 15px;
-                        margin: 20px 0;
-                        border-radius: 0 8px 8px 0;
-                    }
-                    .receipt-payment-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 5px 0;
-                        font-size: 13px;
-                    }
-                    .receipt-footer {
-                        text-align: center;
-                        margin-top: 30px;
-                        padding: 20px;
-                        background: #f8f9fa;
-                        border-radius: 8px;
-                        border: 1px solid #e9ecef;
-                    }
-                    .receipt-thank {
-                        font-size: 16px;
-                        font-weight: bold;
-                        color: #28a745;
-                        margin-bottom: 10px;
-                    }
-                    .receipt-contact {
-                        font-size: 12px;
-                        color: #6c757d;
-                        margin: 5px 0;
-                    }
-                    .receipt-barcode {
-                        text-align: center;
-                        margin: 20px 0;
-                        font-family: 'Code 128', monospace;
-                        font-size: 14px;
-                        letter-spacing: 2px;
-                    }
-                    @media print {
-                        body { margin: 0; padding: 10px; }
-                        .receipt-container { 
-                            border: 1px solid #333; 
-                            margin: 0; 
-                            max-width: 100%; 
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="receipt-container">
-                    <div class="receipt-header">
-                        <div class="receipt-title">🏥 PHARMACY</div>
-                        <div class="receipt-subtitle">SALES RECEIPT</div>
-                    </div>
-                    
-                    <div class="receipt-info">
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Receipt #</div>
-                            <div>${sale.receiptNumber}</div>
-                        </div>
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Date & Time</div>
-                            <div>${sale.timestamp}</div>
-                        </div>
-                        <div class="receipt-info-item">
-                            <div class="receipt-info-label">Cashier</div>
-                            <div>${sale.cashierId || "Unknown"}</div>
-                        </div>
-                        ${
-                          sale.customer && !sale.customer.isWalkIn
-                            ? `
-                        <div class="receipt-info-item" style="grid-column: 1 / -1; margin-top: 5px;">
-                            <div class="receipt-info-label">Customer</div>
-                            <div>${sale.customer.name}</div>
-                        </div>
-                        `
-                            : ""
-                        }
-                    </div>
-                    
-                    <div class="receipt-items">
-                        ${sale.items
-                          .map(
-                            (item) => `
-                            <div class="receipt-item">
-                                <div class="receipt-item-name">
-                                    ${item.name}
-                                    <div class="receipt-batch">Batch: ${item.batch || "N/A"} | Exp: ${item.expiry || "N/A"}</div>
-                                </div>
-                                <div class="receipt-item-details">
-                                    ${item.quantity} × LKR ${Number(item.price || item.unitPrice || 0).toFixed(2)}<br>
-                                    <strong>LKR ${Number((item.price || item.unitPrice || 0) * item.quantity).toFixed(2)}</strong>
-                                </div>
-                            </div>
-                        `,
-                          )
-                          .join("")}
-                    </div>
-                    
-                    <div class="receipt-totals">
-                        <div class="receipt-total-row">
-                            <span>Items (${sale.items.length}):</span>
-                            <span>${sale.items.length}</span>
-                        </div>
-                        <div class="receipt-total-row">
-                            <span>Subtotal:</span>
-                            <span>LKR ${Number(sale.total).toFixed(2)}</span>
-                        </div>
-                        <div class="receipt-total-row">
-                            <span>Discount:</span>
-                            <span>LKR 0.00</span>
-                        </div>
-                        <div class="receipt-grand-total">
-                            <span>GRAND TOTAL:</span>
-                            <span>LKR ${Number(sale.total).toFixed(2)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="receipt-payment">
-                        <div class="receipt-payment-row">
-                            <span>Amount Paid:</span>
-                            <span>LKR ${Number(sale.amountPaid).toFixed(2)}</span>
-                        </div>
-                        <div class="receipt-payment-row">
-                            <span>Change:</span>
-                            <span>LKR ${Number(sale.amountPaid - sale.total).toFixed(2)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="receipt-footer">
-                        <div class="receipt-thank">Thank You For Your Purchase!</div>
-                        <div class="receipt-contact"> +94 123 456 7890</div>
-                        <div class="receipt-contact"> 123 Pharmacy Street, Colombo</div>
-                        <div class="receipt-contact">📞 +94 123 456 7890</div>
-                        <div class="receipt-contact">📍 123 Pharmacy Street, Colombo</div>
-                        <div class="receipt-barcode">|||${sale.receiptNumber}|||</div>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
+    const { receipt, tax } = this.getReceiptContext();
+    const subtotal = Number(sale.total || 0);
+    const vatAmount = receipt.showVat
+      ? (subtotal * Number(tax.vatRate || 0)) / 100
+      : 0;
+    const total = subtotal + vatAmount;
+
+    const receiptContent = this.buildReceiptHTML({
+      docTitle: `Receipt - ${sale.receiptNumber}`,
+      invoiceLabel: "Invoice",
+      invoiceNumber:
+        sale.receiptNumber ||
+        `${receipt.invoicePrefix}-${receipt.startingInvoice}`,
+      timestamp: sale.timestamp,
+      cashier: sale.cashierId || "Unknown",
+      customer:
+        sale.customer && !sale.customer.isWalkIn ? sale.customer.name : "",
+      items: (sale.items || []).map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        batch: item.batch || "N/A",
+        expiry: item.expiry || "N/A",
+        lineTotal:
+          Number(item.price || item.unitPrice || 0) *
+          Number(item.quantity || 0),
+      })),
+      subtotal,
+      vatAmount,
+      total,
+      paidLabel: "Cash Paid",
+      paidAmount: sale.amountPaid,
+      balanceLabel: "Balance",
+      balanceAmount: Number(sale.amountPaid || 0) - total,
+      statusLine: "",
+    });
 
     // Method 1: Auto-download as HTML file
     const blob = new Blob([receiptContent], { type: "text/html" });

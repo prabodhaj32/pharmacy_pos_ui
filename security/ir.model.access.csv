@@ -7,3 +7,6 @@ access_pharmacy_supplier,pharmacy.supplier,model_pharmacy_supplier,base.group_us
 access_pharmacy_purchase_order,pharmacy.purchase.order,model_pharmacy_purchase_order,base.group_user,1,1,1,1
 access_pharmacy_purchase_order_line,pharmacy.purchase.order.line,model_pharmacy_purchase_order_line,base.group_user,1,1,1,1
 access_pharmacy_grn,pharmacy.grn,model_pharmacy_grn,base.group_user,1,1,1,1
+access_pharmacy_report_user,pharmacy.report.user,model_pharmacy_sale,base.group_user,1,0,0,0
+access_pharmacy_shift_history,pharmacy.shift.history,model_pharmacy_shift_history,base.group_user,1,1,1,1
+access_pharmacy_setting_user,pharmacy.setting.user,model_pharmacy_setting,base.group_user,1,1,1,1

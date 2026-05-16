@@ -28,35 +28,79 @@ export class PharmacyDashboard extends Component {
   }
 
   showNotification(message, type = "info") {
+    // Premium standard notification implementation
     const notification = document.createElement("div");
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 6px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-        `;
+    notification.className = `glass-notification notification-${type}`;
+    
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
 
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.25rem;">${icons[type] || icons.info}</span>
+        <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px; font-size:18px;">×</button>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      min-width: 320px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 99999;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+    `;
+
+    // Type-specific left border accent
     const colors = {
-      success: "#22c55e",
+      success: "#10b981",
       error: "#ef4444",
       warning: "#f59e0b",
-      info: "#3b82f6",
+      info: "#3b82f6"
     };
-    notification.style.backgroundColor = colors[type] || colors.info;
+    notification.style.borderLeft = `5px solid ${colors[type] || colors.info}`;
+
+    // Add animation styles if not present
+    if (!document.getElementById("notif-styles")) {
+      const style = document.createElement("style");
+      style.id = "notif-styles";
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     document.body.appendChild(notification);
 
     setTimeout(() => {
-      notification.style.animation = "slideOut 0.3s ease";
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
+      if (notification.parentElement) {
+        notification.style.animation = "slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+        setTimeout(() => notification.remove(), 400);
+      }
+    }, 4000);
   }
 
   renderPOSPage() {
@@ -612,31 +656,55 @@ export class PharmacyDashboard extends Component {
     // Admin has full access
     if (role === "Administrator") return true;
 
-    const permissionsRaw = localStorage.getItem("pharmacy_active_permissions");
+    // Dynamically fetch live permissions for the active role from settings
     let permissions = [];
+    const permissionsRaw = localStorage.getItem("pharmacy_active_permissions");
     try {
       permissions = JSON.parse(permissionsRaw || "[]");
     } catch (e) {
-      console.error("Error parsing permissions", e);
+      console.error("Error parsing cached permissions", e);
     }
 
-    if (permissions.includes("all")) return true;
+    const savedUsersRaw = localStorage.getItem("pharmacy_settings_users");
+    if (savedUsersRaw) {
+      try {
+        const savedUsers = JSON.parse(savedUsersRaw);
+        if (savedUsers && savedUsers.roles) {
+          const roleData = savedUsers.roles.find((r) => r.name === role);
+          if (roleData) {
+            permissions = roleData.permissions;
+          }
+        }
+      } catch (err) {
+        console.error("Error reading live permissions from settings", err);
+      }
+    }
+
+    if (permissions.includes("all") || permissions.includes("All modules"))
+      return true;
 
     // Map pages to required permissions
     const pagePermissions = {
       dashboard: null, // Public
-      sales: "sales",
-      inventory: "inventory",
-      customers: "sales",
-      purchasing: "purchasing",
-      reports: "reports",
-      settings: "all",
+      sales: ["sales", "Sales (POS)"],
+      inventory: ["inventory", "Inventory view", "Inventory management"],
+      customers: ["sales", "Sales (POS)", "Customer lookup"],
+      purchasing: ["purchasing", "Purchase orders", "Supplier management"],
+      reports: [
+        "reports",
+        "Reports",
+        "All reports",
+        "Sales reports",
+        "Inventory reports",
+        "End of day report",
+      ],
+      settings: ["all", "System settings"],
     };
 
     const required = pagePermissions[page];
     if (!required) return true;
 
-    return permissions.includes(required);
+    return permissions.some((perm) => required.includes(perm));
   }
 
   promptForAdminAccess(page, link) {
@@ -1094,32 +1162,7 @@ export class PharmacyDashboard extends Component {
     }
   }
 
-
-
-
-
-
-
   // barcode search (supports base medicines data + localStorage items)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   renderCustomersPage() {
     // Clean up previous customers instance if exists

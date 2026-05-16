@@ -302,7 +302,8 @@ class PharmacyInventory extends Component {
     if (totalItemsEl) totalItemsEl.textContent = totalItems;
     if (lowStockEl) lowStockEl.textContent = lowStockCount;
     if (expiringEl) expiringEl.textContent = expiringCount;
-    if (stockValueEl) stockValueEl.textContent = this.formatLKRCompact(stockValue);
+    if (stockValueEl)
+      stockValueEl.textContent = this.formatLKRCompact(stockValue);
 
     const filtered = this.applyInventoryFilters();
     this.renderInventoryTable(filtered);
@@ -518,7 +519,7 @@ class PharmacyInventory extends Component {
   // ====================== CREATE ITEM ======================
   async createInventoryItemFromForm(form) {
     const formData = new FormData(form);
-  
+
     const payload = {
       name: formData.get("name"),
       generic: formData.get("generic"),
@@ -532,15 +533,15 @@ class PharmacyInventory extends Component {
       rx_only: formData.get("rxOnly") === "on",
       controlled: formData.get("controlled") === "on",
     };
-  
+
     try {
       const rpcService = this.rpc || rpc;
       await rpcService("/pharmacy/inventory/create", { data: payload });
-  
+
       await this.loadInventoryItems();
       this.updateInventoryStatsAndTable();
       this.closeInventoryAddItemModal();
-  
+
       this.showNotification("✅ Item added!", "success");
     } catch (error) {
       console.error(error);
@@ -678,19 +679,79 @@ class PharmacyInventory extends Component {
   }
 
   showNotification(message, type = "info") {
-    const notif = document.createElement("div");
-    notif.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:6px;color:white;z-index:10000;`;
-    notif.style.backgroundColor =
-      type === "success"
-        ? "#22c55e"
-        : type === "warning"
-          ? "#f59e0b"
-          : type === "error"
-            ? "#ef4444"
-            : "#3b82f6";
-    notif.textContent = message;
-    document.body.appendChild(notif);
-    setTimeout(() => notif.remove(), 3000);
+    // Premium standard notification implementation
+    const notification = document.createElement("div");
+    notification.className = `glass-notification notification-${type}`;
+    
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
+
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.25rem;">${icons[type] || icons.info}</span>
+        <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px; font-size:18px;">×</button>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      min-width: 320px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 99999;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+    `;
+
+    // Type-specific left border accent
+    const colors = {
+      success: "#10b981",
+      error: "#ef4444",
+      warning: "#f59e0b",
+      info: "#3b82f6"
+    };
+    notification.style.borderLeft = `5px solid ${colors[type] || colors.info}`;
+
+    // Add animation styles if not present
+    if (!document.getElementById("notif-styles")) {
+      const style = document.createElement("style");
+      style.id = "notif-styles";
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.style.animation = "slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+        setTimeout(() => notification.remove(), 400);
+      }
+    }, 4000);
   }
 
   cleanup() {
@@ -704,5 +765,7 @@ registry
   .category("actions")
   .add("pharmacy_inventory_action", PharmacyInventory);
 
+// Make available globally for dashboard integration
+window.PharmacyInventory = PharmacyInventory;
 // Make available globally for dashboard integration
 window.PharmacyInventory = PharmacyInventory;

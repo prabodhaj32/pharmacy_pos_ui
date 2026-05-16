@@ -1,5 +1,5 @@
 # models/sale.py
-from odoo import models, fields
+from odoo import models, fields, api
 
 class PharmacySale(models.Model):
     _name = 'pharmacy.sale'
@@ -18,6 +18,9 @@ class PharmacySale(models.Model):
 
     total_amount = fields.Float(digits=(16, 2))
     amount_paid = fields.Float(digits=(16, 2))
+    discount_amount = fields.Float(digits=(16, 2), default=0.0)
+    profit = fields.Float(digits=(16, 2), compute='_compute_profit', store=True)
+    
     payment_method = fields.Selection([
         ('cash', 'Cash'),
         ('card', 'Card'),
@@ -27,6 +30,13 @@ class PharmacySale(models.Model):
     state = fields.Selection([('held', 'Held'), ('done', 'Done'), ('returned', 'Returned')], default='done')
 
     sale_line_ids = fields.One2many('pharmacy.sale.line', 'sale_id', string="Items")
+
+    @api.depends('sale_line_ids.total', 'total_amount')
+    def _compute_profit(self):
+        for sale in self:
+            # Simple profit calculation: 30% of total if lines don't have cost info
+            # In a real system, you'd subtract actual costs from inventory
+            sale.profit = sale.total_amount * 0.3
 
 class PharmacySaleLine(models.Model):
     _name = 'pharmacy.sale.line'

@@ -24,31 +24,61 @@ export class PharmacyLogin extends Component {
         password: "123",
         role: "Administrator",
         name: "Admin User",
-        permissions: ["all"],
+        permissions: [
+          "All modules",
+          "User management",
+          "System settings",
+          "Reports",
+          "Audit logs",
+          "Price management"
+        ],
       },
       pharm1: {
         password: "123",
         role: "Pharmacist",
         name: "John Pharmacist",
-        permissions: ["sales", "inventory", "prescriptions"],
+        permissions: [
+          "Inventory view",
+          "Medicine safety check",
+          "Prescriptions",
+          "Dispensing"
+        ],
       },
       cashier1: {
         password: "123",
         role: "Cashier",
         name: "Sarah Cashier",
-        permissions: ["sales"],
+        permissions: [
+          "Sales (POS)",
+          "Customer lookup",
+          "Hold/resume bills",
+          "End of day report"
+        ],
       },
       store1: {
         password: "123",
         role: "Storekeeper",
         name: "Mike Storekeeper",
-        permissions: ["inventory", "purchasing"],
+        permissions: [
+          "Inventory management",
+          "GRN entry",
+          "Purchase orders",
+          "Stock adjustments",
+          "Supplier management"
+        ],
       },
       manager1: {
         password: "123",
         role: "Manager",
         name: "Alex Manager",
-        permissions: ["reports", "approvals"],
+        permissions: [
+          "All reports",
+          "Sales reports",
+          "Inventory reports",
+          "Staff oversight",
+          "Void approvals",
+          "Refund approval"
+        ],
       },
     };
 
@@ -116,16 +146,39 @@ export class PharmacyLogin extends Component {
     this.state.role = user.role;
     this.state.cashierName = user.name;
 
+    // Dynamically fetch updated permissions from settings
+    let activePermissions = user.permissions;
+    const savedUsersRaw = localStorage.getItem("pharmacy_settings_users");
+    if (savedUsersRaw) {
+      try {
+        const savedUsers = JSON.parse(savedUsersRaw);
+        if (savedUsers && savedUsers.roles) {
+          const roleData = savedUsers.roles.find(r => r.name === user.role);
+          if (roleData) {
+            activePermissions = roleData.permissions;
+          }
+        }
+      } catch (err) {
+        console.error("Error reading updated permissions", err);
+      }
+    }
+
     // Store session data in localStorage
     localStorage.setItem("pharmacy_active_cashier_id", this.state.cashierId);
     localStorage.setItem("pharmacy_active_cashier_name", user.name);
     localStorage.setItem("pharmacy_active_role", user.role);
     localStorage.setItem(
       "pharmacy_active_permissions",
-      JSON.stringify(user.permissions),
+      JSON.stringify(activePermissions),
     );
-    localStorage.setItem("pharmacy_active_shift", this.isCashierSelected ? this.state.shift : "N/A");
-    localStorage.setItem("pharmacy_opening_cash", this.isCashierSelected ? this.state.openingCash : "0");
+    localStorage.setItem(
+      "pharmacy_active_shift",
+      this.isCashierSelected ? this.state.shift : "N/A",
+    );
+    localStorage.setItem(
+      "pharmacy_opening_cash",
+      this.isCashierSelected ? this.state.openingCash : "0",
+    );
     localStorage.setItem("pharmacy_session_start", new Date().toISOString());
   }
 }

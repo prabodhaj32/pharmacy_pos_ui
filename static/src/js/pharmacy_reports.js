@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { medicines } from "./data/medicine_data.js";
+import { rpc } from "@web/core/network/rpc";
 
 // Simple JavaScript class for Reports (not OWL Component)
 class PharmacyReports {
@@ -11,6 +12,7 @@ class PharmacyReports {
     this.metricsData = {};
     this.reportData = {};
     this.activeTab = "Daily Sales";
+    this.rpc = rpc;
 
     // Set default date range (last 7 days)
     const today = new Date();
@@ -20,73 +22,62 @@ class PharmacyReports {
     this.fromDate = lastWeek.toISOString().split("T")[0];
     this.toDate = today.toISOString().split("T")[0];
 
-    this.loadReportData().then(() => {
-      this.renderReports();
-    });
+    this.init();
+  }
+
+  async init() {
+    await this.loadReportData();
+    this.renderReports();
   }
 
   async loadReportData() {
-    const basePath = "/pharmacy_pos_ui/static/src/js/data/reports/"; // updated path for reports subfolder
-
     try {
-      this.dashboardData = await this.fetchJSON(basePath + "dashboard.json");
-      this.metricsData = await this.fetchJSON(basePath + "metrics.json");
+      const data = await this.rpc("/pharmacy/reports/data", {
+        from_date: this.fromDate,
+        to_date: this.toDate,
+        session_start: localStorage.getItem("pharmacy_session_start"),
+        shift: localStorage.getItem("pharmacy_active_shift"),
+      });
 
-      this.reportData = {
-        daily_sales: await this.fetchJSON(basePath + "daily_sales.json"),
-        profit_report: await this.fetchJSON(basePath + "profit_report.json"),
-        fast_movers: await this.fetchJSON(basePath + "fast_movers.json"),
-        expiry_report: await this.fetchJSON(basePath + "expiry_report.json"),
-        stock_valuation: await this.fetchJSON(
-          basePath + "stock_valuation.json",
-        ),
-        cashier_summary: await this.fetchJSON(
-          basePath + "cashier_summary.json",
-        ),
-      };
-
-      console.log("Report data loaded successfully:", this.reportData);
-    } catch (error) {
-      console.error("Error loading report data:", error);
-      // Fallback to default data if JSON files fail to load
-      this.setDefaultData();
-    }
-  }
-
-  async fetchJSON(url) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (data) {
+        this.metricsData = data.metrics || {};
+        this.reportData = {
+          daily_sales: data.daily_sales || {
+            labels: [],
+            sales: [],
+            profit: [],
+          },
+          fast_movers: data.fast_movers || [],
+          expiry_report: data.expiry_report || [],
+          stock_valuation: data.stock_valuation || { summary: {}, details: [] },
+          cashier_summary: data.cashier_summary || [],
+          expected_session_cash: data.expected_session_cash || 0,
+        };
+        console.log("Report data loaded from backend:", this.reportData);
       }
-      return await response.json();
     } catch (error) {
-      console.error(`Error fetching JSON from ${url}:`, error);
-      throw error;
+      console.error("Error loading report data from backend:", error);
+      this.setDefaultData();
     }
   }
 
   setDefaultData() {
     // Fallback data when JSON files are not available
     this.dashboardData = {
-      total_sales: 48750,
-      net_sales: 47550,
-      total_discount: 1200,
-      total_returns: 1200,
-      tax_collected: 180,
+      total_sales: 0,
+      net_sales: 0,
+      total_discount: 0,
+      total_returns: 0,
+      tax_collected: 0,
     };
 
     this.metricsData = {
-      gross_sales: 48750,
-      net_sales: 47550,
-      total_discount: 1200,
-      total_returns: 1200,
-      tax_collected: 180,
+      gross_sales: 0,
+      net_sales: 0,
+      total_discount: 0,
+      total_returns: 0,
+      tax_collected: 0,
     };
-
-    // Get real inventory data for stock valuation
-    const inventoryData = this.getInventoryDataForValuation();
-    const stockSummary = this.calculateStockValuationSummary(inventoryData);
 
     this.reportData = {
       daily_sales: {
@@ -191,28 +182,13 @@ class PharmacyReports {
           action: "Discount",
         },
       ],
-      // Use real inventory data for stock valuation
       stock_valuation: {
         summary: {
-          total_cost_value: stockSummary.totalCostValue,
-          total_selling_value: stockSummary.totalSellingValue,
-          potential_profit: stockSummary.potentialProfit,
+          total_cost_value: 0,
+          total_selling_value: 0,
+          potential_profit: 0,
         },
-        details: inventoryData.map((item) => {
-          const stock = Number(item.stock) || 0;
-          const cost = Number(item.cost) || 0;
-          const price = Number(item.price) || 0;
-
-          return {
-            medicine: item.name,
-            stock: stock,
-            cost_per_unit: cost,
-            sell_per_unit: price,
-            cost_value: stock * cost,
-            sell_value: stock * price,
-            potential_profit: stock * price - stock * cost,
-          };
-        }),
+        details: [],
       },
       cashier_summary: [
         {
@@ -249,8 +225,8 @@ class PharmacyReports {
     const today = new Date().toISOString().split("T")[0];
     console.log("Rendering Reports content...");
 
-    // Get dynamic metrics for the selected range
-    const metrics = this.calculateMetricsForRange();
+    // Use metrics from backend
+    const metrics = this.metricsData;
 
     container.innerHTML = `
             <div class="dashboard reports-dashboard">
@@ -290,7 +266,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Gross Sales</h3>
-                                <p class="metric-value">LKR ${metrics.gross_sales?.toLocaleString() || "48,750"}</p>
+                                <p class="metric-value">LKR ${(metrics.gross_sales || 0).toLocaleString()}</p>
                             </div>
                             <div class="metric-icon">💰</div>
                         </div>
@@ -300,7 +276,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Net Sales</h3>
-                                <p class="metric-value">LKR ${metrics.net_sales?.toLocaleString() || "47,550"}</p>
+                                <p class="metric-value">LKR ${(metrics.net_sales || 0).toLocaleString()}</p>
                             </div>
                             <div class="metric-icon">💵</div>
                         </div>
@@ -310,7 +286,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Total Discount</h3>
-                                <p class="metric-value">LKR ${metrics.total_discount?.toLocaleString() || "1,200"}</p>
+                                <p class="metric-value">LKR ${(metrics.total_discount || 0).toLocaleString()}</p>
                             </div>
                             <div class="metric-icon">🏷️</div>
                         </div>
@@ -320,7 +296,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Total Returns</h3>
-                                <p class="metric-value">LKR ${metrics.total_returns?.toLocaleString() || "1,200"}</p>
+                                <p class="metric-value">LKR ${(metrics.total_returns || 0).toLocaleString()}</p>
                             </div>
                             <div class="metric-icon">🔄</div>
                         </div>
@@ -330,7 +306,7 @@ class PharmacyReports {
                         <div class="metric-header">
                             <div>
                                 <h3 class="metric-title">Tax Collected</h3>
-                                <p class="metric-value">LKR ${metrics.tax_collected?.toLocaleString() || "180"}</p>
+                                <p class="metric-value">LKR ${(metrics.tax_collected || 0).toLocaleString()}</p>
                             </div>
                             <div class="metric-icon">📋</div>
                         </div>
@@ -480,9 +456,8 @@ class PharmacyReports {
   }
 
   renderFastMoversChart(container) {
-    // Get real inventory data for top selling items
-    const inventoryData = this.getInventoryDataForValuation();
-    const topSellingItems = this.generateTopSellingData(inventoryData);
+    // Get top selling items from backend
+    const topSellingItems = this.reportData.fast_movers || [];
 
     container.innerHTML = `
             <div class="chart-card full-width">
@@ -675,23 +650,27 @@ class PharmacyReports {
     }
 
     return topSellingItems
-      .map((item) => {
-        const rankColor = item.rank <= 3 ? "#059669" : "#6b7280"; // Top 3 in green
+      .map((item, index) => {
+        const rank = index + 1;
+        const name = item.medicine || item.name || "Unknown";
+        const qtySold = item.qty_sold || item.qtySold || 0;
+        const revenue = item.revenue || 0;
+        const rankColor = rank <= 3 ? "#059669" : "#6b7280";
 
         return `
         <tr style="border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${rankColor}; border-bottom: 1px solid #f1f5f9;">${item.rank}</td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${rankColor}; border-bottom: 1px solid #f1f5f9;">${rank}</td>
           <td style="padding: 0.75rem; font-weight: 500; color: #1f2937; border-bottom: 1px solid #f1f5f9;">
-            <div style="font-weight: 600;">${item.name}</div>
+            <div style="font-weight: 600;">${name}</div>
             ${item.generic ? `<div style="font-size: 10px; color: #6b7280;">${item.generic}</div>` : ""}
           </td>
           <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">
-             <span class="meta-pill neutral" style="font-size: 10px;">${item.category}</span>
+             <span class="meta-pill neutral" style="font-size: 10px;">${item.category || "General"}</span>
           </td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${item.stock < 10 ? "#dc2626" : "#1f2937"}; border-bottom: 1px solid #f1f5f9;">${item.stock}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${item.qtySold.toLocaleString()}</td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #059669; border-bottom: 1px solid #f1f5f9;">LKR ${item.revenue.toLocaleString()}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${item.avgPerDay}/day</td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${(item.stock || 0) < 10 ? "#dc2626" : "#1f2937"}; border-bottom: 1px solid #f1f5f9;">${item.stock || 0}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${qtySold.toLocaleString()}</td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #059669; border-bottom: 1px solid #f1f5f9;">LKR ${revenue.toLocaleString()}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${item.avg_per_day || 0}/day</td>
         </tr>
       `;
       })
@@ -699,9 +678,8 @@ class PharmacyReports {
   }
 
   renderExpiryReport(container) {
-    // Get real inventory data for expiry report
-    const inventoryData = this.getInventoryDataForValuation();
-    const expiringItems = this.getExpiringItems(inventoryData);
+    // Get expiring items from backend
+    const expiringItems = this.reportData.expiry_report || [];
 
     container.innerHTML = `
         <div class="chart-card full-width">
@@ -791,17 +769,20 @@ class PharmacyReports {
 
     return expiringItems
       .map((item) => {
-        const expiry = this.parseISODate(item.expiryDate);
-        const diffDays = Math.ceil(
-          (expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const expiryDate = item.expiry_date || item.expiryDate;
+        const expiry = this.parseISODate(expiryDate);
+        const diffDays = expiry
+          ? Math.ceil(
+              (expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+            )
+          : 999;
         const isExpired = diffDays < 0;
         const isCritical = diffDays <= 30;
         const isWarning = diffDays <= 60;
 
         const stock = Number(item.stock) || 0;
         const cost = Number(item.cost) || 0;
-        const valueAtCost = stock * cost;
+        const valueAtCost = item.value_at_cost || stock * cost;
 
         // Determine row background and action based on expiry status
         let rowBackground = "";
@@ -829,12 +810,12 @@ class PharmacyReports {
         return `
         <tr style="border-bottom: 1px solid #fecaca; ${rowBackground}">
           <td style="padding: 0.5rem; font-weight: 500; color: #374151; border-bottom: 1px solid #fecaca;">
-            <div style="font-weight: 600;">${item.name || "Unknown"}</div>
+            <div style="font-weight: 600;">${item.medicine || item.name || "Unknown"}</div>
             ${item.generic ? `<div style="font-size: 10px; color: #6b7280;">${item.generic}</div>` : ""}
           </td>
           <td style="padding: 0.5rem; color: #374151; border-bottom: 1px solid #fecaca;">${item.batch || "N/A"}</td>
-          <td style="padding: 0.5rem; text-align: center; color: #374151; border-bottom: 1px solid #fecaca;">${item.expiryLabel || item.expiryDate || "N/A"}</td>
-          <td style="padding: 0.5rem; text-align: center; font-weight: 600; color: ${daysColor}; border-bottom: 1px solid #fecaca;">${diffDays} days</td>
+          <td style="padding: 0.5rem; text-align: center; color: #374151; border-bottom: 1px solid #fecaca;">${expiryDate || "N/A"}</td>
+          <td style="padding: 0.5rem; text-align: center; font-weight: 600; color: ${daysColor}; border-bottom: 1px solid #fecaca;">${isExpired ? "EXPIRED" : diffDays + " days"}</td>
           <td style="padding: 0.5rem; text-align: center; color: #374151; border-bottom: 1px solid #fecaca;">${stock}</td>
           <td style="padding: 0.5rem; text-align: center; color: #374151; border-bottom: 1px solid #fecaca;">LKR ${valueAtCost.toLocaleString()}</td>
           <td style="padding: 0.5rem; text-align: center; border-bottom: 1px solid #fecaca;">${actionBadge}</td>
@@ -845,9 +826,17 @@ class PharmacyReports {
   }
 
   renderStockValuation(container) {
-    // Get real inventory data from localStorage
-    const inventoryData = this.getInventoryDataForValuation();
-    const stockSummary = this.calculateStockValuationSummary(inventoryData);
+    // Get stock valuation from backend
+    const stockValuation = this.reportData.stock_valuation || {
+      summary: {},
+      details: [],
+    };
+    const stockSummary = stockValuation.summary || {
+      total_cost_value: 0,
+      total_selling_value: 0,
+      potential_profit: 0,
+    };
+    const inventoryData = stockValuation.details || [];
 
     container.innerHTML = `
             <div class="chart-card full-width stock-valuation-card">
@@ -862,15 +851,15 @@ class PharmacyReports {
                 <div class="stock-summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; padding: 0 1rem;">
                     <div class="stock-summary-card" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #0ea5e9; border-radius: 0.375rem; padding: 0.75rem; text-align: center;">
                         <div style="font-size: 0.75rem; color: #0369a1; font-weight: 600; margin-bottom: 0.25rem;">Total Cost Value</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #0c4a6e;">LKR ${stockSummary.totalCostValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #0c4a6e;">LKR ${(stockSummary.total_cost_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                     <div class="stock-summary-card" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #22c55e; border-radius: 0.375rem; padding: 0.75rem; text-align: center;">
                         <div style="font-size: 0.75rem; color: #15803d; font-weight: 600; margin-bottom: 0.25rem;">Total Selling Value</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #14532d;">LKR ${stockSummary.totalSellingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #14532d;">LKR ${(stockSummary.total_selling_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                     <div class="stock-summary-card" style="background: linear-gradient(135deg, #fefce8, #fef3c7); border: 1px solid #f59e0b; border-radius: 0.375rem; padding: 0.75rem; text-align: center;">
                         <div style="font-size: 0.75rem; color: #d97706; font-weight: 600; margin-bottom: 0.25rem;">Potential Profit</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #92400e;">LKR ${stockSummary.potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #92400e;">LKR ${(stockSummary.potential_profit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                 </div>
                 
@@ -895,6 +884,53 @@ class PharmacyReports {
                 </div>
             </div>
         `;
+  }
+
+  renderStockValuationRows(inventoryData) {
+    if (!inventoryData || inventoryData.length === 0) {
+      return `
+        <tr>
+          <td colspan="7" style="padding: 2rem; text-align: center; color: #6b7280;">
+            <div style="font-size: 1rem;">No inventory data available</div>
+            <div style="font-size: 0.875rem; margin-top: 0.5rem;">Please add items to inventory to see stock valuation.</div>
+          </td>
+        </tr>
+      `;
+    }
+
+    return inventoryData
+      .map((item) => {
+        const medicine = item.medicine || item.name || "Unknown";
+        const stock = Number(item.stock) || 0;
+        const costPerUnit = item.cost_per_unit || item.cost || 0;
+        const sellPerUnit = item.sell_per_unit || item.price || 0;
+        const costValue = item.cost_value || stock * costPerUnit;
+        const sellValue = item.sell_value || stock * sellPerUnit;
+        const potentialProfit = item.potential_profit || sellValue - costValue;
+
+        return `
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 0.75rem; font-weight: 500; color: #1f2937; border-bottom: 1px solid #f1f5f9;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1rem;">${item.icon || "💊"}</span>
+              <div>
+                <div style="font-weight: 600;">${medicine}</div>
+                ${item.generic ? `<div style="font-size: 0.75rem; color: #6b7280;">${item.generic}</div>` : ""}
+              </div>
+            </div>
+          </td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${stock}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${costPerUnit.toFixed(2)}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${sellPerUnit.toFixed(2)}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${costValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${sellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${potentialProfit >= 0 ? "#059669" : "#dc2626"}; border-bottom: 1px solid #f1f5f9;">
+            LKR ${potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
   }
 
   // ====================== INVENTORY DATA INTEGRATION ======================
@@ -925,403 +961,69 @@ class PharmacyReports {
   /**
    * Calculate stock valuation summary from inventory data
    */
-  calculateStockValuationSummary(inventoryData) {
-    let totalCostValue = 0;
-    let totalSellingValue = 0;
-    let potentialProfit = 0;
-
-    inventoryData.forEach((item) => {
-      const stock = Number(item.stock) || 0;
-      const cost = Number(item.cost) || 0;
-      const price = Number(item.price) || 0;
-
-      const costValue = stock * cost;
-      const sellValue = stock * price;
-
-      totalCostValue += costValue;
-      totalSellingValue += sellValue;
-      potentialProfit += sellValue - costValue;
-    });
-
-    return {
-      totalCostValue,
-      totalSellingValue,
-      potentialProfit,
-    };
-  }
-
-  /**
-   * Calculate daily sales and profit for the selected date range
-   * Uses real pharmacy_sales and pharmacy_pos_inventory_items for costs
-   */
-  calculateDailyMetrics() {
-    const rawSales = localStorage.getItem("pharmacy_sales");
-    const sales = rawSales ? JSON.parse(rawSales) : [];
-
-    const rawInventory = localStorage.getItem("pharmacy_pos_inventory_items");
-    const inventory = rawInventory ? JSON.parse(rawInventory) : [];
-
-    // Map productId -> cost for fast lookup
-    const costMap = {};
-    inventory.forEach((item) => {
-      costMap[item.id] = Number(item.cost) || 0;
-    });
-
-    const labels = [];
-    const dailyData = {};
-    const dateKeys = [];
-
-    // Calculate dates in range
-    const start = new Date(this.fromDate);
-    const end = new Date(this.toDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    // Limit to 31 days to keep chart readable
-    const displayDays = Math.min(diffDays, 31);
-
-    for (let i = 0; i < displayDays; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-
-      // Key format: YYYY-MM-DD (local)
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-      // Label: Mon, Tue etc if <= 7 days, otherwise MM/DD
-      const label =
-        displayDays <= 7
-          ? d.toLocaleDateString("en-US", { weekday: "short" })
-          : `${d.getMonth() + 1}/${d.getDate()}`;
-
-      labels.push(label);
-      dateKeys.push(dateKey);
-      dailyData[dateKey] = {
-        sales: 0,
-        profit: 0,
-        dayLabel: label,
-      };
-    }
-
-    // Process sales and aggregate by local date
-    sales.forEach((sale) => {
-      if (!sale.timestamp) return;
-      const saleDate = new Date(sale.timestamp);
-      const dateKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, "0")}-${String(saleDate.getDate()).padStart(2, "0")}`;
-
-      if (dailyData[dateKey]) {
-        dailyData[dateKey].sales += Number(sale.total) || 0;
-
-        // Calculate profit for each item in the sale
-        if (sale.items && Array.isArray(sale.items)) {
-          sale.items.forEach((item) => {
-            const qty = Number(item.quantity) || 0;
-            const price = Number(item.unitPrice || item.price) || 0;
-            const cost =
-              costMap[item.id] !== undefined ? costMap[item.id] : price * 0.7; // Fallback estimate
-
-            dailyData[dateKey].profit += (price - cost) * qty;
-          });
-        }
-      }
-    });
-
-    // Extract arrays for chart consumption
-    const salesArray = [];
-    const profitArray = [];
-
-    dateKeys.forEach((key) => {
-      salesArray.push(Math.round(dailyData[key].sales));
-      profitArray.push(Math.round(dailyData[key].profit));
-    });
-
-    // If no sales at all, return dummy data only if we're looking at current week
-    const totalSales = salesArray.reduce((s, v) => s + v, 0);
-    if (totalSales === 0 && displayDays === 7) {
-      return {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        sales: [35000, 48000, 42000, 61000, 78000, 72000, 48750],
-        profit: [9500, 12000, 10500, 16000, 22000, 19500, 12400],
-      };
-    }
-
-    return {
-      labels,
-      sales: salesArray,
-      profit: profitArray,
-    };
-  }
-
-  /**
-   * Aggregate metrics for the selected date range from local sales data
-   */
-  calculateMetricsForRange() {
-    const rawSales = localStorage.getItem("pharmacy_sales");
-    const sales = rawSales ? JSON.parse(rawSales) : [];
-
-    // Get tax settings for fallback calculation
-    let vatRate = 0.15; // Default 15%
-    try {
-      const settings = JSON.parse(
-        localStorage.getItem("pharmacy_pos_settings") || "{}",
-      );
-      if (settings.tax && settings.tax.vatRate) {
-        vatRate = settings.tax.vatRate / 100;
-      }
-    } catch (e) {}
-
-    const start = new Date(this.fromDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(this.toDate);
-    end.setHours(23, 59, 59, 999);
-
-    const metrics = {
-      gross_sales: 0,
-      net_sales: 0,
-      total_discount: 0,
-      total_returns: 0,
-      tax_collected: 0,
-    };
-
-    sales.forEach((sale) => {
-      const saleDate = new Date(sale.timestamp);
-      if (saleDate >= start && saleDate <= end) {
-        const total = Number(sale.total) || 0;
-        const discount = Number(sale.discount) || 0;
-
-        if (total < 0) {
-          // Identify as return if total is negative
-          metrics.total_returns += Math.abs(total);
-        } else {
-          // Regular sale
-          metrics.gross_sales += total + discount;
-          metrics.total_discount += discount;
-
-          // Logic for tax: if sale record has taxField, use it
-          const tax =
-            sale.taxAmount !== undefined
-              ? Number(sale.taxAmount)
-              : total * vatRate;
-          metrics.tax_collected += tax;
-        }
-      }
-    });
-
-    // Net Sales = Gross - Discount - Returns
-    // However, in many contexts, Gross already has discount subtracted.
-    // Here we define Gross as 'Pre-discount' so:
-    metrics.net_sales =
-      metrics.gross_sales - metrics.total_discount - metrics.total_returns;
-
-    return metrics;
-  }
-
-  handleDateFilterChange() {
-    console.log(`Date range changed: ${this.fromDate} to ${this.toDate}`);
-
-    // Update metrics cards
-    const metrics = this.calculateMetricsForRange();
-    this.updateMetricCards(metrics);
-
-    // Refresh active tab content
-    const container = document.querySelector(".charts-grid");
-    if (container) {
-      this.renderTabContent(this.activeTab);
-    }
-  }
-
-  updateMetricCards(metrics) {
-    const cards = document.querySelectorAll(".metric-card");
-    if (cards.length >= 5) {
-      // Gross Sales
-      const grossEl = cards[0].querySelector(".metric-value");
-      if (grossEl)
-        grossEl.textContent = `LKR ${metrics.gross_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-      // Net Sales
-      const netEl = cards[1].querySelector(".metric-value");
-      if (netEl)
-        netEl.textContent = `LKR ${metrics.net_sales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-      // Total Discount
-      const discEl = cards[2].querySelector(".metric-value");
-      if (discEl)
-        discEl.textContent = `LKR ${metrics.total_discount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-      // Total Returns
-      const retEl = cards[3].querySelector(".metric-value");
-      if (retEl)
-        retEl.textContent = `LKR ${metrics.total_returns.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-      // Tax Collected
-      const taxEl = cards[4].querySelector(".metric-value");
-      if (taxEl)
-        taxEl.textContent = `LKR ${metrics.tax_collected.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-    }
-  }
-
-  /**
-   * Render table rows for stock valuation with real inventory data
-   */
-  renderStockValuationRows(inventoryData) {
-    if (!inventoryData || inventoryData.length === 0) {
-      return `
-        <tr>
-          <td colspan="7" style="padding: 2rem; text-align: center; color: #6b7280;">
-            <div style="font-size: 1rem;">No inventory data available</div>
-            <div style="font-size: 0.875rem; margin-top: 0.5rem;">Please add items to inventory to see stock valuation.</div>
-          </td>
-        </tr>
-      `;
-    }
-
-    return inventoryData
-      .map((item) => {
-        const stock = Number(item.stock) || 0;
-        const cost = Number(item.cost) || 0;
-        const price = Number(item.price) || 0;
-
-        const costValue = stock * cost;
-        const sellValue = stock * price;
-        const profit = sellValue - costValue;
-
-        return `
-        <tr style="border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 0.75rem; font-weight: 500; color: #1f2937; border-bottom: 1px solid #f1f5f9;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 1rem;">${item.icon || "💊"}</span>
-              <div>
-                <div style="font-weight: 600;">${item.name}</div>
-                ${item.generic ? `<div style="font-size: 0.75rem; color: #6b7280;">${item.generic}</div>` : ""}
-              </div>
-            </div>
-          </td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">${stock}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${cost.toFixed(2)}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${price.toFixed(2)}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${costValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td style="padding: 0.75rem; text-align: center; color: #4b5563; border-bottom: 1px solid #f1f5f9;">LKR ${sellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: ${profit >= 0 ? "#059669" : "#dc2626"}; border-bottom: 1px solid #f1f5f9;">
-            LKR ${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </td>
-        </tr>
-      `;
-      })
-      .join("");
+  async handleDateFilterChange() {
+    console.log("Date filter changed, reloading data...");
+    await this.loadReportData();
+    this.renderReports();
   }
 
   renderCashierSummary(container) {
-    const rawSales = localStorage.getItem("pharmacy_sales");
-    const sales = rawSales ? JSON.parse(rawSales) : [];
+    // Get cashier summary from backend
+    const cashierData = this.reportData.cashier_summary || [];
 
-    // Filter sales by date range
-    const start = new Date(this.fromDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(this.toDate);
-    end.setHours(23, 59, 59, 999);
+    const cardsHtml =
+      cashierData.length > 0
+        ? cashierData
+            .map((stats) => {
+              const cashierId = stats.cashier;
+              const totalSales = stats.total_sales || 0;
+              const bills = stats.bills || 0;
+              const cashCollected = stats.cash_collected || 0;
+              const cardCollected = stats.card_collected || 0;
+              const avgBill = bills > 0 ? totalSales / bills : 0;
 
-    const filteredSales = sales.filter((sale) => {
-      const saleDate = new Date(sale.timestamp);
-      return saleDate >= start && saleDate <= end;
-    });
-
-    // Group sales by cashier
-    const cashierStats = {};
-    filteredSales.forEach((sale) => {
-      const cashierId = sale.cashierId || "Unknown";
-      if (!cashierStats[cashierId]) {
-        cashierStats[cashierId] = {
-          bills: 0,
-          totalSales: 0,
-          cashCollected: 0,
-          cardCollected: 0,
-        };
-      }
-      cashierStats[cashierId].bills += 1;
-      cashierStats[cashierId].totalSales += sale.total || 0;
-      if (sale.paymentMethod === "cash")
-        cashierStats[cashierId].cashCollected += sale.amountPaid || sale.total;
-      else if (sale.paymentMethod === "card")
-        cashierStats[cashierId].cardCollected += sale.total;
-    });
-
-    const activeCashier =
-      localStorage.getItem("pharmacy_active_cashier_id") || "admin";
-    // Filter to only show the active cashier, UNLESS the active cashier is admin
-    // Also, explicitly exclude 'admin' from being displayed in the summary
-    let cashiersToDisplay = Object.keys(cashierStats).filter(
-      (id) => id !== "admin" && id !== "Administrator",
-    );
-    if (activeCashier !== "admin") {
-      cashiersToDisplay = cashiersToDisplay.filter(
-        (id) => id === activeCashier,
-      );
-    }
-
-    // Support empty state explicitly
-    if (cashiersToDisplay.length === 0 && activeCashier !== "admin") {
-      cashiersToDisplay = [activeCashier];
-      cashierStats[activeCashier] = {
-        bills: 0,
-        totalSales: 0,
-        cashCollected: 0,
-        cardCollected: 0,
-      };
-    } else if (cashiersToDisplay.length === 0) {
-      // Fallback fake data if admin but no sales yet (just for display purposes to user)
-      cashiersToDisplay = ["Cashier 1", "Cashier 2"];
-      cashierStats["Cashier 1"] = {
-        bills: 0,
-        totalSales: 0,
-        cashCollected: 0,
-        cardCollected: 0,
-      };
-      cashierStats["Cashier 2"] = {
-        bills: 0,
-        totalSales: 0,
-        cashCollected: 0,
-        cardCollected: 0,
-      };
-    }
-
-    const cardsHtml = cashiersToDisplay
-      .map((cashierId) => {
-        const stats = cashierStats[cashierId];
-        const avgBill = stats.bills > 0 ? stats.totalSales / stats.bills : 0;
-        return `
-            <div style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); border: 1px solid #3b82f6; border-radius: 0.5rem; padding: 1rem;">
-                <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-                    <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 0.5rem;"></div>
-                    <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #1f2937;">${cashierId}</h4>
-                </div>
-                <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 1rem;">Today's Performance</div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #1f2937;">${stats.bills}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Bills Processed</div>
+              return `
+                <div style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); border: 1px solid #3b82f6; border-radius: 0.5rem; padding: 1rem;">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 0.5rem;"></div>
+                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #1f2937;">${cashierId}</h4>
                     </div>
-                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">LKR ${Number(stats.totalSales).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Total Sales</div>
+                    <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 1rem;">Today's Performance</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1f2937;">${bills}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Bills Processed</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">LKR ${Number(totalSales).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Total Sales</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #3b82f6;">LKR ${Number(avgBill).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Avg. Bill Value</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">LKR ${Number(cashCollected).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Cash Collected</div>
+                        </div>
                     </div>
-                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #3b82f6;">LKR ${Number(avgBill).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Avg. Bill Value</div>
-                    </div>
-                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 0.375rem;">
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">LKR ${Number(stats.cashCollected).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Cash Collected</div>
+                    
+                    <div style="margin-top: 0.75rem; padding: 0.5rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 0.375rem; text-align: center;">
+                        <div style="font-size: 1rem; font-weight: 600; color: #0369a1;">LKR ${Number(cardCollected).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">Card Collected</div>
                     </div>
                 </div>
-                
-                <div style="margin-top: 0.75rem; padding: 0.5rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 0.375rem; text-align: center;">
-                    <div style="font-size: 1rem; font-weight: 600; color: #0369a1;">LKR ${Number(stats.cardCollected).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">Card Collected</div>
-                </div>
-            </div>
-        `;
-      })
-      .join("");
+            `;
+            })
+            .join("")
+        : `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+            <div style="font-size: 1.1rem; font-weight: 600; color: #475569;">No Cashier Performance Data</div>
+            <p style="color: #64748b; margin-top: 0.5rem;">Sales data for today's active cashiers will appear here.</p>
+        </div>
+      `;
 
     // SESSION RECONCILIATION SECTION (NEW)
     const sessionClosingHtml = this.renderCurrentSessionReconciliation();
@@ -1414,87 +1116,92 @@ class PharmacyReports {
     `;
   }
 
-  getExpectedCashForCurrentSession() {
-    const sessionStart = localStorage.getItem("pharmacy_session_start");
-    const cashierId = localStorage.getItem("pharmacy_active_cashier_id");
-    const shift = localStorage.getItem("pharmacy_active_shift");
-
-    if (!sessionStart) return 0;
-
-    const sales = JSON.parse(localStorage.getItem("pharmacy_sales") || "[]");
-    return sales
-      .filter(
-        (sale) =>
-          sale.paymentMethod === "cash" &&
-          sale.cashierId === cashierId &&
-          sale.shift === shift &&
-          new Date(sale.timestamp) >= new Date(sessionStart),
-      )
-      .reduce((sum, sale) => sum + (parseFloat(sale.total) || 0), 0);
-  }
-
   updateReportCashDifference() {
+    const expectedBox = document.getElementById("reportExpectedTotal");
     const actualInput = document.getElementById("reportActualCash");
-    const expectedEl = document.getElementById("reportExpectedTotal");
-    const diffEl = document.getElementById("reportCashDifference");
-    const noteEl = document.getElementById("reportDiscrepancyNote");
-    const boxEl = document.getElementById("reportDiscrepancyBox");
+    const diffBox = document.getElementById("reportCashDifference");
+    const noteBox = document.getElementById("reportDiscrepancyNote");
+    const box = document.getElementById("reportDiscrepancyBox");
 
-    if (!actualInput || !expectedEl) return;
+    if (!expectedBox || !actualInput || !diffBox) return;
 
+    const expected = parseFloat(expectedBox.getAttribute("data-val")) || 0;
     const actual = parseFloat(actualInput.value) || 0;
-    const expected = parseFloat(expectedEl.dataset.val) || 0;
     const diff = actual - expected;
 
-    diffEl.textContent = `LKR ${Math.abs(diff).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    diffBox.textContent = `LKR ${diff.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-    if (Math.abs(diff) < 0.01) {
-      noteEl.textContent = "✓ Perfect Match";
-      boxEl.style.background = "#f0fdf4";
-      boxEl.style.borderColor = "#86efac";
-      diffEl.style.color = "#16a34a";
-    } else if (diff > 0) {
-      noteEl.textContent = `⚠️ LKR ${diff.toFixed(2)} Over`;
-      boxEl.style.background = "#eff6ff";
-      boxEl.style.borderColor = "#93c5fd";
-      diffEl.style.color = "#2563eb";
+    if (diff === 0) {
+      diffBox.style.color = "#059669";
+      noteBox.textContent = "Perfect Match";
+      noteBox.style.color = "#059669";
+      box.style.borderColor = "#059669";
+      box.style.background = "#f0fdf4";
+    } else if (Math.abs(diff) < 100) {
+      diffBox.style.color = "#d97706";
+      noteBox.textContent = diff > 0 ? "Surplus" : "Minor Shortage";
+      noteBox.style.color = "#d97706";
+      box.style.borderColor = "#f59e0b";
+      box.style.background = "#fffbeb";
     } else {
-      noteEl.textContent = `⚠️ LKR ${Math.abs(diff).toFixed(2)} Short`;
-      boxEl.style.background = "#fef2f2";
-      boxEl.style.borderColor = "#fecaca";
-      diffEl.style.color = "#dc2626";
+      diffBox.style.color = "#dc2626";
+      noteBox.textContent = diff > 0 ? "Significant Surplus" : "Major Shortage";
+      noteBox.style.color = "#dc2626";
+      box.style.borderColor = "#ef4444";
+      box.style.background = "#fef2f2";
     }
   }
 
-  finalizeShiftFromReport() {
-    if (
-      confirm("Are you sure you want to end this shift and close the session?")
-    ) {
-      const actualCash = document.getElementById("reportActualCash").value;
-      const sessionSummary = {
-        cashierId: localStorage.getItem("pharmacy_active_cashier_id"),
-        shift: localStorage.getItem("pharmacy_active_shift"),
-        start: localStorage.getItem("pharmacy_session_start"),
-        end: new Date().toISOString(),
-        openingCash: localStorage.getItem("pharmacy_opening_cash"),
-        expectedCashSales: this.getExpectedCashForCurrentSession(),
-        actualClosingCash: actualCash,
-      };
-
-      const history = JSON.parse(
-        localStorage.getItem("pharmacy_shift_history") || "[]",
-      );
-      history.push(sessionSummary);
-      localStorage.setItem("pharmacy_shift_history", JSON.stringify(history));
-
-      alert("🏁 Shift closed successfully. Redirecting to login...");
-
-      if (window.pharmacyLogout) {
-        window.pharmacyLogout();
-      } else {
-        window.location.reload();
-      }
+  async finalizeShiftFromReport() {
+    const actualInput = document.getElementById("reportActualCash");
+    if (!actualInput || !actualInput.value) {
+      alert("Please enter the actual cash amount in the drawer.");
+      return;
     }
+
+    const confirmClose = confirm(
+      "Are you sure you want to finalize and close the current shift?",
+    );
+    if (!confirmClose) return;
+
+    try {
+      const shift = localStorage.getItem("pharmacy_active_shift") || "Morning";
+      const start = localStorage.getItem("pharmacy_session_start");
+      const openingCash = localStorage.getItem("pharmacy_opening_cash") || 0;
+      const expectedCashSales = this.reportData.expected_session_cash || 0;
+      const actualClosingCash = actualInput.value;
+
+      const result = await this.rpc("/pharmacy/reports/finalize_shift", {
+        shift: shift,
+        start: start,
+        end: new Date().toISOString(),
+        openingCash: openingCash,
+        expectedCashSales: expectedCashSales,
+        actualClosingCash: actualClosingCash,
+      });
+
+      if (result.success) {
+        alert("Shift successfully closed and finalized in the database.");
+
+        // Clear local session info
+        localStorage.removeItem("pharmacy_session_start");
+        localStorage.removeItem("pharmacy_active_cashier_id");
+        localStorage.removeItem("pharmacy_active_shift");
+        localStorage.removeItem("pharmacy_opening_cash");
+
+        // Reload to show empty state or redirect
+        window.location.reload();
+      } else {
+        alert("Error closing shift: " + result.error);
+      }
+    } catch (error) {
+      console.error("Finalize shift error:", error);
+      alert("Failed to finalize shift. Please try again.");
+    }
+  }
+
+  getExpectedCashForCurrentSession() {
+    return this.reportData.expected_session_cash || 0;
   }
 
   /**
@@ -1534,8 +1241,12 @@ class PharmacyReports {
       this.charts.profit.destroy();
     }
 
-    // Get real daily profit data
-    const metrics = this.calculateDailyMetrics();
+    // Get daily data from backend
+    const metrics = this.reportData.daily_sales || {
+      labels: [],
+      sales: [],
+      profit: [],
+    };
     const labels = metrics.labels;
     const profitData = metrics.profit;
 
@@ -1940,7 +1651,11 @@ class PharmacyReports {
       this.charts.reports.destroy();
     }
 
-    const metrics = this.calculateDailyMetrics();
+    const metrics = this.reportData.daily_sales || {
+      labels: [],
+      sales: [],
+      profit: [],
+    };
     const labels = metrics.labels;
     const salesData = metrics.sales;
     const profitData = metrics.profit;

@@ -82,8 +82,8 @@ class PharmacyPurchasingController(http.Controller):
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-    @http.route('/pharmacy_pos/create_purchase_order', type='json', auth='user')
-    def create_purchase_order(self, **data):
+    @http.route('/pharmacy_pos/save_purchase_order', type='json', auth='user')
+    def save_purchase_order(self, **data):
         try:
             if 'data' in data: data = data['data']
             po_vals = {
@@ -91,9 +91,17 @@ class PharmacyPurchasingController(http.Controller):
                 'supplier_id': int(data.get('supplierId')),
                 'expected_delivery_date': data.get('expectedDeliveryDate'),
                 'total_amount': float(data.get('totalAmount', 0)),
-                'status': 'pending'
+                'status': data.get('status', 'pending')
             }
-            po = request.env['pharmacy.purchase.order'].sudo().create(po_vals)
+            
+            if data.get('id'):
+                po = request.env['pharmacy.purchase.order'].sudo().browse(int(data['id']))
+                po.write(po_vals)
+                # Refresh lines: delete old and create new
+                po.order_line_ids.unlink()
+            else:
+                po = request.env['pharmacy.purchase.order'].sudo().create(po_vals)
+                
             for item in data.get('items', []):
                 request.env['pharmacy.purchase.order.line'].sudo().create({
                     'order_id': po.id,

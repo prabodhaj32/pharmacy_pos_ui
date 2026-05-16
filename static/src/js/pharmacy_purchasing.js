@@ -41,15 +41,6 @@ export class PharmacyPurchasing {
     }
   }
 
-  _saveLocal(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
-
-  _loadLocal(key, defaultValue) {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : defaultValue;
-  }
-
   savePurchaseOrders() {
     // Persisted in backend on creation
   }
@@ -482,10 +473,71 @@ export class PharmacyPurchasing {
   }
 
   editPurchaseOrder(id) {
-    this.showNotification(
-      "Edit functionality is currently being implemented.",
-      "info",
-    );
+    const order = this.purchaseOrders.find((o) => String(o.id) === String(id));
+    if (!order) return;
+
+    this._renderModal({
+      id: "purchaseOrderModal",
+      title: `Edit Purchase Order: ${order.orderNumber}`,
+      subtitle: "Update order details and items",
+      contentHtml: `
+        <form id="purchaseOrderForm" style="padding: 1.25rem;">
+          <input type="hidden" name="id" value="${order.id}">
+          <div style="margin-bottom: 1rem;">
+            <label class="premium-label">Supplier *</label>
+            <select name="supplierId" required class="premium-input" style="appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem;">
+              <option value="">Select a supplier...</option>
+              ${this.suppliers
+                .filter((s) => s.status === "active")
+                .map(
+                  (s) =>
+                    `<option value="${s.id}" ${String(s.id) === String(order.supplierId) ? "selected" : ""}>${s.name}</option>`,
+                )
+                .join("")}
+            </select>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label class="premium-label">Order Date *</label>
+              <input type="date" name="orderDate" required value="${order.orderDate}" class="premium-input">
+            </div>
+            <div>
+              <label class="premium-label">Expected Delivery</label>
+              <input type="date" name="expectedDeliveryDate" value="${order.expectedDeliveryDate || ""}" class="premium-input">
+            </div>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 0.7rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Order Items</h4>
+              <button type="button" onclick="pharmacyPurchasing.addPurchaseOrderItem()" style="padding: 4px 12px; font-size: 0.65rem; border-radius: 6px; background: #3b82f6; color: white; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                <span style="font-size: 0.8rem;">+</span> Add Item
+              </button>
+            </div>
+            <div id="itemsContainer" style="border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 0.75rem; background: rgba(0,0,0,0.02); max-height: 220px; overflow-y: auto;"></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 0.75rem; padding: 0.75rem 1rem; background: #fff; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+              <span id="itemCount" style="font-size: 0.7rem; color: #64748b; font-weight: 500;">0 items</span>
+              <span id="orderTotal" style="font-size: 0.85rem; font-weight: 800; color: #0f172a;">Total: <span style="color: #007513;">LKR 0.00</span></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05);">
+            <button type="button" onclick="document.getElementById('purchaseOrderModal').remove()" style="padding: 0.5rem 1.25rem; font-size: 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #475569; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Cancel</button>
+            <button type="submit" style="padding: 0.5rem 1.75rem; font-size: 0.75rem; border-radius: 8px; background: linear-gradient(135deg, #006c11, #004d0c); color: white; border: none; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 108, 17, 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(0, 108, 17, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 108, 17, 0.2)'">Update Purchase Order</button>
+          </div>
+        </form>
+      `,
+    });
+
+    this.currentOrderItems = (order.items || []).map((item) => ({
+      ...item,
+      id: item.id || Date.now().toString() + Math.random(),
+    }));
+    this.updateItemsDisplay();
+
+    const form = document.getElementById("purchaseOrderForm");
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.createPurchaseOrderFromForm(form);
+    });
   }
 
   async deletePurchaseOrder(id) {
@@ -855,7 +907,7 @@ export class PharmacyPurchasing {
   }
 
   editSupplier(id) {
-    const supplier = this.suppliers.find((s) => s.id === id);
+    const supplier = this.suppliers.find((s) => String(s.id) === String(id));
     if (!supplier) return;
 
     this._renderModal({
@@ -873,7 +925,7 @@ export class PharmacyPurchasing {
   }
 
   viewSupplier(id) {
-    const s = this.suppliers.find((s) => s.id === id);
+    const s = this.suppliers.find((s) => String(s.id) === String(id));
     if (!s) return;
     this._renderModal({
       id: "viewSupplierModal",
@@ -1047,7 +1099,11 @@ export class PharmacyPurchasing {
     }
 
     const poData = {
-      orderNumber: `PO-${Date.now().toString().slice(-6)}`,
+      id: data.id || null,
+      orderNumber: data.id
+        ? this.purchaseOrders.find((o) => String(o.id) === String(data.id))
+            ?.orderNumber
+        : `PO-${Date.now().toString().slice(-6)}`,
       supplierId: data.supplierId,
       expectedDeliveryDate: data.expectedDeliveryDate,
       orderDate: data.orderDate,
@@ -1057,7 +1113,7 @@ export class PharmacyPurchasing {
 
     try {
       const result = await this.rpc(
-        "/pharmacy_pos/create_purchase_order",
+        "/pharmacy_pos/save_purchase_order",
         poData,
       );
       if (result && result.success) {
@@ -1120,7 +1176,7 @@ export class PharmacyPurchasing {
   }
 
   async toggleSupplierStatus(id) {
-    const s = this.suppliers.find((s) => s.id === id);
+    const s = this.suppliers.find((s) => String(s.id) === String(id));
     if (s) {
       const newStatus = s.status === "active" ? "inactive" : "active";
       try {
@@ -1146,22 +1202,79 @@ export class PharmacyPurchasing {
   }
 
   showNotification(message, type = "info") {
-    const notif = document.createElement("div");
-    notif.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:6px;color:white;z-index:10000; transition: all 0.3s ease;`;
-    notif.style.backgroundColor =
-      type === "success"
-        ? "#007513"
-        : type === "warning"
-          ? "#f59e0b"
-          : type === "error"
-            ? "#ef4444"
-            : "#3b82f6";
-    notif.textContent = message;
-    document.body.appendChild(notif);
+    // Premium standard notification implementation
+    const notification = document.createElement("div");
+    notification.className = `glass-notification notification-${type}`;
+    
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
+
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.25rem;">${icons[type] || icons.info}</span>
+        <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px; font-size:18px;">×</button>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      min-width: 320px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 99999;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+    `;
+
+    // Type-specific left border accent
+    const colors = {
+      success: "#10b981",
+      error: "#ef4444",
+      warning: "#f59e0b",
+      info: "#3b82f6"
+    };
+    notification.style.borderLeft = `5px solid ${colors[type] || colors.info}`;
+
+    // Add animation styles if not present
+    if (!document.getElementById("notif-styles")) {
+      const style = document.createElement("style");
+      style.id = "notif-styles";
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(notification);
+
     setTimeout(() => {
-      notif.style.opacity = "0";
-      setTimeout(() => notif.remove(), 300);
-    }, 3000);
+      if (notification.parentElement) {
+        notification.style.animation = "slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+        setTimeout(() => notification.remove(), 400);
+      }
+    }, 4000);
   }
 
   startAutoRefresh() {

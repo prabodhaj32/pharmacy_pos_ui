@@ -83,8 +83,8 @@
 
                 <header class="logo-section">
                     <div class="logo">
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E" alt="Timolog Pharma Logo" class="logo-icon"/>
-                        <span>Timolog Pharma</span>
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E" alt="Pharmacy Logo" class="logo-icon"/>
+                        <span id="sidebar-pharmacy-name">Timolog Pharma</span>
                     </div>
                     <div class="tagline">Point of Sale</div>
                 </header>

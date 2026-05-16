@@ -3,3 +3,5 @@ from . import inventory
 from . import customer
 from . import sale
 from . import purchasing
+from . import report
+from . import setting

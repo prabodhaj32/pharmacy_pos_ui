@@ -1891,9 +1891,9 @@ input[type="text"].search-input {
 
   /* Sidebar Colors */
 
-  --sidebar-dark: #223E1E;
+  --sidebar-dark: #223e1e;
 
-  --sidebar-light: #223E1E;
+  --sidebar-light: #223e1e;
 
   --accent-green: #66bb6a;
 
@@ -2070,7 +2070,7 @@ input[type="text"].search-input {
 
   max-width: 180px;
 
-  background: #223E1E !important;
+  background: #223e1e !important;
 
   color: #ffffff !important;
 
@@ -2283,7 +2283,7 @@ input[type="text"].search-input {
 
   border-top: 1px solid var(--border-color);
 
-  background: #223E1E !important;
+  background: #223e1e !important;
 
   position: absolute;
 
@@ -13469,4 +13469,109 @@ body.dark-mode select {
   .inventory-main-bar {
     gap: 20px;
   }
+}
+
+/* Modern Notification System */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.modern-notification {
+  pointer-events: auto;
+  min-width: 320px;
+  max-width: 500px;
+  padding: 14px 24px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 0.95rem;
+  animation: notificationIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s ease;
+}
+
+.modern-notification.exit {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.9);
+}
+
+.modern-notification-success {
+  border-left: 5px solid #22c55e;
+}
+
+.modern-notification-error {
+  border-left: 5px solid #ef4444;
+}
+
+.modern-notification-info {
+  border-left: 5px solid #3b82f6;
+}
+
+.modern-notification-warning {
+  border-left: 5px solid #f59e0b;
+}
+
+.modern-notification .notification-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.modern-notification .notification-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.modern-notification .notification-close {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 1.2rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.modern-notification .notification-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}
+
+@keyframes notificationIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dark Mode support */
+.dark-mode .modern-notification {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }

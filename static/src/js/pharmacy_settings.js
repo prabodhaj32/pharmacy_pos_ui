@@ -1,151 +1,18 @@
 /** @odoo-module **/
 
 import { Component, onMounted, onWillUnmount } from "@odoo/owl";
+import { rpc } from "@web/core/network/rpc";
 
 class PharmacySettings extends Component {
   setup() {
-    // Initialize settings data with default values
-    this.settingsData = {
-      pharmacy: {
-        name: "Timolog Pharma",
-        registrationNo: "PHM-LK-2020-001",
-        addressLine1: "123, Main Street, Colombo 07",
-        city: "Colombo",
-        hotline: "0112 345 678",
-        whatsapp: "0771234567",
-      },
-      receipt: {
-        header: "✚ TIMOLOG PHARMA ✚",
-        footer:
-          "Medicines are not returnable after purchase. Please check items before leaving.",
-        invoicePrefix: "TMP",
-        startingInvoice: "2025-0001",
-        showLogo: true,
-        showCashier: true,
-        showBatch: true,
-        showExpiry: true,
-        showVat: true,
-        printReceipt: true,
-      },
-      tax: {
-        currency: "LKR",
-        vatRate: 15,
-        minMargin: 20,
-        maxDiscount: 20,
-        applyVatVitamins: true,
-        essentialExempt: true,
-        manualDiscount: true,
-        managerApproval: true,
-      },
-      pricing: {
-        showRetailPrice: true,
-        showWholesalePrice: false,
-        allowDiscount: true,
-        maxDiscount: 20,
-        roundAmount: true,
-      },
-      users: {
-        roles: [
-          {
-            id: 1,
-            name: "Administrator",
-            permissions: [
-              "All modules",
-              "User management",
-              "System settings",
-              "Reports",
-              "Audit logs",
-              "Price management",
-            ],
-          },
-          {
-            id: 2,
-            name: "Pharmacist",
-            permissions: [
-              "Sales (POS)",
-              "Inventory view",
-              "Medicine safety check",
-              "Prescriptions",
-              "Dispensing",
-            ],
-          },
-          {
-            id: 3,
-            name: "Cashier",
-            permissions: [
-              "Sales (POS)",
-              "Customer lookup",
-              "Hold/resume bills",
-              "End of day report",
-            ],
-          },
-          {
-            id: 4,
-            name: "Storekeeper",
-            permissions: [
-              "Inventory management",
-              "GRN entry",
-              "Purchase orders",
-              "Stock adjustments",
-              "Supplier management",
-            ],
-          },
-          {
-            id: 5,
-            name: "Manager",
-            permissions: [
-              "All reports",
-              "Sales reports",
-              "Inventory reports",
-              "Staff oversight",
-              "Void approvals",
-              "Refund approval",
-            ],
-          },
-        ],
-      },
-      hardware: {
-        printerType: "thermal",
-        paperSize: "80mm",
-        barcodeScanner: "usb",
-        cashDrawer: "usb",
-        customerDisplay: "none",
-      },
-      notifications: {
-        whatsappEnabled: true,
-        whatsappNumber: "+94776789117",
-        lowStockThreshold: 10,
-        expiryThreshold: 90,
-        lowStockAlert: true,
-        expiryAlert: true,
-        salesAlert: false,
-        backupReminder: true,
-        emailNotifications: false,
-        emailAddress: "",
-      },
-      backup: {
-        autoBackup: true,
-        backupFrequency: "daily",
-        backupLocation: "local",
-        cloudBackup: false,
-        retentionDays: 30,
-      },
-      security: {
-        sessionTimeout: 30,
-        requirePassword: true,
-        twoFactorAuth: false,
-        auditLog: true,
-        encryptData: true,
-      },
-    };
-
+    this.settingsData = this.getDefaultSettings();
     this.currentSection = "pharmacy";
     this.unsavedChanges = new Set();
 
-    onMounted(() => {
+    onMounted(async () => {
+      await this.loadSettingsFromBackend();
       this.initializeSettings();
       this.setupEventListeners();
-      this.loadSettingsFromStorage();
     });
 
     onWillUnmount(() => {
@@ -153,10 +20,8 @@ class PharmacySettings extends Component {
     });
   }
 
-  // Static method to create instance without OWL framework
-  static createInstance() {
-    const instance = Object.create(PharmacySettings.prototype);
-    instance.settingsData = {
+  getDefaultSettings() {
+    return {
       pharmacy: {
         name: "Timolog Pharma",
         registrationNo: "PHM-LK-2020-001",
@@ -213,7 +78,6 @@ class PharmacySettings extends Component {
             id: 2,
             name: "Pharmacist",
             permissions: [
-              "Sales (POS)",
               "Inventory view",
               "Medicine safety check",
               "Prescriptions",
@@ -289,15 +153,24 @@ class PharmacySettings extends Component {
         encryptData: true,
       },
     };
+  }
+
+  // Static method to create instance without OWL framework
+  static createInstance() {
+    const instance = Object.create(PharmacySettings.prototype);
+    instance.settingsData = instance.getDefaultSettings();
     instance.currentSection = "pharmacy";
     instance.unsavedChanges = new Set();
-    instance.initializeSettings();
-    instance.setupEventListeners();
-    instance.loadSettingsFromStorage();
+    instance.loadSettingsFromBackend().then(() => {
+      instance.initializeSettings();
+      instance.setupEventListeners();
+    });
     return instance;
   }
 
-  initializeSettings() {
+  async initializeSettings() {
+    // Always fetch fresh data from backend when opening settings to ensure consistency across roles
+    await this.loadSettingsFromBackend();
     this.renderSettingsPage();
     this.attachEventListeners();
   }
@@ -404,20 +277,48 @@ class PharmacySettings extends Component {
                     cursor: pointer !important; 
                     transition: all 0.2s !important;
                 }
+                
+                /* Pulse animation for unsaved changes */
+                @keyframes pulse-save {
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 117, 19, 0.4); }
+                    70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(0, 117, 19, 0); }
+                    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 117, 19, 0); }
+                }
+                .btn-save-all.pulse {
+                    animation: pulse-save 2s infinite !important;
+                    background: #007513 !important;
+                    border-color: #007513 !important;
+                    color: white !important;
+                }
+                .btn-save-all {
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 0.4rem !important;
+                    padding: 0.35rem 0.6rem !important;
+                    font-size: 0.75rem !important;
+                    font-weight: 700 !important;
+                    border-radius: 6px !important;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    width: calc(100% - 1.2rem) !important;
+                    margin: 1rem 0.6rem !important;
+                    background: #007513 !important;
+                    color: white !important;
+                    border: none !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 4px 6px -1px rgba(0, 117, 19, 0.2) !important;
+                }
+                .settings-nav {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    height: 100% !important;
+                    padding: 0.5rem 0 !important;
+                }
             </style>
             <div class="settings-container">
-                <!-- Settings Header -->
-               
 
                 <!-- Settings Navigation -->
                 <nav class="settings-nav">
-                 <header class="settings-header">
-                    <div class="header-content">
-                       
-                         <div class="unsaved-indicator" id="unsavedIndicator" style="display: none;">
-                    </div>
-                    </div>
-                </header>
                     <ul class="nav-tabs">
                         <li class="nav-tab active" data-section="pharmacy">
                             <button class="nav-btn" style="padding: 0.35rem 0.6rem;">
@@ -462,6 +363,13 @@ class PharmacySettings extends Component {
                             </button>
                         </li>
                     </ul>
+                    
+                    <!-- Sidebar Save Action (Under Backup & Security) -->
+                    <div style="padding: 1rem 0.6rem; border-top: 1px solid #e2e8f0; margin-top: 0.5rem;">
+                        <button id="saveAllBtn" class="btn btn-save-all" onclick="pharmacySettings.saveAllSettings()">
+                            Save All Changes
+                        </button>
+                    </div>
                 </nav>
 
                 <!-- Settings Content -->
@@ -493,14 +401,7 @@ class PharmacySettings extends Component {
   }
 
   renderPharmacySettings() {
-    const data = this.settingsData.pharmacy || {
-      name: "Timolog Pharma",
-      registrationNo: "PHM-LK-2020-001",
-      addressLine1: "123, Main Street, Colombo 07",
-      city: "Colombo",
-      hotline: "0112 345 678",
-      whatsapp: "0771234567",
-    };
+    const data = this.settingsData.pharmacy;
     return `
             <section class="settings-section">
                 <div class="section-header" style="margin-bottom: 1rem;">
@@ -515,37 +416,37 @@ class PharmacySettings extends Component {
                     <div class="form-group">
                         <label for="pharmacyName" class="form-label">Pharmacy Name</label>
                         <input type="text" id="pharmacyName" class="form-input" value="${data.name}" 
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'name', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'name', this.value)">
                     </div>
                     
                     <div class="form-group">
                         <label for="registrationNo" class="form-label">Registration No.</label>
                         <input type="text" id="registrationNo" class="form-input" value="${data.registrationNo}"
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'registrationNo', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'registrationNo', this.value)">
                     </div>
                     
                     <div class="form-group full-width">
                         <label for="addressLine1" class="form-label">Address Line 1</label>
                         <input type="text" id="addressLine1" class="form-input" value="${data.addressLine1}"
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'addressLine1', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'addressLine1', this.value)">
                     </div>
                     
                     <div class="form-group">
                         <label for="city" class="form-label">City</label>
                         <input type="text" id="city" class="form-input" value="${data.city}"
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'city', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'city', this.value)">
                     </div>
                     
                     <div class="form-group">
                         <label for="hotline" class="form-label">Hotline</label>
                         <input type="tel" id="hotline" class="form-input" value="${data.hotline}"
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'hotline', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'hotline', this.value)">
                     </div>
                     
                     <div class="form-group">
                         <label for="whatsapp" class="form-label">WhatsApp</label>
                         <input type="tel" id="whatsapp" class="form-input" value="${data.whatsapp}"
-                               onchange="pharmacySettings.updateSetting('pharmacy', 'whatsapp', this.value)">
+                               oninput="pharmacySettings.updateSetting('pharmacy', 'whatsapp', this.value)">
                     </div>
                 </div>
                 
@@ -582,40 +483,103 @@ class PharmacySettings extends Component {
                     align-items: flex-start;
                 }
                 .thermal-receipt-preview {
-                    background: #fff;
-                    font-family: 'Courier New', Courier, monospace;
+                    background: #f3f4f6;
                     padding: 15px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    border: 1px solid #e5e7eb;
-                    font-size: 13px;
-                    color: #111;
                     width: 100%;
+                    max-width: 320px;
                     margin: 0 auto;
+                }
+                .thermal-receipt {
+                    width: 100%;
+                    background: #ffffff;
+                    padding: 10px;
+                    font-family: 'Courier New', Courier, monospace;
+                    color: #000;
+                    font-size: 12px;
+                    line-height: 1.2;
+                    border: 1px solid #000;
+                }
+                .receipt-top {
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 8px;
+                    margin-bottom: 10px;
+                    text-align: center;
+                }
+                .receipt-title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                .receipt-subtitle {
+                    font-size: 10px;
+                    font-weight: normal;
+                }
+                .receipt-content {
+                    padding: 0;
                 }
                 .thermal-header, .thermal-footer {
                     text-align: center;
                     margin-bottom: 10px;
                 }
-                .thermal-divider {
-                    border-top: 1px dashed #666;
-                    margin: 8px 0;
+                .pharmacy-header {
+                    font-weight: bold;
+                    font-size: 15px;
+                    margin-bottom: 4px;
                 }
-                .thermal-table {
-                    width: 100%;
-                    border-collapse: collapse;
+                .meta-text {
+                    font-size: 11px;
+                    margin-bottom: 2px;
                 }
-                .thermal-table td, .thermal-table th {
-                    padding: 2px 0;
-                    text-align: left;
-                }
-                .thermal-table .text-right {
-                    text-align: right;
+                .info-card {
+                    border-top: 1px solid #000;
+                    border-bottom: 1px solid #000;
+                    padding: 6px 0;
+                    margin-bottom: 10px;
                 }
                 .thermal-info-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 4px;
+                    margin-bottom: 3px;
                 }
+                .label { font-weight: normal; }
+                .value { font-weight: bold; text-align: right; }
+                .section-title {
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    border-bottom: 1px solid #000;
+                    padding-bottom: 2px;
+                    margin: 10px 0 5px;
+                }
+                .thermal-table { width: 100%; border-collapse: collapse; }
+                .item-row td {
+                    padding: 5px 0;
+                    border-bottom: 1px dashed #ccc;
+                    vertical-align: top;
+                }
+                .item-row:last-child td { border-bottom: none; }
+                .item-name { font-weight: bold; margin-bottom: 2px; }
+                .item-qty { font-size: 11px; margin-bottom: 2px; }
+                .item-meta-line { font-size: 10px; font-style: italic; }
+                .item-right { text-align: right; font-weight: bold; }
+                .totals-card {
+                    border-top: 2px solid #000;
+                    margin-top: 10px;
+                    padding-top: 8px;
+                }
+                .grand-total {
+                    font-size: 15px;
+                    font-weight: bold;
+                    margin-top: 5px;
+                    padding-top: 5px;
+                    border-top: 1px solid #000;
+                }
+                .payment-card {
+                    margin-top: 10px;
+                    padding-top: 5px;
+                    border-top: 1px dashed #000;
+                }
+                .thermal-divider { border-top: 1px dashed #000; margin: 10px 0; }
                 @media (max-width: 768px) {
                     .receipt-setup-layout {
                         grid-template-columns: 1fr;
@@ -751,80 +715,106 @@ class PharmacySettings extends Component {
   }
 
   generateReceiptPreviewHTML(data) {
-    return `
-            <div class="thermal-header">
-                ${data.showLogo ? '<div style="margin-bottom:8px; display:flex; justify-content:center;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>' : ""}
-                <div style="font-weight:bold; font-size:16px; margin-bottom:4px;" id="previewHeader">${data.header || ""}</div>
-                <div>123, Main Street, Colombo 07</div>
-                <div>Tel: 0112 345 678</div>
-                <div>PHM-LK-2020-001</div>
-            </div>
-            
-            <div class="thermal-info-row">
-                <span>Invoice:</span>
-                <span id="previewInvoice">${data.invoicePrefix || "TMP"}-${data.startingInvoice || "2025-0035"}</span>
-            </div>
-            <div class="thermal-info-row">
-                <span>Date:</span>
-                <span>19/02/2025 10:45</span>
-            </div>
-            ${
-              data.showCashier
-                ? `<div class="thermal-info-row" id="previewCashier">
-                <span>Cashier:</span>
-                <span>Admin User</span>
-            </div>`
-                : ""
-            }
-            
-            <div class="thermal-divider"></div>
-            
-            <table class="thermal-table">
-                <tr>
-                    <td>Panadol 500mg x2${data.showBatch ? "<br><small>B: BAT991</small>" : ""}${data.showExpiry ? "<br><small>E: 12/26</small>" : ""}</td>
-                    <td class="text-right" style="vertical-align: top;">130.00</td>
-                </tr>
-                <tr>
-                    <td>Omeprazole 20mg x1${data.showBatch ? "<br><small>B: PZM002</small>" : ""}${data.showExpiry ? "<br><small>E: 08/25</small>" : ""}</td>
-                    <td class="text-right" style="vertical-align: top;">42.00</td>
-                </tr>
-            </table>
+    const pharmacy = this.settingsData.pharmacy || {};
+    const tax = this.settingsData.tax || { currency: "LKR", vatRate: 15 };
 
-            ${
-              data.showVat
-                ? `<div class="thermal-divider"></div>
-            <div class="thermal-info-row">
-                <span>Subtotal:</span>
-                <span>150.00</span>
-            </div>
-            <div class="thermal-info-row">
-                <span>VAT (15%):</span>
-                <span>22.00</span>
-            </div>`
-                : ""
-            }
-            
-            <div class="thermal-divider"></div>
-            
-            <div class="thermal-info-row" style="font-weight:bold; font-size:14px;">
-                <span>TOTAL:</span>
-                <span>LKR 172.00</span>
-            </div>
-            <div class="thermal-info-row">
-                <span>Cash Paid:</span>
-                <span>200.00</span>
-            </div>
-            <div class="thermal-info-row">
-                <span>Balance:</span>
-                <span>28.00</span>
-            </div>
-            
-            <div class="thermal-divider"></div>
-            
-            <div class="thermal-footer" id="previewFooter" style="margin-top:10px;">
-                ${data.footer || ""}
-            </div>
+    // Sample items for preview
+    const items = [
+      {
+        name: "Panadol 500mg x2",
+        quantity: 1,
+        batch: "BAT991",
+        expiry: "12/26",
+        lineTotal: 130.0,
+      },
+      {
+        name: "Omeprazole 20mg x1",
+        quantity: 1,
+        batch: "PZM002",
+        expiry: "08/25",
+        lineTotal: 42.0,
+      },
+    ];
+
+    const rows = items
+      .map((item) => {
+        const batchLine =
+          data.showBatch && item.batch
+            ? `<div class="item-meta-line">Batch: ${this.escapeHtml(item.batch)}</div>`
+            : "";
+        const expiryLine =
+          data.showExpiry && item.expiry
+            ? `<div class="item-meta-line">Exp: ${this.escapeHtml(item.expiry)}</div>`
+            : "";
+        return `
+            <tr class="item-row">
+                <td class="item-left">
+                    <div class="item-name">${this.escapeHtml(item.name)}</div>
+                    <div class="item-qty">1 x ${this.escapeHtml(tax.currency)} ${item.lineTotal.toFixed(2)}</div>
+                    <div class="item-meta">${batchLine}${expiryLine}</div>
+                </td>
+                <td class="item-right">${this.escapeHtml(tax.currency)} ${item.lineTotal.toFixed(2)}</td>
+            </tr>
         `;
+      })
+      .join("");
+
+    return `
+        <div class="thermal-receipt">
+            <div class="receipt-top">
+                <div class="receipt-title">SALES RECEIPT</div>
+                <div class="receipt-subtitle">Thermal Print Preview</div>
+            </div>
+            <div class="receipt-content">
+                <div class="thermal-header">
+                    ${data.showLogo ? '<div style="margin-bottom:6px; font-size: 20px;">🏥</div>' : ""}
+                    <div class="pharmacy-header">${this.escapeHtml(data.header || pharmacy.name || "")}</div>
+                    <div class="meta-text">${this.escapeHtml(pharmacy.addressLine1 || "")}</div>
+                    <div class="meta-text">${this.escapeHtml(pharmacy.city || "")}</div>
+                    <div class="meta-text">Tel: ${this.escapeHtml(pharmacy.hotline || "")}</div>
+                    ${pharmacy.whatsapp ? `<div class="meta-text">WA: ${this.escapeHtml(pharmacy.whatsapp)}</div>` : ""}
+                    <div class="meta-text">Reg: ${this.escapeHtml(pharmacy.registrationNo || "")}</div>
+                </div>
+
+                <div class="info-card">
+                    <div class="thermal-info-row">
+                        <span class="label">Invoice #</span>
+                        <span class="value">${this.escapeHtml(data.invoicePrefix || "TMP")}-${this.escapeHtml(data.startingInvoice || "2025-0001")}</span>
+                    </div>
+                    <div class="thermal-info-row">
+                        <span class="label">Date & Time</span>
+                        <span class="value">19/02/2025 10:45</span>
+                    </div>
+                    ${data.showCashier ? `<div class="thermal-info-row"><span class="label">Cashier</span><span class="value">Admin User</span></div>` : ""}
+                </div>
+
+                <div class="section-title">Items</div>
+                <table class="thermal-table">
+                    ${rows}
+                </table>
+
+                <div class="totals-card">
+                    <div class="thermal-info-row"><span class="label">Subtotal</span><span class="value">${this.escapeHtml(tax.currency)} 150.00</span></div>
+                    ${data.showVat ? `<div class="thermal-info-row"><span class="label">VAT (${tax.vatRate || 0}%)</span><span class="value">${this.escapeHtml(tax.currency)} 22.00</span></div>` : ""}
+                    <div class="thermal-info-row grand-total">
+                        <span>TOTAL</span>
+                        <span>${this.escapeHtml(tax.currency)} 172.00</span>
+                    </div>
+                </div>
+
+                <div class="payment-card">
+                    <div class="thermal-info-row"><span class="label">Cash Paid</span><span class="value">${this.escapeHtml(tax.currency)} 200.00</span></div>
+                    <div class="thermal-info-row"><span class="label">Balance</span><span class="value">${this.escapeHtml(tax.currency)} 28.00</span></div>
+                </div>
+
+                <div class="thermal-divider"></div>
+
+                <div class="thermal-footer">
+                    ${this.escapeHtml(data.footer || "")}
+                </div>
+            </div>
+        </div>
+    `;
   }
 
   updateReceiptPreview() {
@@ -932,10 +922,43 @@ class PharmacySettings extends Component {
                         <div class="form-group">
                             <div class="checkbox-group">
                                 <label class="checkbox-label">
+                                    <input type="checkbox" id="showRetailPrice" ${this.settingsData.pricing.showRetailPrice ? "checked" : ""}
+                                           onchange="pharmacySettings.updateSetting('pricing', 'showRetailPrice', this.checked)">
+                                    <span class="checkbox-custom"></span>
+                                    Show Retail Price on labels
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="showWholesalePrice" ${this.settingsData.pricing.showWholesalePrice ? "checked" : ""}
+                                           onchange="pharmacySettings.updateSetting('pricing', 'showWholesalePrice', this.checked)">
+                                    <span class="checkbox-custom"></span>
+                                    Show Wholesale Price
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="roundAmount" ${this.settingsData.pricing.roundAmount ? "checked" : ""}
+                                           onchange="pharmacySettings.updateSetting('pricing', 'roundAmount', this.checked)">
+                                    <span class="checkbox-custom"></span>
+                                    Round total amount to nearest integer
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
                                     <input type="checkbox" id="applyVatVitamins" ${tax.applyVatVitamins ? "checked" : ""}
                                            onchange="pharmacySettings.updateSetting('tax', 'applyVatVitamins', this.checked)">
                                     <span class="checkbox-custom"></span>
-                                    Apply VAT to Vitamins & Supplements only
+                                    Apply VAT to Vitamins only
                                 </label>
                             </div>
                         </div>
@@ -946,7 +969,7 @@ class PharmacySettings extends Component {
                                     <input type="checkbox" id="essentialExempt" ${tax.essentialExempt ? "checked" : ""}
                                            onchange="pharmacySettings.updateSetting('tax', 'essentialExempt', this.checked)">
                                     <span class="checkbox-custom"></span>
-                                    Medicines (essential) are VAT exempt
+                                    Medicines are VAT exempt
                                 </label>
                             </div>
                         </div>
@@ -957,7 +980,7 @@ class PharmacySettings extends Component {
                                     <input type="checkbox" id="manualDiscount" ${tax.manualDiscount ? "checked" : ""}
                                            onchange="pharmacySettings.updateSetting('tax', 'manualDiscount', this.checked)">
                                     <span class="checkbox-custom"></span>
-                                    Allow cashier to apply manual discount
+                                    Allow manual discount
                                 </label>
                             </div>
                         </div>
@@ -968,7 +991,7 @@ class PharmacySettings extends Component {
                                     <input type="checkbox" id="managerApproval" ${tax.managerApproval ? "checked" : ""}
                                            onchange="pharmacySettings.updateSetting('tax', 'managerApproval', this.checked)">
                                     <span class="checkbox-custom"></span>
-                                    Require manager approval for >10% discount
+                                    Manager approval for >10% disc.
                                 </label>
                             </div>
                         </div>
@@ -985,64 +1008,7 @@ class PharmacySettings extends Component {
   }
 
   renderUserSettings() {
-    const roles = this.settingsData.users?.roles || [
-      {
-        id: 1,
-        name: "Administrator",
-        permissions: [
-          "All modules",
-          "User management",
-          "System settings",
-          "Reports",
-          "Audit logs",
-          "Price management",
-        ],
-      },
-      {
-        id: 2,
-        name: "Pharmacist",
-        permissions: [
-          "Sales (POS)",
-          "Inventory view",
-          "Medicine safety check",
-          "Prescriptions",
-          "Dispensing",
-        ],
-      },
-      {
-        id: 3,
-        name: "Cashier",
-        permissions: [
-          "Sales (POS)",
-          "Customer lookup",
-          "Hold/resume bills",
-          "End of day report",
-        ],
-      },
-      {
-        id: 4,
-        name: "Storekeeper",
-        permissions: [
-          "Inventory management",
-          "GRN entry",
-          "Purchase orders",
-          "Stock adjustments",
-          "Supplier management",
-        ],
-      },
-      {
-        id: 5,
-        name: "Manager",
-        permissions: [
-          "All reports",
-          "Sales reports",
-          "Inventory reports",
-          "Staff oversight",
-          "Void approvals",
-          "Refund approval",
-        ],
-      },
-    ];
+    const roles = this.settingsData.users.roles;
     return `
             <section class="settings-section">
                 <div class="section-header" style="margin-bottom: 1.25rem;">
@@ -1109,8 +1075,11 @@ class PharmacySettings extends Component {
                 </div>
                 
                 <div class="section-actions" style="margin-top: 0.5rem;">
-                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.addNewRole()">
+                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.addNewRole()">
                         ➕ Add New Role
+                    </button>
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="pharmacySettings.saveUserSettings()">
+                        Save Roles Settings
                     </button>
                 </div>
             </section>
@@ -1212,88 +1181,92 @@ class PharmacySettings extends Component {
             <style>
                 .notifications-layout {
                     display: grid;
-                    grid-template-columns: 1fr 320px;
-                    gap: 1.25rem;
+                    grid-template-columns: 1fr 280px;
+                    gap: 0.75rem;
                     align-items: flex-start;
                 }
                 .info-box {
                     background: rgba(59, 130, 246, 0.05);
                     border: 1px solid rgba(59, 130, 246, 0.2);
-                    border-radius: 12px;
-                    padding: 1.25rem;
+                    border-radius: 8px;
+                    padding: 0.6rem;
                 }
                 .info-box h3 {
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.4rem;
                     color: #1e40af;
-                    font-size: 0.9rem;
-                    margin-bottom: 0.75rem;
+                    font-size: 0.75rem;
+                    margin-bottom: 0.4rem;
                     font-weight: 700;
                 }
                 .info-step {
                     display: flex;
-                    gap: 0.75rem;
-                    margin-bottom: 0.75rem;
-                    font-size: 0.75rem;
+                    gap: 0.4rem;
+                    margin-bottom: 0.3rem;
+                    font-size: 0.6rem;
                     color: #475569;
-                    line-height: 1.4;
+                    line-height: 1.3;
                 }
                 .step-number {
                     flex-shrink: 0;
-                    width: 18px;
-                    height: 18px;
+                    width: 14px;
+                    height: 14px;
                     background: #1e40af;
                     color: white;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 0.65rem;
+                    font-size: 0.5rem;
                     font-weight: 700;
                 }
                 .activation-box {
                     background: #f8fafc;
                     border: 1px dashed #cbd5e1;
-                    padding: 0.75rem;
-                    border-radius: 8px;
+                    padding: 0.4rem;
+                    border-radius: 4px;
                     font-family: inherit;
-                    font-size: 0.75rem;
+                    font-size: 0.6rem;
                     color: #334155;
-                    margin-top: 0.5rem;
+                    margin-top: 0.3rem;
                 }
                 .activation-code {
                     font-weight: 700;
                     color: #059669;
                     background: #ecfdf5;
-                    padding: 0.1rem 0.3rem;
-                    border-radius: 4px;
+                    padding: 0.05rem 0.2rem;
+                    border-radius: 3px;
                 }
                 .threshold-card {
                     background: rgba(255, 255, 255, 0.5);
                     border: 1px solid rgba(0,0,0,0.05);
-                    border-radius: 10px;
-                    padding: 0.75rem;
+                    border-radius: 6px;
+                    padding: 0.4rem 0.6rem;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 1rem;
+                    gap: 0.4rem;
                 }
                 .threshold-label {
-                    font-size: 0.75rem;
+                    font-size: 0.65rem;
                     font-weight: 600;
                     color: #1e293b;
                 }
                 .threshold-input-wrapper {
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.3rem;
                 }
                 .threshold-input {
-                    width: 60px !important;
+                    width: 45px !important;
+                    height: 22px !important;
                     text-align: center;
                     font-weight: 700;
                     color: #059669;
+                    padding: 0 !important;
+                    font-size: 0.75rem !important;
+                    border-radius: 4px !important;
                 }
                 @media (max-width: 900px) {
                     .notifications-layout {
@@ -1302,44 +1275,43 @@ class PharmacySettings extends Component {
                 }
             </style>
             
-            <section class="settings-section">
-                <div class="section-header" style="margin-bottom: 1.25rem;">
-                    <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
-                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px;color:#059669;"><path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52a.75.75 0 01.64.712v15.26a.75.75 0 01-1.01.707L12 17.158l-6.782 2.29a.75.75 0 01-1.01-.708V3.483a.75.75 0 01.64-.712z" clip-rule="evenodd" /></svg>
+            <section class="settings-section" style="padding: 0.75rem;">
+                <div class="section-header" style="margin-bottom: 0.75rem;">
+                    <h2 style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
+                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;color:#059669;"><path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52a.75.75 0 01.64.712v15.26a.75.75 0 01-1.01.707L12 17.158l-6.782 2.29a.75.75 0 01-1.01-.708V3.483a.75.75 0 01.64-.712z" clip-rule="evenodd" /></svg>
                        Notifications
                     </h2>
-                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">Configure WhatsApp alerts for low stock and expiring items</p>
+                    <p style="font-size: 0.65rem; color: #64748b; margin-top: 0.1rem;">Configure WhatsApp alerts for low stock and expiring items</p>
                 </div>
                 
                 <div class="notifications-layout">
                     <!-- Left Column: Settings -->
                     <div class="settings-column">
-                        <div class="settings-subsection" style="margin-bottom: 1.5rem;">
-                            <h3 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">WhatsApp Alerts</h3>
-                            <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 1rem;">Receive automated alerts via WhatsApp when stock is low or items are expiring</p>
+                        <div class="settings-subsection" style="margin-bottom: 0.75rem;">
+                            <h3 style="font-size: 0.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.2rem;">WhatsApp Alerts</h3>
                             
-                            <div class="settings-grid">
+                            <div class="settings-grid" style="gap: 0.5rem;">
                                 <div class="form-group full-width">
-                                    <label for="whatsappNumber" class="form-label">WhatsApp Phone Number</label>
-                                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                                    <label for="whatsappNumber" class="form-label" style="font-size: 0.6rem; margin-bottom: 0.2rem;">WhatsApp Phone Number</label>
+                                    <div style="display: flex; gap: 0.4rem; align-items: center;">
                                         <input type="tel" id="whatsappNumber" class="form-input" 
                                                value="${notifications.whatsappNumber}" 
                                                placeholder="+94771234567"
-                                               style="flex: 1;"
+                                               style="flex: 1; padding: 0.2rem 0.4rem; font-size: 0.7rem; height: 28px;"
                                                onchange="pharmacySettings.updateSetting('notifications', 'whatsappNumber', this.value)">
                                     </div>
-                                    <p style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.4rem;">Enter number with country code (e.g. +94771234567)</p>
+                                    <p style="font-size: 0.55rem; color: #94a3b8; margin-top: 0.15rem;">Enter number with country code (e.g. +94771234567)</p>
                                 </div>
                                 
-                                <div class="form-group full-width" style="margin-top: 0.5rem;">
+                                <div class="form-group full-width" style="margin-top: 0.2rem;">
                                     <div class="checkbox-group">
-                                        <label class="checkbox-label" style="background: rgba(16, 185, 129, 0.05); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                                        <label class="checkbox-label" style="background: rgba(16, 185, 129, 0.05); padding: 0.4rem; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.1);">
                                             <input type="checkbox" id="whatsappEnabled" ${notifications.whatsappEnabled ? "checked" : ""}
                                                    onchange="pharmacySettings.updateSetting('notifications', 'whatsappEnabled', this.checked)">
-                                            <span class="checkbox-custom"></span>
+                                            <span class="checkbox-custom" style="width: 12px; height: 12px;"></span>
                                             <div>
-                                                <span style="display: block;">Enable WhatsApp notifications</span>
-                                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 0.1rem;">Automated messages will be sent to the number above</small>
+                                                <span style="display: block; font-size: 0.65rem; font-weight: 600;">Enable WhatsApp notifications</span>
+                                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 0.05rem; font-size: 0.55rem;">Automated messages will be sent to the number above</small>
                                             </div>
                                         </label>
                                     </div>
@@ -1348,28 +1320,38 @@ class PharmacySettings extends Component {
                         </div>
 
                         <div class="settings-subsection">
-                            <h3 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">Alert Thresholds</h3>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.6rem;">
+                                <h3 style="font-size: 0.75rem; font-weight: 700; color: #1e293b; margin: 0;">Alert Thresholds</h3>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <button class="btn btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.6rem; height: 24px;" onclick="pharmacySettings.testNotification()">
+                                        🧪 Test
+                                    </button>
+                                    <button class="btn btn-primary" style="padding: 0.15rem 0.75rem; font-size: 0.6rem; height: 24px; background: #007513;" onclick="pharmacySettings.saveNotificationSettings()">
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
                             
-                            <div style="display: grid; gap: 0.75rem;">
+                            <div style="display: grid; gap: 0.4rem; max-width: 350px;">
                                 <div class="threshold-card">
                                     <div class="threshold-label">Low stock alerts</div>
                                     <div class="threshold-input-wrapper">
-                                        <span style="font-size: 0.75rem; color: #64748b;">Alert when stock falls below</span>
+                                        <span style="font-size: 0.55rem; color: #64748b;">Alert when stock falls below</span>
                                         <input type="number" id="lowStockThreshold" class="form-input threshold-input" 
                                                value="${notifications.lowStockThreshold}" min="1"
                                                onchange="pharmacySettings.updateSetting('notifications', 'lowStockThreshold', parseInt(this.value))">
-                                        <span style="font-size: 0.75rem; color: #64748b;">units</span>
+                                        <span style="font-size: 0.55rem; color: #64748b;">units</span>
                                     </div>
                                 </div>
 
                                 <div class="threshold-card">
                                     <div class="threshold-label">Expiry alerts</div>
                                     <div class="threshold-input-wrapper">
-                                        <span style="font-size: 0.75rem; color: #64748b;">Alert when items expire within</span>
+                                        <span style="font-size: 0.55rem; color: #64748b;">Alert when items expire within</span>
                                         <input type="number" id="expiryThreshold" class="form-input threshold-input" 
                                                value="${notifications.expiryThreshold}" min="1"
                                                onchange="pharmacySettings.updateSetting('notifications', 'expiryThreshold', parseInt(this.value))">
-                                        <span style="font-size: 0.75rem; color: #64748b;">days</span>
+                                        <span style="font-size: 0.55rem; color: #64748b;">days</span>
                                     </div>
                                 </div>
                             </div>
@@ -1380,51 +1362,42 @@ class PharmacySettings extends Component {
                     <div class="info-column">
                         <div class="info-box">
                             <h3>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836c-.149.598.019 1.225.44 1.645a.75.75 0 01-1.06 1.06 2.25 2.25 0 01-1.321-1.494l.712-2.847c.112-.447-.048-.902-.365-1.219a.75.75 0 011.038-1.087zM12 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836c-.149.598.019 1.225.44 1.645a.75.75 0 01-1.06 1.06 2.25 2.25 0 01-1.321-1.494l.712-2.847c.112-.447-.048-.902-.365-1.219a.75.75 0 011.038-1.087zM12 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
                                 How it works
                             </h3>
                             
                             <div class="info-step">
                                 <div class="step-number">1</div>
-                                <div>The system checks stock levels and expiry dates automatically every hour</div>
+                                <div>Checks stock & expiry hourly</div>
                             </div>
                             
                             <div class="info-step">
                                 <div class="step-number">2</div>
-                                <div>When items fall below threshold, a WhatsApp message is sent to your number</div>
+                                <div>Sends WhatsApp alerts instantly</div>
                             </div>
                             
                             <div class="info-step">
                                 <div class="step-number">3</div>
-                                <div>Uses free CallMeBot API — you need to activate it once by sending a message to the bot</div>
+                                <div>Uses free CallMeBot API</div>
                             </div>
 
                             <div class="activation-box">
-                                <p style="margin-bottom: 0.5rem; font-weight: 600;">Activation Steps:</p>
-                                <p>Send <span class="activation-code">"I allow callmebot to send me messages"</span> to <span style="font-weight:700;">+34 644 71 83 08</span> on WhatsApp to activate</p>
+                                <p style="margin-bottom: 0.2rem; font-weight: 600;">Activation:</p>
+                                <p>Send <span class="activation-code">"I allow callmebot..."</span> to <span style="font-weight:700;">+34 644 71 83 08</span></p>
                             </div>
                         </div>
                         
-                        <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.05); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.1);">
-                             <div style="display: flex; align-items: center; gap: 0.5rem; color: #059669; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.4rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm3 10.5a.75.75 0 000-1.5H9a.75.75 0 000 1.5h6z" clip-rule="evenodd" /></svg>
-                                System Status
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.05); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                             <div style="display: flex; align-items: center; gap: 0.3rem; color: #059669; font-size: 0.65rem; font-weight: 700; margin-bottom: 0.2rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm3 10.5a.75.75 0 000-1.5H9a.75.75 0 000 1.5h6z" clip-rule="evenodd" /></svg>
+                                Status
                              </div>
                              <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 0.7rem; color: #475569;">WhatsApp Service</span>
-                                <span style="font-size: 0.65rem; color: #059669; font-weight: 700; background: #ecfdf5; padding: 0.1rem 0.4rem; border-radius: 20px;">READY</span>
+                                <span style="font-size: 0.6rem; color: #475569;">Service</span>
+                                <span style="font-size: 0.55rem; color: #059669; font-weight: 700; background: #ecfdf5; padding: 0.05rem 0.3rem; border-radius: 20px;">READY</span>
                              </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="section-actions" style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
-                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="pharmacySettings.testNotification()">
-                        🧪 Sending Test Alert
-                    </button>
-                    <button class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.8rem; background: #007513;" onclick="pharmacySettings.saveNotificationSettings()">
-                        Save Notification Settings
-                    </button>
                 </div>
             </section>
         `;
@@ -1623,27 +1596,20 @@ class PharmacySettings extends Component {
   markAsChanged() {
     const section = this.currentSection;
     this.unsavedChanges.add(section);
-    this.updateUnsavedIndicator();
   }
 
   updateUnsavedIndicator() {
-    const indicator = document.getElementById("unsavedIndicator");
-    const saveBtn = document.getElementById("saveSettingsBtn");
+    // UI elements removed per user request
+  }
 
-    if (this.unsavedChanges.size > 0) {
-      if (indicator) indicator.style.display = "flex";
-      if (saveBtn) {
-        saveBtn.classList.add("btn-pulse");
-        saveBtn.innerHTML =
-          "💾 Save All Changes (" + this.unsavedChanges.size + ")";
-      }
-    } else {
-      if (indicator) indicator.style.display = "none";
-      if (saveBtn) {
-        saveBtn.classList.remove("btn-pulse");
-        saveBtn.innerHTML = "💾 Save All Changes";
-      }
-    }
+  escapeHtml(unsafe) {
+    if (typeof unsafe !== "string") return unsafe;
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   updateSetting(category, field, value) {
@@ -1651,32 +1617,132 @@ class PharmacySettings extends Component {
       this.settingsData[category] = {};
     }
     this.settingsData[category][field] = value;
+    this.settingsData[category][field] = value;
     this.unsavedChanges.add(category);
-    this.updateUnsavedIndicator();
+
+    // Trigger real-time UI updates
+    if (category === "pharmacy" && field === "name") {
+      this.updateGlobalPharmacyName();
+    }
+
+    // Trigger receipt preview update if pharmacy or receipt settings change
+    if (category === "pharmacy" || category === "receipt") {
+      this.updateReceiptPreview();
+    }
+
+    // Draft save to localStorage to prevent data loss on accidental refresh
+    localStorage.setItem(
+      "pharmacy_settings_" + category,
+      JSON.stringify(this.settingsData[category]),
+    );
   }
 
-  saveAllSettings() {
+  async saveAllSettings() {
     const sections = Array.from(this.unsavedChanges);
+    if (sections.length === 0) {
+      this.showNotification("No changes to save.", "info");
+      return;
+    }
 
-    sections.forEach((section) => {
-      this.saveSection(section);
-    });
+    this.showNotification(`Saving ${sections.length} section(s)...`, "info");
 
-    this.unsavedChanges.clear();
-    this.updateUnsavedIndicator();
+    const savePromises = sections.map((section) => this.saveSection(section));
+    await Promise.all(savePromises);
 
-    this.showNotification("All settings saved successfully!", "success");
+    this.showNotification("All settings synchronized successfully!", "success");
   }
 
-  saveSection(section) {
-    // Save to localStorage
+  async saveSectionToBackend(section) {
+    try {
+      const data = this.settingsData[section] || {};
+      const result = await rpc("/pharmacy/settings/save", {
+        category: section,
+        data: data,
+      });
+
+      if (result.success) {
+        this.unsavedChanges.delete(section);
+        this.updateUnsavedIndicator();
+        this.showNotification(
+          `${section.charAt(0).toUpperCase() + section.slice(1)} settings saved successfully!`,
+          "success",
+        );
+      } else {
+        console.error(`Backend failed to save ${section}:`, result.error);
+        this.showNotification(
+          `Failed to save ${section}: ${result.error || "Unknown error"}`,
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error(`RPC error saving ${section}:`, error);
+      this.showNotification(
+        "Network error: Failed to save settings to database.",
+        "error",
+      );
+    }
+  }
+
+  async saveSection(section) {
+    // Keep local storage as a fallback/cache if desired, but primary is backend
     localStorage.setItem(
       "pharmacy_settings_" + section,
       JSON.stringify(this.settingsData[section]),
     );
+    await this.saveSectionToBackend(section);
+  }
 
-    // Here you would also save to the backend
-    console.log("Saving section:", section, this.settingsData[section]);
+  async loadSettingsFromBackend() {
+    try {
+      const result = await rpc("/pharmacy/settings/load");
+      if (result.success && result.settings) {
+        // Convert flat keys back to nested structure
+        const nested = this._convertFlatToNested(result.settings);
+        // Merge with existing defaults to ensure all keys exist
+        this.settingsData = this._deepMerge(this.settingsData, nested);
+
+        // After successful load, these sections are synchronized
+        Object.keys(nested).forEach((cat) => this.unsavedChanges.delete(cat));
+        this.updateUnsavedIndicator();
+      }
+    } catch (error) {
+      console.error("Failed to load settings from backend:", error);
+      // Fallback to localStorage if backend fails
+      this.loadSettingsFromStorage();
+    }
+    this.updateGlobalPharmacyName();
+  }
+
+  _convertFlatToNested(flatSettings) {
+    const nested = {};
+    Object.keys(flatSettings).forEach((key) => {
+      const parts = key.split(".");
+      let current = nested;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) current[parts[i]] = {};
+        current = current[parts[i]];
+      }
+      current[parts[parts.length - 1]] = flatSettings[key];
+    });
+    return nested;
+  }
+
+  _deepMerge(target, source) {
+    if (!source || typeof source !== "object") return source;
+    if (Array.isArray(source)) return source; // Overwrite arrays instead of merging indices
+
+    for (const key in source) {
+      if (
+        source[key] instanceof Object &&
+        key in target &&
+        !Array.isArray(source[key])
+      ) {
+        target[key] = this._deepMerge(target[key] || {}, source[key]);
+      } else {
+        target[key] = source[key];
+      }
+    }
+    return target;
   }
 
   loadSettingsFromStorage() {
@@ -1702,75 +1768,129 @@ class PharmacySettings extends Component {
         }
       }
     });
+
+    this.updateGlobalPharmacyName();
+  }
+
+  updateGlobalPharmacyName() {
+    const name = this.settingsData.pharmacy?.name || "Timolog Pharma";
+    const sidebarLogoSpan = document.getElementById("sidebar-pharmacy-name");
+    if (sidebarLogoSpan) {
+      sidebarLogoSpan.textContent = name;
+    }
   }
 
   // Individual save methods
-  savePharmacySettings() {
-    this.saveSection("pharmacy");
-    this.unsavedChanges.delete("pharmacy");
-    this.updateUnsavedIndicator();
-    this.showNotification("Pharmacy settings saved!", "success");
+  async savePharmacySettings() {
+    await this.saveSection("pharmacy");
+    this.updateGlobalPharmacyName();
   }
 
-  saveReceiptSettings() {
-    this.saveSection("receipt");
-    this.unsavedChanges.delete("receipt");
-    this.updateUnsavedIndicator();
-    this.showNotification("Receipt settings saved!", "success");
+  async saveReceiptSettings() {
+    await this.saveSection("receipt");
   }
 
-  saveTaxSettings() {
-    this.saveSection("tax");
-    this.saveSection("pricing");
-    this.unsavedChanges.delete("tax");
-    this.unsavedChanges.delete("pricing");
-    this.updateUnsavedIndicator();
-    this.showNotification("Tax and pricing settings saved!", "success");
+  async saveTaxSettings() {
+    await this.saveSection("tax");
+    await this.saveSection("pricing");
   }
 
-  saveHardwareSettings() {
-    this.saveSection("hardware");
-    this.unsavedChanges.delete("hardware");
-    this.updateUnsavedIndicator();
-    this.showNotification("Hardware settings saved!", "success");
+  async saveUserSettings() {
+    await this.saveSection("users");
   }
 
-  saveNotificationSettings() {
-    this.saveSection("notifications");
-    this.unsavedChanges.delete("notifications");
-    this.updateUnsavedIndicator();
-    this.showNotification("Notification settings saved!", "success");
+  async saveInventorySettings() {
+    await this.saveSection("inventory");
   }
 
-  saveBackupSettings() {
-    this.saveSection("backup");
-    this.saveSection("security");
-    this.unsavedChanges.delete("backup");
-    this.unsavedChanges.delete("security");
-    this.updateUnsavedIndicator();
-    this.showNotification("Backup and security settings saved!", "success");
+  async saveHardwareSettings() {
+    await this.saveSection("hardware");
+  }
+
+  async saveNotificationSettings() {
+    await this.saveSection("notifications");
+  }
+
+  async saveBackupSettings() {
+    await this.saveSection("backup");
+    await this.saveSection("security");
   }
 
   // Utility methods
   showNotification(message, type = "info") {
-    // Create notification element
+    // Premium standard notification implementation
     const notification = document.createElement("div");
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-            <span class="notification-icon">${type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️"}</span>
-            <span class="notification-message">${message}</span>
-            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
-        `;
+    notification.className = `glass-notification notification-${type}`;
+    
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
 
-    // Add to page
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.25rem;">${icons[type] || icons.info}</span>
+        <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px; font-size:18px;">×</button>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      min-width: 320px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 99999;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+    `;
+
+    // Type-specific left border accent
+    const colors = {
+      success: "#10b981",
+      error: "#ef4444",
+      warning: "#f59e0b",
+      info: "#3b82f6"
+    };
+    notification.style.borderLeft = `5px solid ${colors[type] || colors.info}`;
+
+    // Add animation styles if not present
+    if (!document.getElementById("notif-styles")) {
+      const style = document.createElement("style");
+      style.id = "notif-styles";
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     document.body.appendChild(notification);
 
-    // Auto remove after 3 seconds
     setTimeout(() => {
       if (notification.parentElement) {
-        notification.remove();
+        notification.style.animation = "slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards";
+        setTimeout(() => notification.remove(), 400);
       }
-    }, 3000);
+    }, 4000);
   }
 
   exportSettings() {
@@ -1839,7 +1959,136 @@ class PharmacySettings extends Component {
   }
 
   editRole(roleId) {
-    this.showNotification(`Edit role ${roleId} feature coming soon!`, "info");
+    const role = this.settingsData.users.roles.find((r) => r.id === roleId);
+    if (!role) return;
+
+    if (document.getElementById("editRoleModal")) return;
+
+    const allPermissions = [
+      "All modules",
+      "User management",
+      "System settings",
+      "Reports",
+      "Audit logs",
+      "Price management",
+      "Inventory view",
+      "Medicine safety check",
+      "Prescriptions",
+      "Dispensing",
+      "Sales (POS)",
+      "Customer lookup",
+      "Hold/resume bills",
+      "End of day report",
+      "Inventory management",
+      "GRN entry",
+      "Purchase orders",
+      "Stock adjustments",
+      "Supplier management",
+      "All reports",
+      "Sales reports",
+      "Inventory reports",
+      "Staff oversight",
+      "Void approvals",
+      "Refund approval",
+    ];
+
+    const modal = document.createElement("div");
+    modal.id = "editRoleModal";
+    modal.className = "inventory-modal-overlay";
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+
+    let checkboxesHtml = allPermissions
+      .map(
+        (perm) => `
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; cursor: pointer; background: rgba(255,255,255,0.5); padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05);">
+            <input type="checkbox" value="${perm}" class="role-permission-cb" ${role.permissions.includes(perm) ? "checked" : ""} style="margin: 0;">
+            ${perm}
+        </label>
+    `,
+      )
+      .join("");
+
+    modal.innerHTML = `
+        <div class="inventory-modal glass-card" style="width: 500px; max-height: 90vh; overflow-y: auto; padding: 2rem; border-radius: 16px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #0f172a;">Edit Role: ${role.name}</h3>
+                <button id="closeEditRoleBtn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; color: #475569;">Role Name</label>
+                <input type="text" id="editRoleNameInput" value="${role.name}" 
+                       style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; color: #475569;">Permissions</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    ${checkboxesHtml}
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                <button id="cancelEditRoleBtn" style="padding: 0.6rem 1.2rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; font-weight: 600; color: #64748b; cursor: pointer;">Cancel</button>
+                <button id="saveEditRoleBtn" style="padding: 0.6rem 1.2rem; border-radius: 8px; border: none; background: #007513; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px rgba(0,117,19,0.2);">Save Changes</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector("#closeEditRoleBtn");
+    const cancelBtn = modal.querySelector("#cancelEditRoleBtn");
+    const saveBtn = modal.querySelector("#saveEditRoleBtn");
+    const nameInput = modal.querySelector("#editRoleNameInput");
+
+    const closeModal = () => modal.remove();
+
+    closeBtn.onclick = closeModal;
+    cancelBtn.onclick = closeModal;
+
+    saveBtn.onclick = () => {
+      const newName = nameInput.value.trim();
+      if (!newName) {
+        this.showNotification("Role name cannot be empty", "error");
+        return;
+      }
+
+      const checkedBoxes = modal.querySelectorAll(
+        ".role-permission-cb:checked",
+      );
+      const newPermissions = Array.from(checkedBoxes).map((cb) => cb.value);
+
+      role.name = newName;
+      role.permissions = newPermissions;
+
+      this.markAsChanged();
+
+      // Re-render the user settings panel
+      const panel = document.getElementById("usersPanel");
+      if (panel) {
+        panel.innerHTML = this.renderUserSettings();
+      }
+
+      this.showNotification("Role updated successfully!", "success");
+      closeModal();
+    };
+
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
   }
 
   deleteRole(roleId) {
